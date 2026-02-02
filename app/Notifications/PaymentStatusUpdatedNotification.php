@@ -1,0 +1,94 @@
+<?php
+
+namespace App\Notifications;
+
+use App\Models\Invoice;
+use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Notification;
+
+class PaymentStatusUpdatedNotification extends Notification
+{
+    use Queueable;
+    public $invoice;
+    public $status;
+    public $notes;
+
+    /**
+     * Create a new notification instance.
+     */
+    public function __construct(Invoice $invoice, string $status, ?string $notes = null)
+    {
+        $this->invoice = $invoice;
+        $this->status = $status; // 'paid' (approved) or 'pending' (rejected - backend sets it back to pending)
+        $this->notes = $notes;
+    }
+
+    /**
+     * Get the notification's delivery channels.
+     *
+     * @return array<int, string>
+     */
+    public function via(object $notifiable): array
+    {
+        return ['database', 'broadcast'];
+    }
+
+    /**
+     * Get the array representation of the notification.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(object $notifiable): array
+    {
+        $tenant = $this->invoice->tenant;
+        $statusText = $this->status === 'paid' ? 'APROBADO' : 'RECHAZADO';
+        $message = "Tu pago para la factura #{$this->invoice->id} ha sido {$statusText}.";
+
+        if ($this->status !== 'paid' && $this->notes) {
+            $message .= " Motivo: {$this->notes}";
+        }
+
+        return [
+            'invoice_id' => $this->invoice->id,
+            'status' => $this->status,
+            'message' => $message,
+            'type' => 'payment_status_updated',
+            'url' => route('tenant.invoices.show', ['tenant' => $tenant->slug, 'invoice' => $this->invoice->id]),
+        ];
+    }
+
+    /**
+     * Get the broadcast representation of the notification.
+     */
+    public function toBroadcast(object $notifiable): BroadcastMessage
+    {
+        $tenant = $this->invoice->tenant;
+        $statusText = $this->status === 'paid' ? 'APROBADO' : 'RECHAZADO';
+        $message = "Tu pago para la factura #{$this->invoice->id} ha sido {$statusText}.";
+
+        return new BroadcastMessage([
+            'invoice_id' => $this->invoice->id,
+            'status' => $this->status,
+            'message' => $message,
+            'type' => 'payment_status_updated',
+            'url' => route('tenant.invoices.show', ['tenant' => $tenant->slug, 'invoice' => $this->invoice->id]),
+        ]);
+    }
+
+    /**
+     * Determine the broadcast channel.
+     */
+    public function broadcastOn()
+    {
+        return ['tenant-updates.' . $this->invoice->tenant_id];
+    }
+
+    /**
+     * Get the broadcast name.
+     */
+    public function broadcastType()
+    {
+        return 'payment.status_updated';
+    }
+}
