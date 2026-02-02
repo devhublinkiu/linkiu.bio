@@ -19,3 +19,7 @@ Este módulo permite la gestión de categorías para organizar los elementos pri
 - [ ] Definir estructura de base de datos.
 - [ ] Crear CRUD en backend.
 - [ ] Crear vistas en frontend (Lista y Formulario).
+
+
+
+## PROPUESTA ##

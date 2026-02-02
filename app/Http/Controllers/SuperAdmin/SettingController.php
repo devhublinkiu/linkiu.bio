@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.settings.view')->only('index');
+        $this->middleware('sa.permission:sa.settings.update')->only('update');
+    }
+
     public function index()
     {
         $settings = SiteSetting::firstOrCreate(

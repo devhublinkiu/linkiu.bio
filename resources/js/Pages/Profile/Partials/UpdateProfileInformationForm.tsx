@@ -5,17 +5,21 @@ import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { PageProps } from '@/types';
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
     status,
     className = '',
+    onPermissionDenied,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
     className?: string;
+    onPermissionDenied: () => void;
 }) {
-    const user = usePage().props.auth.user;
+    const { auth } = usePage<PageProps>().props;
+    const user = auth.user;
 
     const { data, setData, patch, errors, processing, recentlySuccessful } =
         useForm({
@@ -23,8 +27,19 @@ export default function UpdateProfileInformation({
             email: user.email,
         });
 
+    const permissions = auth.permissions || [];
+    const isSuperAdminEnv = auth.user?.is_super_admin ||
+        (permissions.some(p => p.startsWith('sa.')) && !auth.user?.tenant_id);
+
+    const canUpdate = !isSuperAdminEnv || permissions.includes('*') || permissions.includes('sa.account.update');
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+
+        if (!canUpdate) {
+            onPermissionDenied();
+            return;
+        }
 
         patch(route('profile.update'));
     };

@@ -15,20 +15,22 @@ return new class extends Migration {
 
             // File Information
             $table->string('name'); // Original filename
-            $table->string('path'); // Storage path
+            $table->string('path')->nullable(); // Storage path (nullable for folders)
             $table->string('disk')->default('s3'); // Storage disk
             $table->string('mime_type')->nullable();
             $table->unsignedBigInteger('size')->nullable(); // Size in bytes
             $table->string('extension')->nullable();
 
+            // Ownership
+            $table->string('tenant_id')->nullable()->index(); // For multi-tenancy
+            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+
             // Metadata
             $table->string('type')->nullable(); // image, document, video, etc.
-            $table->string('folder')->default('uploads'); // Organizational folder
+            $table->string('folder')->nullable(); // Organizational folder (nullable = root)
+            $table->text('alt_text')->nullable(); // Used for images
             $table->text('description')->nullable();
             $table->json('metadata')->nullable(); // Width, height, duration, etc.
-
-            // Ownership
-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
 
             // URLs
             $table->text('url')->nullable(); // Public URL

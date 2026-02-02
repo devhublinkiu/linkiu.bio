@@ -1,5 +1,5 @@
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -19,12 +19,28 @@ import {
     Type,
     Code
 } from 'lucide-react';
-import { FormEventHandler, useRef } from 'react';
+import { FormEventHandler, useState } from 'react';
 import { toast } from 'sonner';
+import { MediaInput } from '@/Components/Shared/MediaManager/MediaInput';
+import { PageProps } from '@/types';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tenantSettings: any, tenant: any, slugChangePrice: number }) {
-    const fileInputLogo = useRef<HTMLInputElement>(null);
-    const fileInputFavicon = useRef<HTMLInputElement>(null);
+    const { currentUserRole } = usePage<PageProps>().props;
+
+    const canUpdate = currentUserRole?.is_owner ||
+        currentUserRole?.permissions?.includes('*') ||
+        currentUserRole?.permissions?.includes('settings.update');
+
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    const checkPermissionAndExecute = (action: () => void) => {
+        if (canUpdate) {
+            action();
+        } else {
+            setShowPermissionModal(true);
+        }
+    };
 
     const { data, setData, patch, processing, errors } = useForm({
         store_name: tenantSettings.store_name || tenant.name,
@@ -46,43 +62,24 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
 
     const submitSettings: FormEventHandler = (e) => {
         e.preventDefault();
-        patch(route('tenant.settings.update', { tenant: tenant.slug }), {
-            onSuccess: () => toast.success('Configuración guardada'),
-            onError: () => toast.error('Error al guardar la configuración'),
+        checkPermissionAndExecute(() => {
+            patch(route('tenant.settings.update', { tenant: tenant.slug }), {
+                onSuccess: () => toast.success('Configuración guardada'),
+                onError: () => toast.error('Error al guardar la configuración'),
+            });
         });
-    };
-
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append('logo', file);
-            import('@inertiajs/react').then(({ router }) => {
-                router.post(route('tenant.settings.logo.update', { tenant: tenant.slug }), formData, {
-                    forceFormData: true,
-                    onSuccess: () => toast.success('Logo actualizado'),
-                });
-            });
-        }
-    };
-
-    const handleFaviconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append('favicon', file);
-            import('@inertiajs/react').then(({ router }) => {
-                router.post(route('tenant.settings.favicon.update', { tenant: tenant.slug }), formData, {
-                    forceFormData: true,
-                    onSuccess: () => toast.success('Favicon actualizado'),
-                });
-            });
-        }
     };
 
     return (
         <AdminLayout title="Configuración">
             <Head title="Configuración - Linkiu.Bio" />
+
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+                title="Acción Denegada"
+                description="No tienes permisos para modificar la configuración de la tienda. Contacta al el administrador para solicitar acceso."
+            />
 
             <div className="max-w-5xl mx-auto py-8 px-4">
                 <form onSubmit={submitSettings}>
@@ -118,46 +115,50 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                     </CardHeader>
                                     <CardContent className="space-y-8">
                                         <div className="flex items-center gap-6">
-                                            <div className="h-24 w-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group">
-                                                {tenant.logo_url ? (
-                                                    <img src={tenant.logo_url} className="h-full w-full object-contain p-2" alt="Logo" />
-                                                ) : (
-                                                    <ImageIcon className="w-8 h-8 text-slate-300" />
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => fileInputLogo.current?.click()}
-                                                    className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                                >
-                                                    <Upload className="w-6 h-6" />
-                                                </button>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="font-bold text-slate-900">Logo Principal</p>
-                                                <p className="text-xs text-slate-500">Recomendado: (PNG/SVG)</p>
-                                                <input type="file" ref={fileInputLogo} onChange={handleLogoChange} className="hidden" accept="image/*" />
+                                            <div className="space-y-1 w-full max-w-xs">
+                                                <MediaInput
+                                                    label="Logo Principal"
+                                                    value={tenant.logo_url}
+                                                    onChange={(url) => {
+                                                        if (url) {
+                                                            checkPermissionAndExecute(() => {
+                                                                router.post(route('tenant.settings.logo.update', { tenant: tenant.slug }), { logo: url }, {
+                                                                    onSuccess: () => toast.success('Logo actualizado'),
+                                                                    onError: () => toast.error('Error al actualizar el logo'),
+                                                                    preserveScroll: true,
+                                                                });
+                                                            });
+                                                        }
+                                                    }}
+                                                    placeholder="Cambiar Logo"
+                                                    disabled={!canUpdate}
+                                                    onDisabledClick={() => setShowPermissionModal(true)}
+                                                />
+                                                <p className="text-xs text-slate-500 mt-1">Recomendado: (PNG/SVG)</p>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center gap-6">
-                                            <div className="h-12 w-12 rounded-lg bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group">
-                                                {tenantSettings.favicon_path ? (
-                                                    <img src={tenantSettings.favicon_url /* Check this in backend */} className="h-full w-full object-contain p-1" alt="Favicon" />
-                                                ) : (
-                                                    <div className="w-4 h-4 bg-slate-200 rounded-sm" />
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => fileInputFavicon.current?.click()}
-                                                    className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                                >
-                                                    <Upload className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <p className="font-bold text-slate-900">Favicon</p>
-                                                <p className="text-xs text-slate-500">Icono de pestaña (32x32px)</p>
-                                                <input type="file" ref={fileInputFavicon} onChange={handleFaviconChange} className="hidden" accept="image/*" />
+                                            <div className="space-y-1 w-full max-w-xs">
+                                                <MediaInput
+                                                    label="Favicon"
+                                                    value={tenantSettings.favicon_url}
+                                                    onChange={(url) => {
+                                                        if (url) {
+                                                            checkPermissionAndExecute(() => {
+                                                                router.post(route('tenant.settings.favicon.update', { tenant: tenant.slug }), { favicon: url }, {
+                                                                    onSuccess: () => toast.success('Favicon actualizado'),
+                                                                    onError: () => toast.error('Error al actualizar el favicon'),
+                                                                    preserveScroll: true,
+                                                                });
+                                                            });
+                                                        }
+                                                    }}
+                                                    placeholder="Cambiar Favicon"
+                                                    disabled={!canUpdate}
+                                                    onDisabledClick={() => setShowPermissionModal(true)}
+                                                />
+                                                <p className="text-xs text-slate-500 mt-1">Icono de pestaña (32x32px)</p>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -175,6 +176,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.store_name}
                                                 onChange={e => setData('store_name', e.target.value)}
                                                 placeholder="Nombre visible"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
 
@@ -198,6 +200,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                         onChange={e => setData('slug', e.target.value)}
                                                         className="pl-[78px]"
                                                         placeholder="tu-negocio"
+                                                        disabled={!canUpdate}
                                                     />
                                                 </div>
                                             </div>
@@ -217,6 +220,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 onChange={e => setData('store_description', e.target.value)}
                                                 maxLength={60}
                                                 placeholder="Una breve frase sobre tu negocio"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                     </CardContent>
@@ -243,6 +247,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.bg_color}
                                                 onChange={e => setData('bg_color', e.target.value)}
                                                 className="h-12 p-1 cursor-pointer"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                         <div className="space-y-3">
@@ -258,6 +263,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.name_color}
                                                 onChange={e => setData('name_color', e.target.value)}
                                                 className="h-12 p-1 cursor-pointer"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                         <div className="space-y-3">
@@ -273,6 +279,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.description_color}
                                                 onChange={e => setData('description_color', e.target.value)}
                                                 className="h-12 p-1 cursor-pointer"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                     </div>
@@ -294,6 +301,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                             value={data.meta_title}
                                             onChange={e => setData('meta_title', e.target.value)}
                                             placeholder="Ej: Tienda de Ropa Online | MiMarca"
+                                            disabled={!canUpdate}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -303,6 +311,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                             onChange={e => setData('meta_description', e.target.value)}
                                             className="w-full flex min-h-[100px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                                             placeholder="Describe tu tienda para los resultados de búsqueda..."
+                                            disabled={!canUpdate}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -311,6 +320,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                             value={data.meta_keywords}
                                             onChange={e => setData('meta_keywords', e.target.value)}
                                             placeholder="ropa, moda, estilo, bio-link"
+                                            disabled={!canUpdate}
                                         />
                                     </div>
                                 </CardContent>
@@ -329,6 +339,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                         <Switch
                                             checked={data.maintenance_mode}
                                             onCheckedChange={(checked) => setData('maintenance_mode', checked)}
+                                            disabled={!canUpdate}
                                         />
                                     </div>
                                 </CardContent>
@@ -353,6 +364,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.facebook_pixel_id}
                                                 onChange={e => setData('facebook_pixel_id', e.target.value)}
                                                 placeholder="Ej: 123456789012345"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -364,6 +376,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.google_analytics_id}
                                                 onChange={e => setData('google_analytics_id', e.target.value)}
                                                 placeholder="Ej: G-XXXXXXXXXX"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -375,6 +388,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                 value={data.tiktok_pixel_id}
                                                 onChange={e => setData('tiktok_pixel_id', e.target.value)}
                                                 placeholder="Ej: CXXXXXXXXXXXXXXXXX"
+                                                disabled={!canUpdate}
                                             />
                                         </div>
                                     </div>

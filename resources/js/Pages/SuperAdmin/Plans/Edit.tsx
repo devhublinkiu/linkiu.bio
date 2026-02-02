@@ -11,6 +11,7 @@ import { Switch } from '@/Components/ui/switch';
 import { Separator } from '@/Components/ui/separator';
 import { Trash2, ArrowLeft, Upload, Calculator, Plus } from 'lucide-react';
 import { Checkbox } from '@/Components/ui/checkbox';
+import { MediaInput } from '@/Components/Shared/MediaManager/MediaInput';
 import { VERTICAL_CONFIG, MODULE_LABELS } from '@/Config/menuConfig';
 
 interface Vertical {
@@ -39,6 +40,7 @@ interface Plan {
     sort_order: number;
     features: any[] | null;
     cover_url: string | null;
+    cover_path?: string | null; // Added cover_path
 }
 
 interface Props {
@@ -68,6 +70,7 @@ export default function Edit({ plan, verticals }: Props) {
         sort_order: plan.sort_order,
         features: plan.features?.filter(f => typeof f === 'string') || [''],
         cover: null as File | null,
+        cover_path: plan.cover_path || '', // Initialize with existing path
         cover_preview: plan.cover_url,
     });
 
@@ -246,20 +249,26 @@ export default function Edit({ plan, verticals }: Props) {
 
                             <div className="space-y-2">
                                 <Label>Imagen de Portada / Icono</Label>
-                                <div className="flex items-center gap-4 border rounded-lg p-4 bg-gray-50 border-dashed">
-                                    <div className="h-20 w-32 bg-white border rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        {data.cover_preview ? (
-                                            <img src={data.cover_preview} alt="Preview" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <Upload className="h-8 w-8 text-gray-300" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <Input type="file" accept="image/*" onChange={handleFileChange} />
-                                        <p className="text-xs text-muted-foreground mt-2">Recomendado: 800x600px o Icono SVG.</p>
-                                    </div>
-                                </div>
-                                {errors.cover && <p className="text-red-500 text-sm">{errors.cover}</p>}
+                                <MediaInput
+                                    value={data.cover_preview}
+                                    onChange={(url, file) => {
+                                        if (url) {
+                                            setData((prev) => ({
+                                                ...prev,
+                                                cover_preview: url,
+                                                cover_path: file?.path || ''
+                                            }));
+                                        } else {
+                                            setData((prev) => ({
+                                                ...prev,
+                                                cover_preview: null,
+                                                cover_path: ''
+                                            }));
+                                        }
+                                    }}
+                                    error={errors.cover}
+                                />
+                                <p className="text-xs text-muted-foreground mt-2">Recomendado: 800x600px o Icono SVG.</p>
                             </div>
                         </CardContent>
                     </Card>

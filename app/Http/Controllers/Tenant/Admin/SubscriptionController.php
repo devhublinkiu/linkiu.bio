@@ -13,6 +13,7 @@ class SubscriptionController extends Controller
 {
     public function index($tenant)
     {
+        \Illuminate\Support\Facades\Gate::authorize('billing.view');
         $tenant = app('currentTenant')->load(['latestSubscription.plan', 'vertical']);
 
         // If tenant has a vertical, filter by it. Otherwise show all public plans.
@@ -36,6 +37,7 @@ class SubscriptionController extends Controller
 
     public function changePlan(Request $request, $tenant)
     {
+        \Illuminate\Support\Facades\Gate::authorize('billing.update');
         $request->validate([
             'plan_id' => 'required|exists:plans,id',
             'billing_cycle' => 'required|in:monthly,yearly',

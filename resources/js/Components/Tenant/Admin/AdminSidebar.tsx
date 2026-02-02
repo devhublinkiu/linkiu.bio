@@ -29,10 +29,42 @@ interface NavGroup {
     items: NavItem[];
 }
 
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+
+const MODULE_PERMISSIONS: Record<string, string> = {
+    'settings': 'settings.view',
+    'members': 'users.view', // Assuming 'members' is the key for Team
+    'roles': 'roles.view',
+    'files': 'media.view', // Corrected key from 'media' to 'files' as per menuConfig
+    'subscription': 'billing.view',
+    'billing': 'billing.view',
+    // Add others if needed, but these are the requested ones
+};
+
 export default function AdminSidebar() {
-    const { auth, currentTenant } = usePage<PageProps & { currentTenant: any }>().props;
+    const { auth, currentTenant, currentUserRole } = usePage<PageProps & { currentTenant: any, currentUserRole: any }>().props;
     const user = auth?.user;
     const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    const checkPermission = (moduleKey: string) => {
+        const permission = MODULE_PERMISSIONS[moduleKey];
+        if (!permission) return true; // No restriction defined
+
+        if (!currentUserRole) return false;
+        if (currentUserRole.is_owner) return true;
+        return currentUserRole.permissions.includes('*') || currentUserRole.permissions.includes(permission);
+    };
+
+    const handleNavigation = (e: React.MouseEvent, moduleKey: string) => {
+        if (!checkPermission(moduleKey)) {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowPermissionModal(true);
+            return false;
+        }
+        return true;
+    };
 
     const toggleSubmenu = (key: string) => {
         setOpenSubmenus(prev => ({ ...prev, [key]: !prev[key] }));
@@ -80,6 +112,11 @@ export default function AdminSidebar() {
 
     return (
         <div className="flex flex-col h-full bg-white border-r border-slate-200/60 shadow-sm">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
+
             {/* Header: Name + Verified Badge */}
             {/* Header: Verified Badge */}
             <div className="px-4 py-4 pt-6">
@@ -162,7 +199,14 @@ export default function AdminSidebar() {
                                     <div key={item.key}>
                                         {hasChildren ? (
                                             <button
-                                                onClick={() => toggleSubmenu(item.key)}
+                                                onClick={(e) => {
+                                                    // For submenus, maybe we check permission before opening?
+                                                    // "Roles" might have submenu? "Settings" might.
+                                                    // Logic: If click -> check permission.
+                                                    if (handleNavigation(e, item.key)) {
+                                                        toggleSubmenu(item.key);
+                                                    }
+                                                }}
                                                 className={cn(
                                                     "w-full group flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-200",
                                                     (isActive || isSubmenuOpen)
@@ -180,6 +224,8 @@ export default function AdminSidebar() {
                                         ) : (
                                             <Link
                                                 href={item.route === '#' ? '#' : route(item.route, { tenant: currentTenant.slug })}
+                                                title={item.route} // Debug: Show route name on hover
+                                                onClick={(e) => handleNavigation(e, item.key)}
                                                 className={cn(
                                                     "group flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-200",
                                                     isActive
@@ -254,9 +300,12 @@ export default function AdminSidebar() {
                                     className="w-full bg-slate-800 hover:bg-slate-700 text-white border border-slate-700/50 shadow-lg group transition-all duration-300 hover:shadow-purple-500/20"
                                     asChild
                                 >
-                                    <Link href={route('tenant.subscription.index', { tenant: currentTenant.slug })}>
+                                    <Link
+                                        href={route('tenant.subscription.index', { tenant: currentTenant.slug })}
+                                        onClick={(e) => handleNavigation(e, 'subscription')}
+                                    >
                                         <Sparkles className="mr-2 h-4 w-4 text-fuchsia-400 group-hover:scale-110 transition-transform duration-300" />
-                                        <span className="font-bold tracking-wide">Mejorar Plan</span>
+                                        <span className="font-medium text-xs tracking-wide">Ver planes y facturación</span>
                                     </Link>
                                 </Button>
                             </div>

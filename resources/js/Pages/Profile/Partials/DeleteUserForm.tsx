@@ -4,16 +4,26 @@ import InputLabel from '@/Components/InputLabel';
 import Modal from '@/Components/Modal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef, useState } from 'react';
+import { PageProps } from '@/types';
 
 export default function DeleteUserForm({
     className = '',
+    onPermissionDenied,
 }: {
     className?: string;
+    onPermissionDenied: () => void;
 }) {
     const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
     const passwordInput = useRef<HTMLInputElement>(null);
+
+    const { auth } = usePage<PageProps>().props;
+    const permissions = auth.permissions || [];
+    const isSuperAdminEnv = auth.user?.is_super_admin ||
+        (permissions.some(p => p.startsWith('sa.')) && !auth.user?.tenant_id);
+
+    const canDelete = !isSuperAdminEnv || permissions.includes('*') || permissions.includes('sa.account.delete');
 
     const {
         data,
@@ -28,6 +38,10 @@ export default function DeleteUserForm({
     });
 
     const confirmUserDeletion = () => {
+        if (!canDelete) {
+            onPermissionDenied();
+            return;
+        }
         setConfirmingUserDeletion(true);
     };
 

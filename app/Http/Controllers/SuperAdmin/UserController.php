@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
@@ -11,6 +12,14 @@ use Illuminate\Validation\Rules;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.users.view')->only(['index']);
+        $this->middleware('sa.permission:sa.users.create')->only(['create', 'store']);
+        $this->middleware('sa.permission:sa.users.update')->only(['edit', 'update']);
+        $this->middleware('sa.permission:sa.users.delete')->only(['destroy']);
+    }
+
     public function index(Request $request)
     {
         $query = User::with('tenants');
@@ -38,8 +47,37 @@ class UserController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        $roles = Role::whereNull('tenant_id')->get(); // Global roles
+
+        return Inertia::render('SuperAdmin/Users/Create', [
+            'roles' => $roles
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role_id' => 'nullable|exists:roles,id',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role_id' => $validated['role_id'] ?? null,
+        ]);
+
+        return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
+    }
+
     public function update(Request $request, User $user)
     {
+        // ... (existing update logic)
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,

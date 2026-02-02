@@ -1,5 +1,5 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
@@ -7,6 +7,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Plus, Search, Store, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 // Interfaces
 interface Tenant {
@@ -33,6 +34,11 @@ interface Props {
 }
 
 export default function Index({ tenants, filters }: Props) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
     const [search, setSearch] = useState(filters.search || '');
 
     const handleSearch = (e: React.FormEvent) => {
@@ -40,8 +46,19 @@ export default function Index({ tenants, filters }: Props) {
         router.get(route('tenants.index'), { search }, { preserveState: true });
     };
 
+    const handleCreateClick = (e: React.MouseEvent) => {
+        if (!hasPermission('sa.tenants.create')) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
+    };
+
     return (
         <SuperAdminLayout header="Gestión de Tiendas">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Tiendas" />
 
             <div className="space-y-6">
@@ -56,7 +73,7 @@ export default function Index({ tenants, filters }: Props) {
                         />
                     </form>
                     <Button asChild>
-                        <Link href={route('tenants.create')}>
+                        <Link href={route('tenants.create')} onClick={handleCreateClick}>
                             <Plus className="h-4 w-4 mr-2" />
                             Nueva Tienda
                         </Link>

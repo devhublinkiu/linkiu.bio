@@ -33,16 +33,21 @@ class SettingsController extends Controller
      */
     public function edit(Request $request): Response
     {
+        \Illuminate\Support\Facades\Gate::authorize('settings.view');
+
         $tenant = $this->getTenant();
         $settings = $tenant->settings ?? [];
 
         // Prepare URLs for assets
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
         if (isset($settings['logo_path'])) {
-            $settings['logo_url'] = Storage::disk('s3')->url($settings['logo_path']);
+            $settings['logo_url'] = $disk->url($settings['logo_path']);
         }
 
         if (isset($settings['favicon_path'])) {
-            $settings['favicon_url'] = Storage::disk('s3')->url($settings['favicon_path']);
+            $settings['favicon_url'] = $disk->url($settings['favicon_path']);
         }
 
         return Inertia::render('Tenant/Admin/Settings/Edit', [
@@ -58,6 +63,8 @@ class SettingsController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        \Illuminate\Support\Facades\Gate::authorize('settings.update');
+
         $tenant = $this->getTenant();
 
         $validated = $request->validate([
@@ -129,21 +136,43 @@ class SettingsController extends Controller
     /**
      * Update the tenant's logo.
      */
+    /**
+     * Update the tenant's logo.
+     */
     public function updateLogo(Request $request): RedirectResponse
     {
         $request->validate([
-            'logo' => ['required', 'image', 'max:2048'],
+            'logo' => ['required', 'string'], // Allow string (URL) or file? Validation is tricky.
+            // If it's a file, 'image' rule works. If string, it fails.
+            // Let's remove validation here and check manually or use conditional rules.
         ]);
+
+        // Manual validation since it can be string or file
+        $input = $request->input('logo') ?? $request->file('logo');
+        if (!$input) {
+            return Redirect::back()->withErrors(['logo' => 'Logo requerido']);
+        }
 
         $tenant = $this->getTenant();
         $settings = $tenant->settings ?? [];
 
-        if (isset($settings['logo_path'])) {
-            Storage::disk('s3')->delete($settings['logo_path']);
+        if (is_string($input)) {
+            // It's a URL from Media Manager
+            $settings['logo_url'] = $input;
+            // Optional: unset logo_path if you want to prefer the URL
+            if (isset($settings['logo_path'])) {
+                // Should we delete the old S3 file? Maybe not, to be safe.
+                unset($settings['logo_path']);
+            }
+        } elseif ($request->hasFile('logo')) {
+            // It's a file upload
+            if (isset($settings['logo_path'])) {
+                Storage::disk('s3')->delete($settings['logo_path']);
+            }
+            $path = $request->file('logo')->store('tenants/logos', 's3');
+            $settings['logo_path'] = $path;
+            unset($settings['logo_url']); // Clear URL preference
         }
-
-        $path = $request->file('logo')->store('tenants/logos', 's3');
-        $settings['logo_path'] = $path;
 
         $tenant->update(['settings' => $settings]);
 
@@ -155,19 +184,28 @@ class SettingsController extends Controller
      */
     public function updateFavicon(Request $request): RedirectResponse
     {
-        $request->validate([
-            'favicon' => ['required', 'image', 'max:1024'],
-        ]);
+        // Manual validation 
+        $input = $request->input('favicon') ?? $request->file('favicon');
+        if (!$input) {
+            return Redirect::back()->withErrors(['favicon' => 'Favicon requerido']);
+        }
 
         $tenant = $this->getTenant();
         $settings = $tenant->settings ?? [];
 
-        if (isset($settings['favicon_path'])) {
-            Storage::disk('s3')->delete($settings['favicon_path']);
+        if (is_string($input)) {
+            $settings['favicon_url'] = $input;
+            if (isset($settings['favicon_path'])) {
+                unset($settings['favicon_path']);
+            }
+        } elseif ($request->hasFile('favicon')) {
+            if (isset($settings['favicon_path'])) {
+                Storage::disk('s3')->delete($settings['favicon_path']);
+            }
+            $path = $request->file('favicon')->store('tenants/favicons', 's3');
+            $settings['favicon_path'] = $path;
+            unset($settings['favicon_url']);
         }
-
-        $path = $request->file('favicon')->store('tenants/favicons', 's3');
-        $settings['favicon_path'] = $path;
 
         $tenant->update(['settings' => $settings]);
 

@@ -1,5 +1,5 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, Link, router } from '@inertiajs/react'; // Add router import
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -15,7 +15,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/Components/ui/alert-dialog"; // Add AlertDialog imports
+} from "@/Components/ui/alert-dialog";
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import { useState } from 'react';
 
 interface Plan {
     id: number;
@@ -34,12 +36,43 @@ interface Props {
 }
 
 export default function Index({ plans }: Props) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
     const handleDelete = (id: number) => {
-        router.delete(route('plans.destroy', id));
+        if (!hasPermission('sa.plans.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
+        router.delete(route('plans.destroy', id), {
+            onSuccess: () => {
+                // handle success if needed
+            }
+        });
+    };
+
+    const handleCreateClick = (e: React.MouseEvent) => {
+        if (!hasPermission('sa.plans.create')) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
+    };
+
+    const handleEditClick = (e: React.MouseEvent) => {
+        if (!hasPermission('sa.plans.update')) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
     };
 
     return (
         <SuperAdminLayout header="Planes de Suscripción">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Planes" />
 
             <div className="max-w-7xl mx-auto py-6">
@@ -49,7 +82,7 @@ export default function Index({ plans }: Props) {
                         <p className="text-muted-foreground">Gestiona la oferta comercial por verticales y monedas.</p>
                     </div>
                     <Button asChild>
-                        <Link href={route('plans.create')}>
+                        <Link href={route('plans.create')} onClick={handleCreateClick}>
                             <Plus className="mr-2 h-4 w-4" />
                             Crear Nuevo Plan
                         </Link>
@@ -123,31 +156,42 @@ export default function Index({ plans }: Props) {
                                                     </Link>
                                                 </Button>
                                                 <Button variant="ghost" size="icon" asChild>
-                                                    <Link href={route('plans.edit', plan.id)}>
+                                                    <Link href={route('plans.edit', plan.id)} onClick={handleEditClick}>
                                                         <Pencil className="h-4 w-4 text-blue-600" />
                                                     </Link>
                                                 </Button>
 
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={(e) => {
+                                                                if (!hasPermission('sa.plans.delete')) {
+                                                                    e.preventDefault();
+                                                                    setShowPermissionModal(true);
+                                                                }
+                                                            }}
+                                                        >
                                                             <Trash2 className="h-4 w-4 text-red-500" />
                                                         </Button>
                                                     </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Eliminar este plan?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Esta acción no se puede deshacer. El plan dejará de estar disponible para nuevas suscripciones.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDelete(plan.id)} className="bg-red-600 hover:bg-red-700">
-                                                                Eliminar
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
+                                                    {hasPermission('sa.plans.delete') && (
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>¿Eliminar este plan?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta acción no se puede deshacer. El plan dejará de estar disponible para nuevas suscripciones.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDelete(plan.id)} className="bg-red-600 hover:bg-red-700">
+                                                                    Eliminar
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    )}
                                                 </AlertDialog>
                                             </div>
                                         </TableCell>

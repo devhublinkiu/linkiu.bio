@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentUploadModal from '@/Components/Tenant/Admin/PaymentUploadModal';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import { PageProps } from '@/types';
 
 interface Plan {
     id: number;
@@ -72,11 +74,13 @@ interface Props {
 
 export default function Index({ tenant, plans, pendingInvoice }: Props) {
     const { props } = usePage<any>();
+    const { currentUserRole } = usePage<PageProps>().props;
     const flash = props.flash || {};
     const subscription = tenant.latest_subscription;
     const currentPlan = subscription?.plan;
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const [isUploadOpen, setIsUploadOpen] = useState(false);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [slugWarning, setSlugWarning] = useState<{
         show: boolean;
         currentSlug: string;
@@ -90,6 +94,21 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
         pendingPlanId: null,
         pendingBillingCycle: 'monthly'
     });
+
+    const checkPermission = (permission: string) => {
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner ||
+            currentUserRole.permissions.includes('*') ||
+            currentUserRole.permissions.includes(permission);
+    };
+
+    const handleActionWithPermission = (permission: string, action: () => void) => {
+        if (checkPermission(permission)) {
+            action();
+        } else {
+            setShowPermissionModal(true);
+        }
+    };
 
     // Handle slug warning from backend
     useEffect(() => {
@@ -108,13 +127,15 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
     }, [flash, props]);
 
     const handleAdvanceInvoice = () => {
-        router.post(route('tenant.subscription.advance-invoice', { tenant: tenant.slug }), {}, {
-            onSuccess: () => {
-                toast.success("Factura generada. Ya puedes reportar tu pago.");
-            },
-            onError: () => {
-                toast.error("Error al generar la factura anticipada");
-            }
+        handleActionWithPermission('billing.manage', () => {
+            router.post(route('tenant.subscription.advance-invoice', { tenant: tenant.slug }), {}, {
+                onSuccess: () => {
+                    toast.success("Factura generada. Ya puedes reportar tu pago.");
+                },
+                onError: () => {
+                    toast.error("Error al generar la factura anticipada");
+                }
+            });
         });
     };
 
@@ -124,23 +145,25 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
             return;
         }
 
-        router.post(route('tenant.subscription.change-plan', { tenant: tenant.slug }), {
-            plan_id: plan.id,
-            billing_cycle: billingCycle,
-            confirm_slug_loss: confirmSlugLoss
-        }, {
-            onSuccess: (page: any) => {
-                // Don't show success toast if slug warning is returned
-                if (page.props?.flash?.slug_warning) {
-                    return; // useEffect will handle showing the modal
+        handleActionWithPermission('billing.manage', () => {
+            router.post(route('tenant.subscription.change-plan', { tenant: tenant.slug }), {
+                plan_id: plan.id,
+                billing_cycle: billingCycle,
+                confirm_slug_loss: confirmSlugLoss
+            }, {
+                onSuccess: (page: any) => {
+                    // Don't show success toast if slug warning is returned
+                    if (page.props?.flash?.slug_warning) {
+                        return; // useEffect will handle showing the modal
+                    }
+                    toast.success("Solicitud de cambio procesada correctamente");
+                    setSlugWarning({ show: false, currentSlug: '', newAutoSlug: '', pendingPlanId: null, pendingBillingCycle: 'monthly' });
+                },
+                onError: (err) => {
+                    console.error(err);
+                    toast.error("Error al procesar el cambio de plan");
                 }
-                toast.success("Solicitud de cambio procesada correctamente");
-                setSlugWarning({ show: false, currentSlug: '', newAutoSlug: '', pendingPlanId: null, pendingBillingCycle: 'monthly' });
-            },
-            onError: (err) => {
-                console.error(err);
-                toast.error("Error al procesar el cambio de plan");
-            }
+            });
         });
     };
 
@@ -164,6 +187,11 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
     return (
         <AdminLayout>
             <Head title="Mi Plan y Suscripción" />
+
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
 
             <div className="max-w-6xl mx-auto space-y-10">
                 {/* Header Header */}
@@ -264,7 +292,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                                     <Eye className="w-4 h-4 mr-2" /> Detalle
                                                 </Link>
                                             </Button>
-                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-200" onClick={() => setIsUploadOpen(true)}>
+                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-200" onClick={() => handleActionWithPermission('billing.manage', () => setIsUploadOpen(true))}>
                                                 <Upload className="w-4 h-4 mr-2" /> Pagar Ahora
                                             </Button>
                                         </div>
@@ -395,7 +423,10 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                             ? "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-default shadow-none border-none"
                                             : "bg-primary text-white shadow-primary/20 hover:scale-[1.02]"
                                             }`}
-                                        onClick={() => handleSelectPlan(plan)}
+                                        onClick={(e) => {
+                                            if (plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle) return;
+                                            handleActionWithPermission('billing.manage', () => handleSelectPlan(plan));
+                                        }}
                                     >
                                         {plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle ? "Activo" : "Elegir Plan"}
                                     </Button>

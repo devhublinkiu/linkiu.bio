@@ -9,6 +9,11 @@ use Inertia\Inertia;
 
 class SubscriptionController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.subscriptions.view');
+    }
+
     public function index(Request $request)
     {
         $subscriptions = Subscription::with(['tenant', 'plan'])

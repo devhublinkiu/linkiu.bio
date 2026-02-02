@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -39,16 +39,23 @@ import {
     SelectValue
 } from "@/Components/ui/select"
 import { Checkbox } from '@/Components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Check, ShieldAlert, BadgeCheck, Plus, Pencil, Trash2, Search, Store } from 'lucide-react';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 
 export default function Index({ categories, verticals, filters, flash }: { categories: any[], verticals: any[], filters: any, flash: any }) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+
     // State
     const [createOpen, setCreateOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<any>(null);
     const [deletingCategory, setDeletingCategory] = useState<any>(null);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
 
     // Filters State
     const [search, setSearch] = useState(filters.search || '');
@@ -101,6 +108,10 @@ export default function Index({ categories, verticals, filters, flash }: { categ
     });
 
     const openEdit = (category: any) => {
+        if (!hasPermission('sa.categories.update')) {
+            setShowPermissionModal(true);
+            return;
+        }
         setEditingCategory(category);
         setEditData({
             name: category.name,
@@ -122,6 +133,10 @@ export default function Index({ categories, verticals, filters, flash }: { categ
 
     // Delete Logic
     const openDelete = (category: any) => {
+        if (!hasPermission('sa.categories.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
         setDeletingCategory(category);
         setDeleteOpen(true);
     };
@@ -135,6 +150,10 @@ export default function Index({ categories, verticals, filters, flash }: { categ
 
     return (
         <SuperAdminLayout header="Categorías de Negocio">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Categorías" />
 
             {/* Header / Actions */}
@@ -146,7 +165,12 @@ export default function Index({ categories, verticals, filters, flash }: { categ
 
                 <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-blue-600 hover:bg-blue-700">
+                        <Button className="bg-blue-600 hover:bg-blue-700" onClick={(e) => {
+                            if (!hasPermission('sa.categories.create')) {
+                                e.preventDefault();
+                                setShowPermissionModal(true);
+                            }
+                        }}>
                             <Plus className="mr-2 h-4 w-4" />
                             Nueva Categoría
                         </Button>

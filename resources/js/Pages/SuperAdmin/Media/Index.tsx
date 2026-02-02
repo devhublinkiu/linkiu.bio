@@ -1,4 +1,5 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { useState, useRef } from 'react';
 import { Button } from '@/Components/ui/button';
@@ -83,6 +84,11 @@ const typeIcons = {
 };
 
 export default function Index({ files, stats, folders, filters }: Props) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
     const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -136,6 +142,10 @@ export default function Index({ files, stats, folders, filters }: Props) {
     };
 
     const handleDelete = (id: number) => {
+        if (!hasPermission('sa.media.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
         if (confirm('¿Estás seguro de eliminar este archivo?')) {
             router.delete(route('media.destroy', id), {
                 onSuccess: () => toast.success('Archivo eliminado'),
@@ -146,6 +156,11 @@ export default function Index({ files, stats, folders, filters }: Props) {
 
     const handleBulkDelete = () => {
         if (selectedFiles.length === 0) return;
+
+        if (!hasPermission('sa.media.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
 
         if (confirm(`¿Eliminar ${selectedFiles.length} archivo(s)?`)) {
             router.post(route('media.bulk-delete'), {
@@ -178,6 +193,10 @@ export default function Index({ files, stats, folders, filters }: Props) {
 
     const handleCreateFolder = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!hasPermission('sa.media.upload')) {
+            setShowPermissionModal(true);
+            return;
+        }
         folderForm.post(route('media.create-folder'), {
             onSuccess: () => {
                 toast.success('Carpeta creada correctamente');
@@ -191,6 +210,10 @@ export default function Index({ files, stats, folders, filters }: Props) {
     };
 
     const handleMoveFile = (fileId: number, newFolder: string) => {
+        if (!hasPermission('sa.media.upload')) {
+            setShowPermissionModal(true);
+            return;
+        }
         router.post(route('media.move', fileId), {
             folder: newFolder,
         }, {
@@ -214,6 +237,10 @@ export default function Index({ files, stats, folders, filters }: Props) {
 
     return (
         <SuperAdminLayout header="Gestión de Archivos">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Gestión de Archivos" />
 
             <div className="p-6 space-y-6">
@@ -227,7 +254,13 @@ export default function Index({ files, stats, folders, filters }: Props) {
                     </div>
 
                     <div className="flex gap-2">
-                        <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
+                        <Dialog open={folderDialogOpen} onOpenChange={(open) => {
+                            if (open && !hasPermission('sa.media.upload')) {
+                                setShowPermissionModal(true);
+                                return;
+                            }
+                            setFolderDialogOpen(open);
+                        }}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="gap-2">
                                     <FolderPlus className="w-4 h-4" />
@@ -260,7 +293,13 @@ export default function Index({ files, stats, folders, filters }: Props) {
                             </DialogContent>
                         </Dialog>
 
-                        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+                            if (open && !hasPermission('sa.media.upload')) {
+                                setShowPermissionModal(true);
+                                return;
+                            }
+                            setUploadDialogOpen(open);
+                        }}>
                             <DialogTrigger asChild>
                                 <Button className="gap-2">
                                     <Upload className="w-4 h-4" />

@@ -123,7 +123,7 @@ export const MODULE_ROUTES: Record<string, string> = {
     products: '#',
     product_drop: '#',
     variables: '#',
-    files: '#',
+    files: 'tenant.media.index',
     sliders: '#',
     inventory: '#',
     linkiupay: '#',
@@ -230,6 +230,7 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'reservations',
         'inventory',
         'kitchen',
+        'files', // Added Mis Archivos
         'integrations',
         'shipping', // Zonas de envio
         'payment_methods',

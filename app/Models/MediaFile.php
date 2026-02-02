@@ -12,14 +12,17 @@ class MediaFile extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'path',
+        'url',
         'disk',
         'mime_type',
         'size',
         'extension',
         'type',
         'folder',
+        'alt_text',
         'description',
         'metadata',
         'uploaded_by',

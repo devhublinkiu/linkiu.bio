@@ -16,3 +16,4 @@ Usa estos archivos para:
 1.  Documentar requerimientos.
 2.  Listar tareas pendientes.
 3.  Registrar decisiones técnicas.
+

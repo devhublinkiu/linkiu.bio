@@ -18,18 +18,7 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
-// Media Proxy Route for Local MinIO (Fixes Mixed Content HTTPS/HTTP)
-Route::get('/media/{path}', function ($path) {
-    /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-    $disk = Storage::disk('s3');
 
-    if (!$disk->exists($path)) {
-        abort(404);
-    }
-    $content = $disk->get($path);
-    $mime = $disk->mimeType($path);
-    return response($content)->header('Content-Type', $mime);
-})->where('path', '.*')->name('media.proxy');
 
 // Public Tenant Onboarding (Multi-step)
 Route::prefix('onboarding')->name('onboarding.')->group(function () {
@@ -58,6 +47,12 @@ Route::get('/register/tenant', fn() => redirect()->route('onboarding.step1'))->n
 Route::post('/auth/whatsapp/send', [\App\Http\Controllers\Auth\WhatsAppVerificationController::class, 'send'])->name('auth.whatsapp.send');
 Route::post('/auth/whatsapp/verify', [\App\Http\Controllers\Auth\WhatsAppVerificationController::class, 'verify'])->name('auth.whatsapp.verify');
 
+// Global Media Proxy (must be before other wildcard routes if any)
+// Handles /media/site-assets/... mapping to S3
+Route::get('/media/{path}', [\App\Http\Controllers\Shared\MediaController::class, 'file'])
+    ->where('path', '.*')
+    ->name('media.proxy');
+
 // 2. SuperAdmin Auth
 Route::prefix('superlinkiu')->group(function () {
     require __DIR__ . '/auth.php';
@@ -68,7 +63,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Notifications
+    // SuperAdmin Specific Profile (for internal naming consistency)
+    Route::prefix('superlinkiu')->name('superadmin.')->group(function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    });
+
     // Notifications
     Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.markAllRead');
     Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.markRead');
@@ -84,7 +85,8 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
 
     Route::resource('tenants', \App\Http\Controllers\SuperAdmin\TenantController::class);
     Route::resource('categories', \App\Http\Controllers\SuperAdmin\BusinessCategoryController::class)->except(['create', 'show', 'edit']);
-    Route::resource('users', \App\Http\Controllers\SuperAdmin\UserController::class)->except(['create', 'show', 'edit', 'store']);
+    Route::resource('users', \App\Http\Controllers\SuperAdmin\UserController::class)->except(['show', 'edit']);
+    Route::resource('roles', \App\Http\Controllers\SuperAdmin\RoleController::class);
 
     // Settings
     Route::get('/settings', [\App\Http\Controllers\SuperAdmin\SettingController::class, 'index'])->name('settings.index');
@@ -100,15 +102,21 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
     Route::put('/payments/{payment}', [\App\Http\Controllers\SuperAdmin\PaymentController::class, 'update'])->name('payments.update');
 
     // Media Management
+    // Media Management (Unified Shared Controller)
     Route::prefix('media')->name('media.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'index'])->name('index');
-        Route::post('/', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'store'])->name('store');
-        Route::post('/create-folder', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'createFolder'])->name('create-folder');
-        Route::post('/{mediaFile}/move', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'moveToFolder'])->name('move');
-        Route::get('/{mediaFile}', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'show'])->name('show');
-        Route::put('/{mediaFile}', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'update'])->name('update');
-        Route::delete('/{mediaFile}', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'destroy'])->name('destroy');
-        Route::post('/bulk-delete', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::get('/', [\App\Http\Controllers\Shared\MediaController::class, 'index'])->name('index');
+        Route::get('/list', [\App\Http\Controllers\Shared\MediaController::class, 'list'])->name('list');
+        Route::post('/create-folder', [\App\Http\Controllers\Shared\MediaController::class, 'createFolder'])->name('folder.create');
+        Route::post('/', [\App\Http\Controllers\Shared\MediaController::class, 'store'])->name('store'); // Careful: SuperAdmin controller might have different method signature?
+        // Shared controller uses 'store'. SuperAdmin legacy used 'store'.
+        // Shared controller 'createFolder' vs SuperAdmin 'createFolder'. 
+        // Shared controller: 'folder.create'. Frontend expects 'folder.create' (MediaManager line 80 logic: 'tenant.media.folder.create' or 'media.folder.create').
+        // So name MUST be 'folder.create'.
+
+        Route::delete('/{id}', [\App\Http\Controllers\Shared\MediaController::class, 'destroy'])->name('destroy');
+        // Legacy bulk delete? Shared controller doesn't have it yet.
+        // Route::post('/bulk-delete', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'bulkDelete'])->name('bulk-delete'); 
+
     });
 });
 
@@ -144,6 +152,12 @@ Route::prefix('{tenant}')->group(function () {
             Route::put('/profile/password', [\App\Http\Controllers\Tenant\Admin\ProfileController::class, 'updatePassword'])->name('tenant.profile.password.update');
             Route::post('/profile/photo', [\App\Http\Controllers\Tenant\Admin\ProfileController::class, 'updatePhoto'])->name('tenant.profile.photo.update');
 
+            // 4.3 Roles
+            Route::resource('roles', \App\Http\Controllers\Tenant\Admin\RoleController::class)->names('tenant.roles');
+
+            // 4.3b Members
+            Route::resource('members', \App\Http\Controllers\Tenant\Admin\MemberController::class)->names('tenant.members');
+
             Route::get('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'edit'])->name('tenant.settings.edit');
             Route::patch('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'update'])->name('tenant.settings.update');
             Route::post('/settings/logo', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'updateLogo'])->name('tenant.settings.logo.update');
@@ -160,6 +174,16 @@ Route::prefix('{tenant}')->group(function () {
             Route::get('/invoices', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'index'])->name('tenant.invoices.index');
             Route::get('/invoices/{invoice}', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'show'])->name('tenant.invoices.show');
             Route::post('/invoices/upload', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'store'])->name('tenant.invoices.store');
+            Route::post('/invoices/upload', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'store'])->name('tenant.invoices.store');
+
+            // Shared Media Management (Tenant Context)
+            Route::prefix('media')->name('tenant.media.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Shared\MediaController::class, 'index'])->name('index');
+                Route::get('/list', [\App\Http\Controllers\Shared\MediaController::class, 'list'])->name('list');
+                Route::post('/folder', [\App\Http\Controllers\Shared\MediaController::class, 'createFolder'])->name('folder.create');
+                Route::post('/', [\App\Http\Controllers\Shared\MediaController::class, 'store'])->name('store');
+                Route::delete('/{id}', [\App\Http\Controllers\Shared\MediaController::class, 'destroy'])->name('destroy');
+            });
         });
     });
 });

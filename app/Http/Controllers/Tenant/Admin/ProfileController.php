@@ -29,6 +29,9 @@ class ProfileController extends Controller
         return Inertia::render('Tenant/Admin/Profile/Edit', [
             'status' => session('status'),
             'tenant' => $tenant ? [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
                 'category_name' => $tenant->category?->name,
                 'vertical_name' => $tenant->category?->vertical?->name,
             ] : null,
@@ -86,20 +89,34 @@ class ProfileController extends Controller
     public function updatePhoto(Request $request): RedirectResponse
     {
         $request->validate([
-            'photo' => ['required', 'image', 'max:2048'],
+            'photo' => ['nullable', 'image', 'max:2048'],
+            'photo_url' => ['nullable', 'string', 'url'],
         ]);
 
         $user = $request->user();
 
-        if ($user->profile_photo_path) {
-            Storage::disk('s3')->delete($user->profile_photo_path);
+        if ($tenant = app('currentTenant')) {
+            // Update Tenant Pivot
+            if ($request->hasFile('photo')) {
+                // Determine if we need to delete old file? (Maybe complex for pivot)
+                // For now just overwrite path
+                $path = $request->file('photo')->store('profiles/' . $tenant->id, 's3');
+                $user->tenants()->updateExistingPivot($tenant->id, ['profile_photo_path' => $path]);
+            } elseif ($request->input('photo_url')) {
+                $user->tenants()->updateExistingPivot($tenant->id, ['profile_photo_path' => $request->input('photo_url')]);
+            }
+        } else {
+            // Global fallback
+            if ($request->hasFile('photo')) {
+                if ($user->profile_photo_path && !filter_var($user->profile_photo_path, FILTER_VALIDATE_URL)) {
+                    Storage::disk('s3')->delete($user->profile_photo_path);
+                }
+                $path = $request->file('photo')->store('profiles', 's3');
+                $user->update(['profile_photo_path' => $path]);
+            } elseif ($request->input('photo_url')) {
+                $user->update(['profile_photo_path' => $request->input('photo_url')]);
+            }
         }
-
-        $path = $request->file('photo')->store('profiles', 's3');
-
-        $user->update([
-            'profile_photo_path' => $path,
-        ]);
 
         return Redirect::back()->with('success', 'Foto de perfil actualizada.');
     }

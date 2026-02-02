@@ -13,12 +13,14 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@linkiu.bio',
-            'password' => Hash::make('password'),
-            'is_super_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        $user = User::firstOrCreate(
+            ['email' => 'admin@linkiu.bio'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password'),
+                'is_super_admin' => true,
+                'email_verified_at' => now(),
+            ]
+        );
     }
 }

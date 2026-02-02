@@ -11,6 +11,13 @@ use Inertia\Inertia;
 
 class MediaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.media.view')->only(['index']);
+        $this->middleware('sa.permission:sa.media.upload')->only(['createFolder']); // Folder creation = upload/structure
+        $this->middleware('sa.permission:sa.media.update')->only(['moveToFolder']);
+    }
+
     /**
      * Display a listing of media files
      */

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // Added useEffect import
+import { useState, useEffect } from 'react';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Separator } from '@/Components/ui/separator';
 import { Upload, Save, Image as ImageIcon, AtSign, Facebook, Instagram, Twitter, Globe, Mail, CreditCard } from 'lucide-react';
+import { PageProps } from '@/types';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 interface Props {
     settings: {
@@ -31,6 +33,16 @@ interface Props {
 }
 
 export default function Index({ settings, logo_url, favicon_url }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    const permissions = auth.permissions || [];
+    const isSuperAdminEnv = auth.user?.is_super_admin ||
+        (permissions.some(p => p.startsWith('sa.')) && !auth.user?.tenant_id);
+
+    // Check for 'sa.settings.update' permission
+    const canUpdate = !isSuperAdminEnv || permissions.includes('*') || permissions.includes('sa.settings.update');
+
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
     const { data, setData, post, processing, errors } = useForm({
         app_name: settings.app_name || '',
         support_email: settings.support_email || '',
@@ -88,8 +100,23 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
         }
     };
 
+    const handleFileClick = (e: React.MouseEvent) => {
+        if (!canUpdate) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
+    };
+
+
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!canUpdate) {
+            setShowPermissionModal(true);
+            return;
+        }
+
         post(route('settings.update'), {
             forceFormData: true,
         });
@@ -98,6 +125,11 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
     return (
         <SuperAdminLayout header="Configuración General">
             <Head title="Configuración" />
+
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
 
             <div className="max-w-4xl mx-auto py-6">
                 <form onSubmit={submit}>
@@ -165,6 +197,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                                 <Input
                                                     type="file"
                                                     accept="image/*"
+                                                    onClick={handleFileClick}
                                                     onChange={e => handleFileChange(e, 'logo')}
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
@@ -192,6 +225,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                                 <Input
                                                     type="file"
                                                     accept="image/x-icon,image/png,image/svg+xml"
+                                                    onClick={handleFileClick}
                                                     onChange={e => handleFileChange(e, 'favicon')}
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
@@ -236,6 +270,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                                     <Input
                                                         type="file"
                                                         accept="image/*"
+                                                        onClick={handleFileClick}
                                                         onChange={e => handleFileChange(e, 'profile_photo')}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                     />

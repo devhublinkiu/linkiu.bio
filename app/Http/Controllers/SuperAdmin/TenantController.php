@@ -21,6 +21,12 @@ use Inertia\Inertia;
 
 class TenantController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.tenants.view')->only(['index', 'show']);
+        $this->middleware('sa.permission:sa.tenants.create')->only(['create', 'store']);
+    }
+
     public function index(Request $request)
     {
         $tenants = Tenant::with(['category.vertical'])

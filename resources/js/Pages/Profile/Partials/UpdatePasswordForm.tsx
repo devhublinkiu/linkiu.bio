@@ -3,16 +3,26 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
+import { PageProps } from '@/types';
 
 export default function UpdatePasswordForm({
     className = '',
+    onPermissionDenied,
 }: {
     className?: string;
+    onPermissionDenied: () => void;
 }) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
+
+    const { auth } = usePage<PageProps>().props;
+    const permissions = auth.permissions || [];
+    const isSuperAdminEnv = auth.user?.is_super_admin ||
+        (permissions.some(p => p.startsWith('sa.')) && !auth.user?.tenant_id);
+
+    const canUpdate = !isSuperAdminEnv || permissions.includes('*') || permissions.includes('sa.account.password.update');
 
     const {
         data,
@@ -30,6 +40,11 @@ export default function UpdatePasswordForm({
 
     const updatePassword: FormEventHandler = (e) => {
         e.preventDefault();
+
+        if (!canUpdate) {
+            onPermissionDenied();
+            return;
+        }
 
         put(route('password.update'), {
             preserveScroll: true,

@@ -47,6 +47,9 @@ class Tenant extends Model
     public function getLogoUrlAttribute()
     {
         $settings = $this->settings ?? [];
+        if (isset($settings['logo_url'])) {
+            return $settings['logo_url'];
+        }
         if (isset($settings['logo_path'])) {
             return Storage::disk('s3')->url($settings['logo_path']);
         }
@@ -63,10 +66,15 @@ class Tenant extends Model
         return $this->belongsTo(Vertical::class, 'vertical_id');
     }
 
+    public function roles()
+    {
+        return $this->hasMany(Role::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'tenant_user')
-            ->withPivot('role')
+            ->withPivot(['role', 'role_id', 'profile_photo_path'])
             ->withTimestamps();
     }
 

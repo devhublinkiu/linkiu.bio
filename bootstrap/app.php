@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->alias([
+            'sa.permission' => \App\Http\Middleware\EnsureGlobalPermission::class,
+        ]);
+
         $middleware->redirectGuestsTo(function (\Illuminate\Http\Request $request) {
             // Robust check using URL segments to capture /slug/admin context
             if ($request->is('*/admin') || $request->is('*/admin/*')) {

@@ -11,6 +11,14 @@ use Inertia\Inertia;
 
 class BusinessCategoryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('sa.permission:sa.categories.view')->only(['index']);
+        $this->middleware('sa.permission:sa.categories.create')->only(['store']);
+        $this->middleware('sa.permission:sa.categories.update')->only(['update']);
+        $this->middleware('sa.permission:sa.categories.delete')->only(['destroy']);
+    }
+
     public function index(Request $request)
     {
         $query = BusinessCategory::withCount('tenants')->with('vertical');

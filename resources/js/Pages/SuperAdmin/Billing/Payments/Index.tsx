@@ -1,5 +1,6 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
@@ -39,6 +40,11 @@ interface Props {
 }
 
 export default function Index({ payments }: Props) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [action, setAction] = useState<'approve' | 'reject' | null>(null);
     const { data, setData, put, processing, errors, reset } = useForm({
@@ -48,6 +54,10 @@ export default function Index({ payments }: Props) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const openDialog = (invoice: Invoice, actionType: 'approve' | 'reject') => {
+        if (!hasPermission('sa.payments.update')) {
+            setShowPermissionModal(true);
+            return;
+        }
         setSelectedInvoice(invoice);
         setAction(actionType);
         setData({ action: actionType, notes: '' });
@@ -87,6 +97,10 @@ export default function Index({ payments }: Props) {
         <SuperAdminLayout
             header="Gestión de Pagos"
         >
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Pagos" />
 
             <div className="py-12">
@@ -126,6 +140,12 @@ export default function Index({ payments }: Props) {
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="flex items-center text-blue-600 hover:underline"
+                                                            onClick={(e) => {
+                                                                if (!hasPermission('sa.payments.proof.view')) {
+                                                                    e.preventDefault();
+                                                                    setShowPermissionModal(true);
+                                                                }
+                                                            }}
                                                         >
                                                             <FileText className="w-4 h-4 mr-1" />
                                                             Ver

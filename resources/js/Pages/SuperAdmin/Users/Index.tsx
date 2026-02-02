@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, useForm, router, Link } from '@inertiajs/react';
+import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -39,14 +39,21 @@ import {
 } from "@/Components/ui/select"
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
-import { Search, Pencil, Trash2, ShieldCheck, Mail, Store } from 'lucide-react';
+import { Search, Pencil, Trash2, ShieldCheck, Mail, Store, Plus } from 'lucide-react';
+import Pagination from '@/Components/Shared/Pagination';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 export default function Index({ users, filters }: { users: any, filters: any }) {
+    const { auth } = usePage<any>().props;
+    const permissions = auth.permissions || [];
+    const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+
     // State
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<any>(null);
     const [deletingUser, setDeletingUser] = useState<any>(null);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
 
     // Filters State
     const [search, setSearch] = useState(filters.search || '');
@@ -81,16 +88,6 @@ export default function Index({ users, filters }: { users: any, filters: any }) 
         is_super_admin: false,
     });
 
-    const openEdit = (user: any) => {
-        setEditingUser(user);
-        setEditData({
-            name: user.name,
-            email: user.email,
-            is_super_admin: Boolean(user.is_super_admin),
-        });
-        setEditOpen(true);
-    };
-
     const submitEdit = (e: React.FormEvent) => {
         e.preventDefault();
         editPut(route('users.update', editingUser.id), {
@@ -101,8 +98,32 @@ export default function Index({ users, filters }: { users: any, filters: any }) 
         });
     };
 
-    // Delete Logic
+    const handleCreateClick = (e: React.MouseEvent) => {
+        if (!hasPermission('sa.users.create')) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
+    };
+
+    const openEdit = (user: any) => {
+        if (!hasPermission('sa.users.update')) {
+            setShowPermissionModal(true);
+            return;
+        }
+        setEditingUser(user);
+        setEditData({
+            name: user.name,
+            email: user.email,
+            is_super_admin: Boolean(user.is_super_admin),
+        });
+        setEditOpen(true);
+    };
+
     const openDelete = (user: any) => {
+        if (!hasPermission('sa.users.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
         setDeletingUser(user);
         setDeleteOpen(true);
     };
@@ -116,12 +137,24 @@ export default function Index({ users, filters }: { users: any, filters: any }) 
 
     return (
         <SuperAdminLayout header="Gestión de Usuarios">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
             <Head title="Usuarios" />
 
             {/* Header */}
-            <div className="mb-8">
-                <h2 className="text-xl font-bold tracking-tight">Directorio de Usuarios</h2>
-                <p className="text-sm text-muted-foreground mt-1">Administra todos los usuarios registrados en la plataforma.</p>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-bold tracking-tight">Directorio de Usuarios</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Administra todos los usuarios registrados en la plataforma.</p>
+                </div>
+                <Button asChild className="cursor-pointer">
+                    <Link href={route('users.create')} onClick={handleCreateClick}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo Usuario
+                    </Link>
+                </Button>
             </div>
 
             {/* Filters */}
@@ -229,24 +262,7 @@ export default function Index({ users, filters }: { users: any, filters: any }) 
                     <div>
                         Mostrando {users.from} a {users.to} de {users.total} usuarios
                     </div>
-                    <div className="flex gap-1">
-                        {users.links.map((link: any, i: number) => (
-                            link.url ? (
-                                <Link
-                                    key={i}
-                                    href={link.url}
-                                    className={`px-3 py-1 rounded border ${link.active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:bg-gray-50'}`}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            ) : (
-                                <span
-                                    key={i}
-                                    className="px-3 py-1 rounded border bg-gray-50 text-gray-400 cursor-not-allowed"
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            )
-                        ))}
-                    </div>
+                    <Pagination links={users.links} />
                 </div>
             </div>
 
@@ -306,7 +322,6 @@ export default function Index({ users, filters }: { users: any, filters: any }) 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
         </SuperAdminLayout>
     );
 }

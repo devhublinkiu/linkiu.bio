@@ -18,7 +18,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Login', [
+        return Inertia::render('Auth/SuperAdminLogin', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
         ]);
@@ -33,11 +33,20 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        if ($request->user()->is_super_admin) {
+        // Redirect to SuperAdmin dashboard if user has permission or is super admin
+        // Assuming global context (no tenant)
+        if ($request->user()->is_super_admin || $request->user()->hasGlobalPermission('sa.view')) {
             return redirect()->intended(route('superadmin.dashboard', absolute: false));
         }
 
-        return redirect()->intended(route('dashboard', absolute: false)); // TODO: Redirect to tenant dashboard
+        // Fallback for regular users in global context (maybe they shouldn't be here?)
+        // If they have no roles, maybe redirect to home or show error?
+        // For now, let's allow dashboard access if they have *any* global role
+        if ($request->user()->role_id) {
+            return redirect()->intended(route('superadmin.dashboard', absolute: false));
+        }
+
+        return redirect()->intended(route('welcome', absolute: false));
     }
 
     /**
@@ -50,6 +59,11 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
+        // If we are in superadmin context (URL prefix check or similar), redirect to superadmin login
+        if ($request->is('superlinkiu/*') || str_contains(url()->previous(), 'superlinkiu')) {
+            return redirect()->route('login');
+        }
 
         return redirect('/');
     }

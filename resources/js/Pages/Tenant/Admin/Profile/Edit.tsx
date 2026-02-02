@@ -1,5 +1,5 @@
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
-import { Head, useForm, usePage, Link } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -10,24 +10,38 @@ import {
     User,
     Lock,
     Camera,
-    CheckCircle2,
     AlertCircle,
     Save,
-    Upload,
-    Globe,
     MapPin,
-    Phone
+    Phone,
+    Globe
 } from 'lucide-react';
-import { FormEventHandler, useRef } from 'react';
+import { FormEventHandler, useState } from 'react';
 import { toast } from 'sonner';
+import { MediaManagerModal, MediaFile } from '@/Components/Shared/MediaManager/MediaManagerModal';
+import { PageProps } from '@/types';
 
-export default function Edit({ status }: { status?: string }) {
-    const { auth, tenant } = usePage<any>().props;
+interface Props extends PageProps {
+    status?: string;
+    tenant: {
+        id: number;
+        name: string;
+        slug: string;
+        category_name: string;
+        vertical_name: string;
+    };
+    // currentUserRole is inherited from PageProps now
+}
+
+export default function Edit({ auth, status, tenant, currentUserRole, currentTenant }: Props) {
+    const roleLabel = currentUserRole?.label || 'Miembro';
     const user = auth.user;
-    const currentTenant = auth.currentTenant || tenant;
-    const fileInput = useRef<HTMLInputElement>(null);
+    const activeTenant = currentTenant || tenant;
 
-    const { data, setData, patch, processing, errors, recentlySuccessful } = useForm({
+    // Media Manager State
+    const [showMediaManager, setShowMediaManager] = useState(false);
+
+    const { data, setData, patch, processing, errors } = useForm({
         name: user.name,
         email: user.email,
         phone: user.phone || '',
@@ -45,27 +59,28 @@ export default function Edit({ status }: { status?: string }) {
 
     const submitProfile: FormEventHandler = (e) => {
         e.preventDefault();
-        patch(route('tenant.profile.update', { tenant: currentTenant.slug }));
+        patch(route('tenant.profile.update', { tenant: activeTenant.slug }));
     };
 
     const submitPassword: FormEventHandler = (e) => {
         e.preventDefault();
-        updatePassword(route('tenant.profile.password.update', { tenant: currentTenant.slug }), {
+        updatePassword(route('tenant.profile.password.update', { tenant: activeTenant.slug }), {
             onSuccess: () => resetPassword(),
         });
     };
 
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append('photo', file);
-
+    const handleMediaSelect = (file: MediaFile) => {
+        if (file.url) {
             import('@inertiajs/react').then(({ router }) => {
-                router.post(route('tenant.profile.photo.update', { tenant: currentTenant.slug }), formData, {
-                    forceFormData: true,
-                    onSuccess: () => toast.success('Foto de perfil actualizada'),
-                    onError: () => toast.error('Error al subir la foto'),
+                router.post(route('tenant.profile.photo.update', { tenant: activeTenant.slug }), {
+                    photo_url: file.url
+                }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        toast.success('Foto de perfil actualizada');
+                        setShowMediaManager(false);
+                    },
+                    onError: () => toast.error('Error al actualizar la foto'),
                 });
             });
         }
@@ -75,6 +90,13 @@ export default function Edit({ status }: { status?: string }) {
         <AdminLayout title="Mi Perfil">
             <Head title="Mi Perfil - Linkiu.Bio" />
 
+            <MediaManagerModal
+                open={showMediaManager}
+                onOpenChange={setShowMediaManager}
+                onSelect={handleMediaSelect}
+                apiRoute={route('tenant.media.list', { tenant: activeTenant.slug })}
+            />
+
             <div className="max-w-5xl mx-auto py-8 px-4">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left Column: Avatar Card */}
@@ -83,24 +105,17 @@ export default function Edit({ status }: { status?: string }) {
                             <CardContent className="pt-10 pb-8 flex flex-col items-center">
                                 <div className="relative group">
                                     <Avatar className="h-32 w-32 ring-4 ring-slate-50 transition-all group-hover:ring-primary/20">
-                                        <AvatarImage src={user.profile_photo_url} />
+                                        <AvatarImage src={user.profile_photo_url} className="object-cover" />
                                         <AvatarFallback className="text-3xl font-bold bg-primary/5 text-primary">
                                             {user.name.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
                                     <button
-                                        onClick={() => fileInput.current?.click()}
+                                        onClick={() => setShowMediaManager(true)}
                                         className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all"
                                     >
                                         <Camera className="w-5 h-5" />
                                     </button>
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        ref={fileInput}
-                                        accept="image/*"
-                                        onChange={handlePhotoChange}
-                                    />
                                 </div>
                                 <h3 className="mt-4 text-xl font-bold text-slate-900">{user.name}</h3>
                                 <p className="text-sm text-slate-500 font-medium">{user.email}</p>

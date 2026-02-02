@@ -15,7 +15,9 @@ import {
     ShoppingBag,
     Banknote,
     FolderOpen,
-    Check
+    Check,
+    ShieldCheck,
+    Lock
 } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -29,6 +31,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '@/Components/ui/dropdown-menu';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { PageProps } from '@/types';
 import { toast } from 'sonner';
@@ -39,18 +42,30 @@ interface SuperAdminLayoutProps {
     header?: React.ReactNode;
 }
 
+interface NavItem {
+    label: string;
+    route: string;
+    icon: any;
+    permission?: string;
+    count?: number;
+}
+
 export default function SuperAdminLayout({ children, header }: SuperAdminLayoutProps) {
     const { auth, flash } = usePage<PageProps & {
         auth: {
-            notifications: { unread_count: number, recent: any[] }
+            notifications: { unread_count: number, recent: any[] },
+            permissions: string[]
         },
         flash: { success?: string, error?: string }
     }>().props;
     const user = auth.user;
+    const permissions = auth.permissions || [];
+
     const [unreadCount, setUnreadCount] = useState(auth.notifications?.unread_count || 0);
     const [recentNotifications, setRecentNotifications] = useState(auth.notifications?.recent || []);
     const [newTenantsCount, setNewTenantsCount] = useState(0);
     const [isNotificationSidebarOpen, setIsNotificationSidebarOpen] = useState(false);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
 
     useEffect(() => {
         // Synchronize with inertia props if they change
@@ -68,6 +83,19 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
     const handleAllRead = () => {
         setRecentNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
         setUnreadCount(0);
+    };
+
+    // Permission Checker
+    const checkPermission = (permission?: string) => {
+        if (!permission) return true;
+        return permissions.includes('*') || permissions.includes(permission);
+    };
+
+    const handleNavigation = (e: React.MouseEvent, permission?: string) => {
+        if (permission && !checkPermission(permission)) {
+            e.preventDefault();
+            setShowPermissionModal(true);
+        }
     };
 
     useEffect(() => {
@@ -131,7 +159,7 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
     }, [flash]);
 
     // Navigation Structure
-    const navGroups = [
+    const navGroups: { group: string; hideLabel?: boolean; items: NavItem[] }[] = [
         {
             group: 'General',
             hideLabel: true,
@@ -142,23 +170,24 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
         {
             group: 'Tienda',
             items: [
-                { label: 'Tiendas', route: 'tenants.index', icon: Store },
-                { label: 'Categorías de negocio', route: 'categories.index', icon: Grid },
-                { label: 'Planes', route: 'plans.index', icon: CreditCard },
-                { label: 'Suscripciones', route: 'subscriptions.index', icon: Receipt },
-                { label: 'Auditoría Pagos', route: 'payments.index', icon: Banknote },
+                { label: 'Tiendas', route: 'tenants.index', icon: Store, permission: 'sa.tenants.view' },
+                { label: 'Categorías de negocio', route: 'categories.index', icon: Grid, permission: 'sa.categories.view' },
+                { label: 'Planes', route: 'plans.index', icon: CreditCard, permission: 'sa.plans.view' },
+                { label: 'Suscripciones', route: 'subscriptions.index', icon: Receipt, permission: 'sa.subscriptions.view' },
+                { label: 'Auditoría Pagos', route: 'payments.index', icon: Banknote, permission: 'sa.payments.view' },
             ]
         },
         {
             group: 'Contenido',
             items: [
-                { label: 'Gestión de Archivos', route: 'media.index', icon: FolderOpen },
+                { label: 'Gestión de Archivos', route: 'media.index', icon: FolderOpen, permission: 'sa.media.view' },
             ]
         },
         {
             group: 'Usuarios',
             items: [
-                { label: 'Lista de usuarios', route: 'users.index', icon: Users },
+                { label: 'Lista de usuarios', route: 'users.index', icon: Users, permission: 'sa.users.view' },
+                { label: 'Roles y Permisos', route: 'roles.index', icon: ShieldCheck, permission: 'sa.roles.view' },
             ]
         }
     ];
@@ -174,25 +203,35 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
 
     const SidebarContent = () => (
         <div className="flex flex-col h-full bg-white border-r border-gray-100">
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
+
             {/* Logo */}
             <div className="p-4 pl-8 pt-4 h-14 flex items-start border-b border-gray-50 justify-start">
                 <Link href={route('superadmin.dashboard')} className="block">
-                    {(siteSettings?.logo_url) ? (
+                    {siteSettings?.logo_url ? (
                         <img
                             src={siteSettings.logo_url}
                             alt={siteSettings.app_name || 'Logo'}
                             className="h-8 w-auto object-contain max-w-[200px]"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const fallback = e.currentTarget.parentElement?.querySelector('.fallback-logo');
+                                if (fallback) fallback.classList.remove('hidden');
+                            }}
                         />
-                    ) : (
-                        <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-gray-900">
-                            <div className="h-8 w-8 flex items-center justify-center bg-blue-600 p-1.5 rounded-lg">
-                                <ShoppingBag className="h-5 w-5 text-white" />
-                            </div>
-                            <span>
-                                {siteSettings?.app_name || 'Linkiu.bio'}
-                            </span>
+                    ) : null}
+
+                    <div className={`fallback-logo flex items-center gap-2 font-bold text-xl tracking-tight text-gray-900 ${(siteSettings?.logo_url) ? 'hidden' : ''}`}>
+                        <div className="h-8 w-8 flex items-center justify-center bg-blue-600 p-1.5 rounded-lg">
+                            <ShoppingBag className="h-5 w-5 text-white" />
                         </div>
-                    )}
+                        <span>
+                            {siteSettings?.app_name || 'Linkiu.bio'}
+                        </span>
+                    </div>
                 </Link>
             </div>
 
@@ -208,19 +247,32 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                         <div className="space-y-1">
                             {group.items.map((item) => {
                                 const isActive = item.route !== '#' && route().current(item.route);
+                                const isLocked = item.permission && !checkPermission(item.permission);
+
                                 return (
                                     <Link
                                         key={item.label}
                                         href={item.route === '#' ? '#' : route(item.route)}
-                                        className={`group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
+                                        onClick={(e) => handleNavigation(e, item.permission)}
+                                        className={`group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 cursor-pointer
                                             ${isActive
                                                 ? 'bg-blue-50 text-blue-600'
-                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                                : isLocked
+                                                    ? 'text-gray-400 hover:bg-red-50 hover:text-red-500' // Visual feedback on hover for locked items
+                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                             }`}
                                     >
                                         <item.icon className={`h-4 w-4 transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                                        {item.label}
-                                        {item.label === 'Tiendas' && newTenantsCount > 0 && (
+                                        <span className={isLocked ? "opacity-70" : ""}>{item.label}</span>
+                                        {isLocked && (
+                                            <div className="ml-auto">
+                                                <div className="h-6 w-6 flex items-center justify-center rounded-full bg-red-50 group-hover:bg-red-100 transition-colors">
+                                                    <Lock className="h-3.5 w-3.5 text-red-500" />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {item.label === 'Tiendas' && newTenantsCount > 0 && !isLocked && (
                                             <span className="ml-auto bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-bounce">
                                                 {newTenantsCount}
                                             </span>
@@ -242,7 +294,9 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                     </Avatar>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                        <p className="text-xs text-gray-500 truncate">Super Admin</p>
+                        <p className="text-xs text-gray-500 truncate">
+                            {user.is_super_admin ? 'Super Administrador' : (user.global_role?.name || 'Administrador')}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -324,18 +378,22 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                    <User className="mr-2 h-4 w-4" />
-                                    <span>Mi Cuenta</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Link href={route('settings.index')} className="flex items-center w-full">
-                                        <Settings className="mr-2 h-4 w-4" />
-                                        <span>Configuración</span>
+                                <DropdownMenuItem asChild className="cursor-pointer">
+                                    <Link href={route('superadmin.profile.edit')} className="flex items-center w-full">
+                                        <User className="mr-2 h-4 w-4" />
+                                        <span>Mi Cuenta</span>
                                     </Link>
                                 </DropdownMenuItem>
+                                {checkPermission('sa.settings.view') && (
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <Link href={route('settings.index')} className="flex items-center w-full">
+                                            <Settings className="mr-2 h-4 w-4" />
+                                            <span>Configuración</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" asChild>
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer" asChild>
                                     <Link href={route('logout')} method="post" as="button" className="w-full">
                                         <LogOut className="mr-2 h-4 w-4" />
                                         Cerrar Sesión
