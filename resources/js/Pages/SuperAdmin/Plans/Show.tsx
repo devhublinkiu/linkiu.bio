@@ -220,7 +220,7 @@ export default function Show({ plan }: Props) {
 
                                 <div className="flex items-center justify-between py-2 border-b last:border-0">
                                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <span className="font-mono text-xs border rounded px-1.5 py-0.5">@</span>
+                                        <div className="w-5 h-5 flex items-center justify-center border rounded text-[10px] font-bold">@</div>
                                         <span>Slug Personalizado</span>
                                     </div>
                                     {plan.allow_custom_slug ? (
@@ -238,12 +238,12 @@ export default function Show({ plan }: Props) {
                             </CardHeader>
                             <CardContent className="space-y-3 text-sm">
                                 <div>
-                                    <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">ID del Sistema</span>
-                                    <code className="bg-gray-100 px-2 py-1 rounded text-xs">{plan.id}</code>
+                                    <span className="text-gray-500 block text-[0.65rem] font-bold uppercase tracking-wider mb-1">ID del Sistema</span>
+                                    <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-700">{plan.id}</span>
                                 </div>
                                 <div>
-                                    <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Slug</span>
-                                    <code className="bg-gray-100 px-2 py-1 rounded text-xs">{plan.slug || '-'}</code>
+                                    <span className="text-gray-500 block text-[0.65rem] font-bold uppercase tracking-wider mb-1">Slug</span>
+                                    <span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-700">{plan.slug || '-'}</span>
                                 </div>
                                 <div>
                                     <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Creado el</span>

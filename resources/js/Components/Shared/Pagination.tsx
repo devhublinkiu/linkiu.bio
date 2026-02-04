@@ -1,5 +1,12 @@
-import { Link } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis
+} from '@/Components/ui/pagination';
 
 interface PaginationProps {
     links: {
@@ -10,43 +17,66 @@ interface PaginationProps {
     className?: string;
 }
 
-export default function Pagination({ links, className = '' }: PaginationProps) {
+export default function SharedPagination({ links, className = '' }: PaginationProps) {
     if (links.length <= 3) return null;
 
     return (
-        <div className={`flex flex-wrap gap-1 ${className}`}>
-            {links.map((link, key) => {
-                let label = link.label;
-                let icon = null;
+        <Pagination className={className}>
+            <PaginationContent>
+                {links.map((link, key) => {
+                    // Logic to identify Previous/Next
+                    const isPrevious = link.label.includes('Previous') || link.label.includes('pagination.previous') || link.label.includes('&laquo;');
+                    const isNext = link.label.includes('Next') || link.label.includes('pagination.next') || link.label.includes('&raquo;');
+                    const isEllipsis = link.label === '...' || link.label.includes('...');
 
-                // Handle Previous/Next with Icons
-                if (label.includes('Previous') || label.includes('pagination.previous') || label.includes('&laquo;')) {
-                    icon = <ChevronLeft className="h-4 w-4" />;
-                    label = '';
-                } else if (label.includes('Next') || label.includes('pagination.next') || label.includes('&raquo;')) {
-                    icon = <ChevronRight className="h-4 w-4" />;
-                    label = '';
-                }
+                    // Clean label
+                    let label = link.label.replace('&laquo; ', '').replace(' &raquo;', '');
+                    // Basic HTML entity decode if needed, or rely on render.
+                    // React renders strings safely. If label has HTML entities like &amp;, they should be decoded or passed as HTML.
+                    // For safety, let's assume labels are just strings or simple entities.
 
-                return link.url === null ? (
-                    <div
-                        key={key}
-                        className="flex items-center justify-center px-3 py-1.5 text-sm leading-4 text-gray-400 border rounded-md"
-                    // dangerouslySetInnerHTML={{ __html: link.label }} // Fallback if regular text
-                    >
-                        {icon || <span dangerouslySetInnerHTML={{ __html: link.label }} />}
-                    </div>
-                ) : (
-                    <Link
-                        key={key}
-                        className={`flex items-center justify-center px-3 py-1.5 text-sm leading-4 border rounded-md focus:text-indigo-500 focus:border-indigo-500 hover:bg-white
-                        ${link.active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                        href={link.url}
-                    >
-                        {icon || <span dangerouslySetInnerHTML={{ __html: link.label }} />}
-                    </Link>
-                );
-            })}
-        </div>
+                    if (isEllipsis) {
+                        return (
+                            <PaginationItem key={key}>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        );
+                    }
+
+                    if (isPrevious) {
+                        return (
+                            <PaginationItem key={key}>
+                                <PaginationPrevious
+                                    href={link.url || '#'}
+                                    className={!link.url ? "pointer-events-none opacity-50" : ""}
+                                />
+                            </PaginationItem>
+                        );
+                    }
+
+                    if (isNext) {
+                        return (
+                            <PaginationItem key={key}>
+                                <PaginationNext
+                                    href={link.url || '#'}
+                                    className={!link.url ? "pointer-events-none opacity-50" : ""}
+                                />
+                            </PaginationItem>
+                        );
+                    }
+
+                    // Standard Page Link
+                    return (
+                        <PaginationItem key={key}>
+                            <PaginationLink
+                                href={link.url || '#'}
+                                isActive={link.active}
+                                dangerouslySetInnerHTML={{ __html: link.label }} // Keep HTML rendering for consistency if labels carry formatting
+                            />
+                        </PaginationItem>
+                    );
+                })}
+            </PaginationContent>
+        </Pagination>
     );
 }

@@ -22,7 +22,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $query = User::with('tenants');
+        $query = User::with(['tenants', 'globalRole']);
 
         // Search Filter
         if ($request->filled('search')) {
@@ -44,6 +44,7 @@ class UserController extends Controller
         return Inertia::render('SuperAdmin/Users/Index', [
             'users' => $query->latest()->paginate(10)->withQueryString(),
             'filters' => $request->only(['search', 'role']),
+            'roles' => Role::whereNull('tenant_id')->get(),
         ]);
     }
 
@@ -82,12 +83,14 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'is_super_admin' => 'boolean',
+            'role_id' => 'nullable|exists:roles,id',
         ]);
 
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
             'is_super_admin' => $request->boolean('is_super_admin'),
+            'role_id' => $request->role_id,
         ]);
 
         return redirect()->back()->with('success', 'Usuario actualizado correctamente.');

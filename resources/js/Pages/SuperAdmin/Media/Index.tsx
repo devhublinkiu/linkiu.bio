@@ -5,8 +5,12 @@ import { useState, useRef } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Badge } from '@/Components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/Components/ui/sheet';
+import { CreateFolderModal } from './Modals/CreateFolderModal';
+import { UploadModal } from './Modals/UploadModal';
+import { DeleteConfirmationModal } from '@/Components/Shared/DeleteConfirmationModal';
+import SharedPagination from '@/Components/Shared/Pagination';
 import {
     Upload,
     Search,
@@ -97,6 +101,9 @@ export default function Index({ files, stats, folders, filters }: Props) {
     const [folderDialogOpen, setFolderDialogOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<{ id: number | number[] | string; type: 'single' | 'bulk' | 'folder' } | null>(null);
+
     const { data, setData, post, processing, reset } = useForm({
         files: [] as File[],
         folder: 'uploads',
@@ -141,34 +148,70 @@ export default function Index({ files, stats, folders, filters }: Props) {
         });
     };
 
-    const handleDelete = (id: number) => {
+    const handleDeleteClick = (id: number) => {
         if (!hasPermission('sa.media.delete')) {
             setShowPermissionModal(true);
             return;
         }
-        if (confirm('¿Estás seguro de eliminar este archivo?')) {
-            router.delete(route('media.destroy', id), {
-                onSuccess: () => toast.success('Archivo eliminado'),
-                onError: () => toast.error('Error al eliminar'),
-            });
-        }
+        setItemToDelete({ id, type: 'single' });
+        setDeleteModalOpen(true);
     };
 
-    const handleBulkDelete = () => {
+    const handleBulkDeleteClick = () => {
         if (selectedFiles.length === 0) return;
 
         if (!hasPermission('sa.media.delete')) {
             setShowPermissionModal(true);
             return;
         }
+        setItemToDelete({ id: selectedFiles, type: 'bulk' });
+        setDeleteModalOpen(true);
+    };
 
-        if (confirm(`¿Eliminar ${selectedFiles.length} archivo(s)?`)) {
+    const handleDeleteFolderClick = (folder: string) => {
+        if (!hasPermission('sa.media.delete')) {
+            setShowPermissionModal(true);
+            return;
+        }
+        setItemToDelete({ id: folder, type: 'folder' });
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (!itemToDelete) return;
+
+        if (itemToDelete.type === 'single') {
+            router.delete(route('media.destroy', itemToDelete.id as number), {
+                onSuccess: () => {
+                    toast.success('Archivo eliminado');
+                    setDeleteModalOpen(false);
+                    setItemToDelete(null);
+                    if (previewOpen) setPreviewOpen(false);
+                },
+                onError: () => toast.error('Error al eliminar'),
+            });
+        } else if (itemToDelete.type === 'folder') {
+            router.post(route('media.folder.delete'), {
+                folder: itemToDelete.id as string,
+            }, {
+                onSuccess: () => {
+                    toast.success('Carpeta eliminada');
+                    setDeleteModalOpen(false);
+                    setItemToDelete(null);
+                },
+                onError: (errors) => {
+                    toast.error(errors?.error || 'Error al eliminar carpeta');
+                },
+            });
+        } else {
             router.post(route('media.bulk-delete'), {
-                ids: selectedFiles,
+                ids: itemToDelete.id as number[],
             }, {
                 onSuccess: () => {
                     toast.success('Archivos eliminados');
                     setSelectedFiles([]);
+                    setDeleteModalOpen(false);
+                    setItemToDelete(null);
                 },
                 onError: () => toast.error('Error al eliminar'),
             });
@@ -241,125 +284,81 @@ export default function Index({ files, stats, folders, filters }: Props) {
                 open={showPermissionModal}
                 onOpenChange={setShowPermissionModal}
             />
+            <DeleteConfirmationModal
+                open={deleteModalOpen}
+                onOpenChange={setDeleteModalOpen}
+                onConfirm={confirmDelete}
+                title={
+                    itemToDelete?.type === 'folder' ? "¿Eliminar carpeta?" :
+                        itemToDelete?.type === 'single' ? "¿Eliminar archivo?" :
+                            "¿Eliminar archivos seleccionados?"
+                }
+                description={
+                    itemToDelete?.type === 'folder'
+                        ? "Esta acción no se puede deshacer. La carpeta y TODO su contenido serán eliminados permanentemente."
+                        : itemToDelete?.type === 'single'
+                            ? "Esta acción no se puede deshacer. El archivo será eliminado permanentemente."
+                            : `Se eliminarán ${selectedFiles.length} archivos permanentemente. Esta acción no se puede deshacer.`
+                }
+            />
             <Head title="Gestión de Archivos" />
 
             <div className="p-6 space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Gestión de Archivos</h1>
-                        <p className="text-gray-600 mt-1">
+                        <h1 className="text-3xl font-bold tracking-tight">Gestión de Archivos</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">
                             {stats.total} archivos · {formatBytes(stats.total_size)}
                         </p>
                     </div>
 
                     <div className="flex gap-2">
-                        <Dialog open={folderDialogOpen} onOpenChange={(open) => {
-                            if (open && !hasPermission('sa.media.upload')) {
-                                setShowPermissionModal(true);
-                                return;
-                            }
-                            setFolderDialogOpen(open);
-                        }}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" className="gap-2">
-                                    <FolderPlus className="w-4 h-4" />
-                                    Nueva Carpeta
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Crear Nueva Carpeta</DialogTitle>
-                                </DialogHeader>
-                                <form onSubmit={handleCreateFolder} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Nombre de la carpeta</label>
-                                        <Input
-                                            value={folderForm.data.name}
-                                            onChange={e => folderForm.setData('name', e.target.value)}
-                                            placeholder="mi-carpeta"
-                                            pattern="[a-zA-Z0-9_-]+"
-                                            title="Solo letras, números, guiones y guiones bajos"
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Solo letras, números, guiones (-) y guiones bajos (_)
-                                        </p>
-                                    </div>
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => {
+                                if (!hasPermission('sa.media.upload')) {
+                                    setShowPermissionModal(true);
+                                    return;
+                                }
+                                setFolderDialogOpen(true);
+                            }}
+                        >
+                            <FolderPlus className="w-4 h-4" />
+                            Nueva Carpeta
+                        </Button>
+                        <CreateFolderModal
+                            open={folderDialogOpen}
+                            onOpenChange={setFolderDialogOpen}
+                            form={folderForm}
+                            onSubmit={handleCreateFolder}
+                        />
 
-                                    <Button type="submit" disabled={folderForm.processing || !folderForm.data.name} className="w-full">
-                                        {folderForm.processing ? 'Creando...' : 'Crear Carpeta'}
-                                    </Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-
-                        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
-                            if (open && !hasPermission('sa.media.upload')) {
-                                setShowPermissionModal(true);
-                                return;
-                            }
-                            setUploadDialogOpen(open);
-                        }}>
-                            <DialogTrigger asChild>
-                                <Button className="gap-2">
-                                    <Upload className="w-4 h-4" />
-                                    Subir Archivos
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Subir Archivos</DialogTitle>
-                                </DialogHeader>
-                                <form onSubmit={handleUpload} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Archivos</label>
-                                        <Input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            multiple
-                                            onChange={handleFileSelect}
-                                            className="cursor-pointer"
-                                        />
-                                        {data.files.length > 0 && (
-                                            <p className="text-sm text-gray-600 mt-2">
-                                                {data.files.length} archivo(s) seleccionado(s)
-                                            </p>
-                                        )}
-                                    </div>
-
-
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Carpeta</label>
-                                        <select
-                                            value={data.folder}
-                                            onChange={e => setData('folder', e.target.value)}
-                                            className="w-full px-3 py-2 border rounded-lg"
-                                        >
-                                            <option value="uploads">uploads</option>
-                                            {folders.filter(f => f !== 'uploads').map(folder => (
-                                                <option key={folder} value={folder}>{folder}</option>
-                                            ))}
-                                        </select>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Usa "Nueva Carpeta" para crear una carpeta nueva
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Descripción (opcional)</label>
-                                        <Input
-                                            value={data.description}
-                                            onChange={e => setData('description', e.target.value)}
-                                            placeholder="Descripción del archivo"
-                                        />
-                                    </div>
-
-                                    <Button type="submit" disabled={processing || data.files.length === 0} className="w-full">
-                                        {processing ? 'Subiendo...' : 'Subir'}
-                                    </Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
+                        <Button
+                            className="gap-2"
+                            onClick={() => {
+                                if (!hasPermission('sa.media.upload')) {
+                                    setShowPermissionModal(true);
+                                    return;
+                                }
+                                setUploadDialogOpen(true);
+                            }}
+                        >
+                            <Upload className="w-4 h-4" />
+                            Subir Archivos
+                        </Button>
+                        <UploadModal
+                            open={uploadDialogOpen}
+                            onOpenChange={setUploadDialogOpen}
+                            data={data}
+                            setData={setData}
+                            onSubmit={handleUpload}
+                            fileInputRef={fileInputRef}
+                            processing={processing}
+                            folders={folders}
+                            onFileSelect={handleFileSelect}
+                        />
                     </div>
                 </div>
 
@@ -368,14 +367,14 @@ export default function Index({ files, stats, folders, filters }: Props) {
                     {Object.entries(stats.by_type).map(([type, count]) => {
                         const Icon = typeIcons[type as keyof typeof typeIcons] || File;
                         return (
-                            <div key={type} className="bg-white rounded-lg border p-4">
+                            <div key={type} className="bg-card rounded-xl border p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-indigo-100 rounded-lg">
-                                        <Icon className="w-5 h-5 text-indigo-600" />
+                                    <div className="p-2.5 bg-primary/10 rounded-lg">
+                                        <Icon className="w-5 h-5 text-primary" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-bold">{count}</p>
-                                        <p className="text-sm text-gray-600 capitalize">{type}</p>
+                                        <p className="text-2xl font-bold tabular-nums leading-none mb-1">{count}</p>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{type}</p>
                                     </div>
                                 </div>
                             </div>
@@ -397,23 +396,36 @@ export default function Index({ files, stats, folders, filters }: Props) {
                         </Button>
                         <span className="text-gray-400">/</span>
                         <span className="font-semibold text-gray-900 flex items-center gap-2">
-                            <FolderOpen className="w-4 h-4 text-indigo-600" />
+                            <FolderOpen className="w-4 h-4 text-primary" />
                             {filters.folder}
                         </span>
                     </div>
                 ) : (
                     /* Folder Grid (Root View) */
-                    <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-4">
                         {folders.map(folder => (
                             <div
                                 key={folder}
                                 onClick={() => router.get(route('media.index'), { ...filters, folder })}
-                                className="group relative bg-white p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer flex flex-col items-center gap-3"
+                                className="group relative bg-card p-4 rounded-xl border border-border hover:border-primary transition-all cursor-pointer flex flex-col items-center gap-3"
                             >
-                                <div className="p-3 bg-indigo-50 rounded-full group-hover:bg-indigo-100 transition-colors">
-                                    <FolderOpen className="w-8 h-8 text-indigo-600" />
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                        size="icon-xs"
+                                        variant="destructive"
+                                        className="rounded-full"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFolderClick(folder);
+                                        }}
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </Button>
                                 </div>
-                                <p className="font-medium text-gray-700 group-hover:text-indigo-700 truncate w-full text-center">
+                                <div className="p-3 bg-muted rounded-2xl group-hover:bg-primary/10 transition-colors">
+                                    <FolderOpen className="w-8 h-8 text-muted-foreground group-hover:text-primary" />
+                                </div>
+                                <p className="text-sm font-medium text-foreground group-hover:text-primary truncate w-full text-center px-1">
                                     {folder}
                                 </p>
                             </div>
@@ -422,7 +434,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                 )}
 
                 {/* Filters Bar */}
-                <div className="bg-white rounded-lg border p-4">
+                <div className="bg-card rounded-xl border p-4">
                     <div className="flex flex-wrap gap-3">
                         <div className="flex-1 min-w-[200px]">
                             <div className="relative">
@@ -441,26 +453,30 @@ export default function Index({ files, stats, folders, filters }: Props) {
                             </div>
                         </div>
 
-                        <select
-                            value={filters.type || ''}
-                            onChange={e => {
+                        <Select
+                            value={filters.type || 'all'}
+                            onValueChange={(value) => {
                                 router.get(route('media.index'), {
                                     ...filters,
-                                    type: e.target.value || undefined,
+                                    type: value === 'all' ? undefined : value,
                                 }, { preserveState: true });
                             }}
-                            className="px-4 py-2 border rounded-lg min-w-[180px]"
                         >
-                            <option value="">Todos los tipos</option>
-                            <option value="image">Imágenes</option>
-                            <option value="video">Videos</option>
-                            <option value="document">Documentos</option>
-                            <option value="audio">Audio</option>
-                            <option value="archive">Archivos</option>
-                        </select>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Tipo de archivo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos los tipos</SelectItem>
+                                <SelectItem value="image">Imágenes</SelectItem>
+                                <SelectItem value="video">Videos</SelectItem>
+                                <SelectItem value="document">Documentos</SelectItem>
+                                <SelectItem value="audio">Audio</SelectItem>
+                                <SelectItem value="archive">ArchivosComprimidos</SelectItem>
+                            </SelectContent>
+                        </Select>
 
                         {selectedFiles.length > 0 && (
-                            <Button variant="destructive" onClick={handleBulkDelete} className="gap-2">
+                            <Button variant="destructive" onClick={handleBulkDeleteClick} className="gap-2">
                                 <Trash2 className="w-4 h-4" />
                                 Eliminar ({selectedFiles.length})
                             </Button>
@@ -469,7 +485,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                 </div>
 
                 {/* Files Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-4">
                     {files.data.map(file => {
                         const Icon = typeIcons[file.type as keyof typeof typeIcons] || File;
                         const isSelected = selectedFiles.includes(file.id);
@@ -477,32 +493,33 @@ export default function Index({ files, stats, folders, filters }: Props) {
                         return (
                             <div
                                 key={file.id}
-                                className={`relative group bg-white rounded-lg border-2 overflow-hidden transition-all ${isSelected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-gray-200 hover:border-gray-300'
+                                className={`relative group bg-card rounded-xl border overflow-hidden transition-all ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground/30'
                                     }`}
                             >
                                 {/* Selection Checkbox */}
                                 <button
                                     onClick={() => toggleFileSelection(file.id)}
-                                    className="absolute top-2 left-2 z-10 w-6 h-6 rounded bg-white border-2 border-gray-300 flex items-center justify-center hover:border-indigo-600"
+                                    className={`absolute top-2 left-2 z-10 w-5 h-5 rounded border transition-colors flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'bg-card border-border hover:border-primary'
+                                        }`}
                                 >
-                                    {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
                                 </button>
 
                                 {/* Preview */}
                                 <div className="aspect-square bg-gray-100 flex items-center justify-center">
                                     {file.type === 'image' ? (
-                                        <img src={file.full_url} alt={file.name} className="w-full h-full object-cover" />
+                                        <img src={file.full_url} alt={file.name} loading="lazy" className="w-full h-full object-cover" />
                                     ) : (
                                         <Icon className="w-12 h-12 text-gray-400" />
                                     )}
                                 </div>
 
                                 {/* Info */}
-                                <div className="p-3">
-                                    <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                <div className="p-2.5">
+                                    <p className="text-xs font-semibold text-foreground truncate leading-tight" title={file.name}>
                                         {file.name}
                                     </p>
-                                    <p className="text-xs text-gray-500">{file.size_human}</p>
+                                    <p className="text-[10px] font-medium text-muted-foreground mt-0.5">{file.size_human}</p>
                                 </div>
 
                                 {/* Actions */}
@@ -526,7 +543,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                     <Button
                                         size="sm"
                                         variant="destructive"
-                                        onClick={() => handleDelete(file.id)}
+                                        onClick={() => handleDeleteClick(file.id)}
                                     >
                                         <Trash2 className="w-3 h-3" />
                                     </Button>
@@ -537,22 +554,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                 </div>
 
                 {/* Pagination */}
-                {files.links && files.links.length > 3 && (
-                    <div className="flex justify-center gap-2">
-                        {files.links.map((link, index) => (
-                            <button
-                                key={index}
-                                onClick={() => link.url && router.get(link.url)}
-                                disabled={!link.url}
-                                className={`px-4 py-2 rounded-lg ${link.active
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-white border hover:bg-gray-50 disabled:opacity-50'
-                                    }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ))}
-                    </div>
-                )}
+                <SharedPagination links={files.links} className="mt-8" />
             </div>
 
             {/* Sheets and Modals remain at the end */}
@@ -568,7 +570,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
 
                             <div className="mt-6 space-y-6">
                                 {/* Preview */}
-                                <div className="rounded-lg border bg-gray-50 overflow-hidden">
+                                <div className="rounded-xl border bg-muted focus-visible:border-primary overflow-hidden">
                                     {previewFile.type === 'image' ? (
                                         <img
                                             src={previewFile.full_url}
@@ -579,7 +581,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                         <div className="aspect-video flex items-center justify-center">
                                             {(() => {
                                                 const Icon = typeIcons[previewFile.type as keyof typeof typeIcons] || File;
-                                                return <Icon className="w-20 h-20 text-gray-400" />;
+                                                return <Icon className="w-20 h-20 text-muted-foreground" />;
                                             })()}
                                         </div>
                                     )}
@@ -591,34 +593,34 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                         <h3 className="text-sm font-semibold text-gray-700 mb-3">Información del Archivo</h3>
                                         <div className="space-y-3">
                                             <div className="flex items-start gap-3">
-                                                <File className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                <File className="w-4 h-4 text-muted-foreground mt-0.5" />
                                                 <div className="flex-1">
-                                                    <p className="text-xs text-gray-500">Tipo</p>
-                                                    <p className="text-sm font-medium capitalize">{previewFile.type}</p>
+                                                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Tipo</p>
+                                                    <p className="text-sm font-semibold capitalize">{previewFile.type}</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex items-start gap-3">
-                                                <HardDrive className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                <HardDrive className="w-4 h-4 text-muted-foreground mt-0.5" />
                                                 <div className="flex-1">
-                                                    <p className="text-xs text-gray-500">Tamaño</p>
-                                                    <p className="text-sm font-medium">{previewFile.size_human}</p>
+                                                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Tamaño</p>
+                                                    <p className="text-sm font-semibold">{previewFile.size_human}</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex items-start gap-3">
-                                                <FolderOpen className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                <FolderOpen className="w-4 h-4 text-muted-foreground mt-0.5" />
                                                 <div className="flex-1">
-                                                    <p className="text-xs text-gray-500">Carpeta</p>
-                                                    <p className="text-sm font-medium">{previewFile.folder}</p>
+                                                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Carpeta</p>
+                                                    <p className="text-sm font-semibold">{previewFile.folder}</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex items-start gap-3">
-                                                <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
+                                                <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
                                                 <div className="flex-1">
-                                                    <p className="text-xs text-gray-500">Subido</p>
-                                                    <p className="text-sm font-medium">
+                                                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Subido</p>
+                                                    <p className="text-sm font-semibold">
                                                         {new Date(previewFile.created_at).toLocaleDateString('es-ES', {
                                                             year: 'numeric',
                                                             month: 'long',
@@ -634,8 +636,8 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                                 <div className="flex items-start gap-3">
                                                     <div className="w-4 h-4 mt-0.5" />
                                                     <div className="flex-1">
-                                                        <p className="text-xs text-gray-500">Subido por</p>
-                                                        <p className="text-sm font-medium">{previewFile.uploader.name}</p>
+                                                        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Subido por</p>
+                                                        <p className="text-sm font-semibold">{previewFile.uploader.name}</p>
                                                     </div>
                                                 </div>
                                             )}
@@ -644,8 +646,8 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                                 <div className="flex items-start gap-3">
                                                     <div className="w-4 h-4 mt-0.5" />
                                                     <div className="flex-1">
-                                                        <p className="text-xs text-gray-500">Dimensiones</p>
-                                                        <p className="text-sm font-medium">
+                                                        <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">Dimensiones</p>
+                                                        <p className="text-sm font-semibold">
                                                             {previewFile.metadata.width} × {previewFile.metadata.height} px
                                                         </p>
                                                     </div>
@@ -677,15 +679,19 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                     <div>
                                         <h3 className="text-sm font-semibold text-gray-700 mb-2">Mover a Carpeta</h3>
                                         <div className="flex gap-2">
-                                            <select
+                                            <Select
                                                 value={previewFile.folder}
-                                                onChange={e => handleMoveFile(previewFile.id, e.target.value)}
-                                                className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                                                onValueChange={(value) => handleMoveFile(previewFile.id, value)}
                                             >
-                                                {folders.map(folder => (
-                                                    <option key={folder} value={folder}>{folder}</option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger className="flex-1">
+                                                    <SelectValue placeholder="Selecciona carpeta" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {folders.map(folder => (
+                                                        <SelectItem key={folder} value={folder}>{folder}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1">
                                             Selecciona una carpeta para mover este archivo
@@ -706,8 +712,7 @@ export default function Index({ files, stats, folders, filters }: Props) {
                                             variant="destructive"
                                             className="flex-1 gap-2"
                                             onClick={() => {
-                                                handleDelete(previewFile.id);
-                                                setPreviewOpen(false);
+                                                handleDeleteClick(previewFile.id);
                                             }}
                                         >
                                             <Trash2 className="w-4 h-4" />

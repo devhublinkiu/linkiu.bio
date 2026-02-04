@@ -1,14 +1,17 @@
-import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, useForm, Link } from '@inertiajs/react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { FieldError } from '@/Components/ui/field';
 import { Input } from '@/Components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/Components/ui/input-group';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Separator } from '@/Components/ui/separator';
-import { CheckCircle2, Circle, ArrowRight, ArrowLeft, Building2, User, CreditCard, ShoppingBag, Store } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { cn } from '@/lib/utils';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, ArrowRight, Building2, CheckCircle2, CreditCard, ShoppingBag, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface Category {
@@ -31,7 +34,8 @@ interface Plan {
     quarterly_discount_percent: number;
     semiannual_discount_percent: number;
     yearly_discount_percent: number;
-    allow_custom_slug?: boolean; // Optional until confirmed in DB
+    allow_custom_slug?: boolean;
+    vertical_id: number | string;
 }
 
 interface Props {
@@ -96,6 +100,7 @@ export default function Create({ verticals, plans }: Props) {
     const availableCategories = verticals.find(v => v.id.toString() === data.vertical_id)?.categories || [];
 
     // Plan Logic for Slug
+    const filteredPlans = plans.filter(p => p.vertical_id.toString() === data.vertical_id);
     const selectedPlan = plans.find(p => p.id.toString() === data.plan_id);
     const allowCustomSlug = selectedPlan?.allow_custom_slug !== false;
 
@@ -265,7 +270,7 @@ export default function Create({ verticals, plans }: Props) {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {errors.vertical_id && <p className="text-red-500 text-xs">{errors.vertical_id}</p>}
+                                            <FieldError>{errors.vertical_id}</FieldError>
                                         </div>
                                     </div>
 
@@ -286,7 +291,7 @@ export default function Create({ verticals, plans }: Props) {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {errors.category_id && <p className="text-red-500 text-xs">{errors.category_id}</p>}
+                                            <FieldError>{errors.category_id}</FieldError>
                                         </div>
                                     </div>
                                 </div>
@@ -296,38 +301,44 @@ export default function Create({ verticals, plans }: Props) {
                             {currentStep === 2 && (
                                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                                     <div className="grid md:grid-cols-3 gap-6">
-                                        {plans.map(plan => (
-                                            <div
-                                                key={plan.id}
-                                                className={cn(
-                                                    "cursor-pointer border rounded-xl p-6 transition-all hover:shadow-lg relative",
-                                                    data.plan_id === plan.id.toString()
-                                                        ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                                                        : "border-gray-200 bg-white"
-                                                )}
-                                                onClick={() => setData('plan_id', plan.id.toString())}
-                                            >
-                                                {data.plan_id === plan.id.toString() && (
-                                                    <div className="absolute top-4 right-4 text-blue-600">
-                                                        <CheckCircle2 className="h-6 w-6" />
-                                                    </div>
-                                                )}
-                                                <h3 className="font-bold text-lg mb-1">{plan.name}</h3>
-                                                <div className="text-2xl font-bold text-gray-900 mb-2">
-                                                    {new Intl.NumberFormat('es-CO', { style: 'currency', currency: plan.currency }).format(plan.monthly_price)}
-                                                    <span className="text-sm font-normal text-muted-foreground">/mes</span>
-                                                </div>
-                                                <p className="text-sm text-gray-500 mb-4 line-clamp-2">{plan.description}</p>
-
-                                                {plan.allow_custom_slug === false && (
-                                                    <div className="mt-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded inline-block">
-                                                        Slug automático
-                                                    </div>
-                                                )}
+                                        {filteredPlans.length === 0 ? (
+                                            <div className="col-span-3 py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
+                                                No hay planes disponibles para esta vertical.
                                             </div>
-                                        ))}
+                                        ) : (
+                                            filteredPlans.map(plan => (
+                                                <div
+                                                    key={plan.id}
+                                                    className={cn(
+                                                        "cursor-pointer border rounded-xl p-6 transition-all hover:shadow-lg relative",
+                                                        data.plan_id === plan.id.toString()
+                                                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                                                            : "border-gray-200 bg-white"
+                                                    )}
+                                                    onClick={() => setData('plan_id', plan.id.toString())}
+                                                >
+                                                    {data.plan_id === plan.id.toString() && (
+                                                        <div className="absolute top-4 right-4 text-blue-600">
+                                                            <CheckCircle2 className="h-6 w-6" />
+                                                        </div>
+                                                    )}
+                                                    <h3 className="font-bold text-lg mb-1">{plan.name}</h3>
+                                                    <div className="text-2xl font-bold text-gray-900 mb-2">
+                                                        {new Intl.NumberFormat('es-CO', { style: 'currency', currency: plan.currency }).format(plan.monthly_price)}
+                                                        <span className="text-sm font-normal text-muted-foreground">/mes</span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{plan.description}</p>
+
+                                                    {plan.allow_custom_slug === false && (
+                                                        <div className="mt-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded inline-block">
+                                                            Slug automático
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
-                                    {errors.plan_id && <p className="text-red-500 text-xs text-center">{errors.plan_id}</p>}
+                                    <FieldError className="text-center">{errors.plan_id}</FieldError>
 
                                     <div className="max-w-md mx-auto p-6 bg-gray-50 rounded-xl border">
                                         <Label className="mb-4 block text-center font-medium">Ciclo de Facturación</Label>
@@ -361,12 +372,12 @@ export default function Create({ verticals, plans }: Props) {
                                     <div className="space-y-2">
                                         <Label htmlFor="owner_name">Nombre Completo</Label>
                                         <Input id="owner_name" name="owner_name" value={data.owner_name} onChange={e => setData('owner_name', e.target.value)} />
-                                        {errors.owner_name && <p className="text-red-500 text-xs">{errors.owner_name}</p>}
+                                        <FieldError>{errors.owner_name}</FieldError>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="owner_email">Correo Electrónico</Label>
                                         <Input id="owner_email" name="owner_email" type="email" value={data.owner_email} onChange={e => setData('owner_email', e.target.value)} />
-                                        {errors.owner_email && <p className="text-red-500 text-xs">{errors.owner_email}</p>}
+                                        <FieldError>{errors.owner_email}</FieldError>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
@@ -384,7 +395,7 @@ export default function Create({ verticals, plans }: Props) {
                                         <div className="col-span-2 space-y-2">
                                             <Label htmlFor="owner_doc_number">Número Documento</Label>
                                             <Input id="owner_doc_number" name="owner_doc_number" value={data.owner_doc_number} onChange={e => setData('owner_doc_number', e.target.value)} />
-                                            {errors.owner_doc_number && <p className="text-red-500 text-xs">{errors.owner_doc_number}</p>}
+                                            <FieldError>{errors.owner_doc_number}</FieldError>
                                         </div>
                                     </div>
 
@@ -416,7 +427,7 @@ export default function Create({ verticals, plans }: Props) {
                                     <div className="space-y-2 md:col-span-2 pt-4 border-t">
                                         <Label htmlFor="owner_password" className="text-red-600">Contraseña Temporal</Label>
                                         <Input id="owner_password" name="owner_password" type="text" value={data.owner_password} onChange={e => setData('owner_password', e.target.value)} placeholder="Asignar contraseña de acceso..." />
-                                        {errors.owner_password && <p className="text-red-500 text-xs">{errors.owner_password}</p>}
+                                        <FieldError>{errors.owner_password}</FieldError>
                                     </div>
                                 </div>
                             )}
@@ -427,30 +438,30 @@ export default function Create({ verticals, plans }: Props) {
                                     <div className="space-y-2">
                                         <Label htmlFor="tenant_name">Nombre del Negocio (Público)</Label>
                                         <Input id="tenant_name" name="tenant_name" value={data.tenant_name ?? ''} onChange={e => setData('tenant_name', e.target.value)} />
-                                        {errors.tenant_name && <p className="text-red-500 text-xs">{errors.tenant_name}</p>}
+                                        <FieldError>{errors.tenant_name}</FieldError>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="slug">Slug (URL)</Label>
-                                        <div className="flex">
-                                            <span className="inline-flex items-center px-3 border border-r-0 rounded-l-md bg-gray-50 text-gray-500 text-sm">
+                                        <InputGroup>
+                                            <InputGroupAddon className="bg-muted text-muted-foreground border-r-0">
                                                 linkiu.bio/
-                                            </span>
-                                            <Input
+                                            </InputGroupAddon>
+                                            <InputGroupInput
                                                 id="slug"
                                                 name="slug"
-                                                className={cn("rounded-l-none font-mono text-sm", !allowCustomSlug && "bg-gray-100 text-gray-500 cursor-not-allowed")}
+                                                className={cn("text-sm", !allowCustomSlug && "bg-muted text-muted-foreground cursor-not-allowed")}
                                                 value={data.slug ?? ''}
                                                 onChange={e => setData('slug', e.target.value)}
                                                 readOnly={!allowCustomSlug}
                                             />
-                                        </div>
+                                        </InputGroup>
                                         {!allowCustomSlug && (
                                             <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                                                 <span className="inline-block w-1 h-1 bg-amber-600 rounded-full"></span>
                                                 Este plan genera un slug único mezclando caracteres aleatorios
                                             </p>
                                         )}
-                                        {errors.slug && <p className="text-red-500 text-xs font-medium">{errors.slug}</p>}
+                                        <FieldError>{errors.slug}</FieldError>
                                     </div>
 
                                     <div className="space-y-2">
@@ -487,13 +498,10 @@ export default function Create({ verticals, plans }: Props) {
                                     </div>
 
                                     <div className="md:col-span-2 flex items-center gap-2 py-2">
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
                                             id="use_owner_address"
-                                            name="use_owner_address"
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                             checked={data.use_owner_address}
-                                            onChange={e => setData('use_owner_address', e.target.checked)}
+                                            onCheckedChange={val => setData('use_owner_address', val === true)}
                                         />
                                         <Label htmlFor="use_owner_address" className="font-normal cursor-pointer">Usar la misma dirección del propietario</Label>
                                     </div>

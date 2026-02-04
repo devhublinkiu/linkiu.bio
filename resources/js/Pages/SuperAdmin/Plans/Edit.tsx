@@ -11,6 +11,7 @@ import { Switch } from '@/Components/ui/switch';
 import { Separator } from '@/Components/ui/separator';
 import { Trash2, ArrowLeft, Upload, Calculator, Plus } from 'lucide-react';
 import { Checkbox } from '@/Components/ui/checkbox';
+import { FieldError } from '@/Components/ui/field';
 import { MediaInput } from '@/Components/Shared/MediaManager/MediaInput';
 import { VERTICAL_CONFIG, MODULE_LABELS } from '@/Config/menuConfig';
 
@@ -191,7 +192,7 @@ export default function Edit({ plan, verticals }: Props) {
                         </CardHeader>
                         <CardContent className="grid gap-6">
                             <div className="grid md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="vertical">Vertical de Negocio</Label>
                                     <Select
                                         value={data.vertical_id}
@@ -208,9 +209,9 @@ export default function Edit({ plan, verticals }: Props) {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    {errors.vertical_id && <p className="text-red-500 text-sm">{errors.vertical_id}</p>}
+                                    <FieldError>{errors.vertical_id}</FieldError>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="currency">Moneda</Label>
                                     <Select
                                         value={data.currency}
@@ -224,30 +225,30 @@ export default function Edit({ plan, verticals }: Props) {
                                             <SelectItem value="USD">Dólar Americano (USD)</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {errors.currency && <p className="text-red-500 text-sm">{errors.currency}</p>}
+                                    <FieldError>{errors.currency}</FieldError>
                                 </div>
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="name">Nombre del Plan</Label>
                                     <Input id="name" value={data.name} onChange={e => setData('name', e.target.value)} required />
-                                    {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+                                    <FieldError>{errors.name}</FieldError>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="slug">Slug (URL amigable)</Label>
                                     <Input id="slug" value={data.slug} onChange={e => setData('slug', e.target.value)} required />
-                                    {errors.slug && <p className="text-red-500 text-sm">{errors.slug}</p>}
+                                    <FieldError>{errors.slug}</FieldError>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="description">Descripción Corta</Label>
                                 <Textarea id="description" value={data.description} onChange={e => setData('description', e.target.value)} />
-                                {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+                                <FieldError>{errors.description}</FieldError>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label>Imagen de Portada / Icono</Label>
                                 <MediaInput
                                     value={data.cover_preview}
@@ -268,7 +269,8 @@ export default function Edit({ plan, verticals }: Props) {
                                     }}
                                     error={errors.cover}
                                 />
-                                <p className="text-xs text-muted-foreground mt-2">Recomendado: 800x600px o Icono SVG.</p>
+                                <p className="text-[0.75rem] text-muted-foreground mt-1">Recomendado: 800x600px o Icono SVG.</p>
+                                <FieldError>{errors.cover}</FieldError>
                             </div>
                         </CardContent>
                     </Card>
@@ -284,26 +286,26 @@ export default function Edit({ plan, verticals }: Props) {
                         </CardHeader>
                         <CardContent className="space-y-8">
                             <div className="grid md:grid-cols-2 gap-8 items-center">
-                                <div className="p-6 bg-blue-50/50 rounded-xl border border-blue-100">
+                                <div className="p-6 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col gap-1.5">
                                     <Label htmlFor="monthly_price" className="text-base font-semibold text-blue-900">Precio Base Mensual</Label>
-                                    <div className="mt-2 relative">
+                                    <div className="mt-1 relative">
                                         <span className="absolute left-3 top-2.5 font-bold text-gray-500">
-                                            {data.currency === 'USD' ? '$' : '$'}
+                                            $
                                         </span>
                                         <Input
                                             id="monthly_price"
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            className="pl-8 text-lg font-bold h-12"
+                                            className="pl-8 text-lg font-bold"
                                             placeholder="0.00"
                                             value={data.monthly_price}
                                             onChange={e => setData('monthly_price', e.target.value)}
                                             required
                                         />
                                     </div>
-                                    <p className="text-sm text-blue-600/80 mt-2">Este es el precio que pagará el usuario si elige facturación mes a mes.</p>
-                                    {errors.monthly_price && <p className="text-red-500 text-sm mt-1">{errors.monthly_price}</p>}
+                                    <p className="text-xs text-blue-600/80 mt-1">Este es el precio que pagará el usuario si elige facturación mes a mes.</p>
+                                    <FieldError>{errors.monthly_price}</FieldError>
                                 </div>
 
                                 <div className="space-y-6">
@@ -311,9 +313,9 @@ export default function Edit({ plan, verticals }: Props) {
 
                                     {/* Quarterly */}
                                     <div className="flex items-center gap-4">
-                                        <div className="w-40 flex-shrink-0">
+                                        <div className="w-40 flex-shrink-0 flex flex-col gap-1.5">
                                             <Label htmlFor="quarterly" className="text-xs text-gray-500 uppercase">Trimestral (-%)</Label>
-                                            <div className="relative mt-1">
+                                            <div className="relative mt-0.5">
                                                 <Input
                                                     id="quarterly"
                                                     type="number"
@@ -326,8 +328,8 @@ export default function Edit({ plan, verticals }: Props) {
                                             </div>
                                         </div>
                                         <div className="flex-1 pt-4">
-                                            <div className="text-xs text-gray-500">Precio Final / periodo</div>
-                                            <div className="font-mono font-bold text-green-700 text-lg">
+                                            <div className="text-[0.7rem] text-gray-500 uppercase tracking-tight">Precio Final / periodo</div>
+                                            <div className="font-bold text-green-700 text-lg">
                                                 {new Intl.NumberFormat('es-CO', { style: 'currency', currency: data.currency }).format(calculateTotal(3, data.quarterly_discount_percent))}
                                             </div>
                                         </div>
@@ -335,9 +337,9 @@ export default function Edit({ plan, verticals }: Props) {
 
                                     {/* Semiannual */}
                                     <div className="flex items-center gap-4">
-                                        <div className="w-40 flex-shrink-0">
+                                        <div className="w-40 flex-shrink-0 flex flex-col gap-1.5">
                                             <Label htmlFor="semiannual" className="text-xs text-gray-500 uppercase">Semestral (-%)</Label>
-                                            <div className="relative mt-1">
+                                            <div className="relative mt-0.5">
                                                 <Input
                                                     id="semiannual"
                                                     type="number"
@@ -350,8 +352,8 @@ export default function Edit({ plan, verticals }: Props) {
                                             </div>
                                         </div>
                                         <div className="flex-1 pt-4">
-                                            <div className="text-xs text-gray-500">Precio Final / periodo</div>
-                                            <div className="font-mono font-bold text-green-700 text-lg">
+                                            <div className="text-[0.7rem] text-gray-500 uppercase tracking-tight">Precio Final / periodo</div>
+                                            <div className="font-bold text-green-700 text-lg">
                                                 {new Intl.NumberFormat('es-CO', { style: 'currency', currency: data.currency }).format(calculateTotal(6, data.semiannual_discount_percent))}
                                             </div>
                                         </div>
@@ -359,9 +361,9 @@ export default function Edit({ plan, verticals }: Props) {
 
                                     {/* Annual */}
                                     <div className="flex items-center gap-4">
-                                        <div className="w-40 flex-shrink-0">
+                                        <div className="w-40 flex-shrink-0 flex flex-col gap-1.5">
                                             <Label htmlFor="yearly" className="text-xs text-gray-500 uppercase">Anual (-%)</Label>
-                                            <div className="relative mt-1">
+                                            <div className="relative mt-0.5">
                                                 <Input
                                                     id="yearly"
                                                     type="number"
@@ -374,8 +376,8 @@ export default function Edit({ plan, verticals }: Props) {
                                             </div>
                                         </div>
                                         <div className="flex-1 pt-4">
-                                            <div className="text-xs text-gray-500">Precio Final / periodo</div>
-                                            <div className="font-mono font-bold text-green-700 text-lg">
+                                            <div className="text-[0.7rem] text-gray-500 uppercase tracking-tight">Precio Final / periodo</div>
+                                            <div className="font-bold text-green-700 text-lg">
                                                 {new Intl.NumberFormat('es-CO', { style: 'currency', currency: data.currency }).format(calculateTotal(12, data.yearly_discount_percent))}
                                             </div>
                                         </div>
@@ -410,7 +412,7 @@ export default function Edit({ plan, verticals }: Props) {
                                     <Button type="button" variant="outline" size="sm" onClick={addFeature} className="w-full border-dashed">
                                         <Plus className="h-4 w-4 mr-2" /> Agregar Característica
                                     </Button>
-                                    {errors.features && <p className="text-red-500 text-sm">{errors.features}</p>}
+                                    <FieldError>{errors.features}</FieldError>
                                 </CardContent>
                             </Card>
                         </div>
@@ -422,7 +424,7 @@ export default function Edit({ plan, verticals }: Props) {
                                     <CardTitle>Configuración</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="space-y-2">
+                                    <div className="flex flex-col gap-1.5">
                                         <Label>Días de Prueba Gratis</Label>
                                         <Input type="number" min="0" value={data.trial_days} onChange={e => setData('trial_days', parseInt(e.target.value) || 0)} />
                                     </div>
@@ -436,7 +438,7 @@ export default function Edit({ plan, verticals }: Props) {
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="flex flex-col gap-1.5">
                                         <Label>Nivel de Soporte</Label>
                                         <Select
                                             value={data.support_level}
@@ -446,9 +448,9 @@ export default function Edit({ plan, verticals }: Props) {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="basic">Básico</SelectItem>
-                                                <SelectItem value="priority">Prioritario</SelectItem>
-                                                <SelectItem value="dedicated">Dedicado</SelectItem>
+                                                <SelectItem value="basic">Básico (Email)</SelectItem>
+                                                <SelectItem value="priority">Prioritario (24h)</SelectItem>
+                                                <SelectItem value="dedicated">Dedicado (WhatsApp)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -466,7 +468,7 @@ export default function Edit({ plan, verticals }: Props) {
                                     </div>
 
                                     {data.is_featured && (
-                                        <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-1">
+                                        <div className="flex flex-col gap-1.5 pt-2 animate-in fade-in slide-in-from-top-1">
                                             <Label>Texto Destacado</Label>
                                             <Input
                                                 value={data.highlight_text}

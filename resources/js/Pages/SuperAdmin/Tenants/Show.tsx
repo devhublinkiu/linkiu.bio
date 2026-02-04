@@ -1,10 +1,12 @@
+import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Label } from '@/Components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
 import { Head, Link } from '@inertiajs/react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
-import { Button } from '@/Components/ui/button';
-import { Badge } from '@/Components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs'; // Assuming Tabs component exists or using standard
-import { User, Building2, CreditCard, Calendar, ArrowLeft, Mail, Phone, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, CreditCard, ExternalLink, Mail, MapPin, Phone, ShieldCheck, User } from 'lucide-react';
 
 interface Props {
     tenant: any; // Using any for speed, but ideally strictly typed matches Tenant model with relations
@@ -30,15 +32,17 @@ export default function Show({ tenant }: Props) {
                 {/* Header Info */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="h-16 w-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                            <Building2 className="h-8 w-8" />
-                        </div>
+                        <Avatar className="h-16 w-16 bg-blue-100 text-blue-600 rounded-2xl">
+                            <AvatarFallback className="bg-transparent">
+                                <Building2 className="h-8 w-8" />
+                            </AvatarFallback>
+                        </Avatar>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">{tenant.name}</h1>
                             <a
                                 href={`https://linkiu.bio/${tenant.slug}`}
                                 target="_blank"
-                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-mono"
+                                className="text-blue-600 hover:underline flex items-center gap-1 text-sm font-medium"
                             >
                                 linkiu.bio/{tenant.slug} <ExternalLink className="h-3 w-3" />
                             </a>
@@ -64,17 +68,17 @@ export default function Show({ tenant }: Props) {
                             </CardHeader>
                             <CardContent className="grid sm:grid-cols-2 gap-6">
                                 <div className="space-y-1">
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Identificación</span>
-                                    <div className="flex items-center gap-2 font-mono">
+                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Identificación</Label>
+                                    <div className="flex items-center gap-2">
                                         <Badge variant="secondary">{tenant.doc_type}</Badge>
-                                        <span>{tenant.doc_number}</span>
-                                        {tenant.verification_digit && <span>- {tenant.verification_digit}</span>}
+                                        <span className="font-medium text-sm">{tenant.doc_number}</span>
+                                        {tenant.verification_digit && <span className="font-medium text-sm">- {tenant.verification_digit}</span>}
                                     </div>
                                     <div className="text-sm text-gray-500 mt-1 capitalize">Régimen {tenant.regime}</div>
                                 </div>
 
                                 <div className="space-y-1">
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Ubicación Fiscal</span>
+                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Ubicación Fiscal</Label>
                                     <div className="flex items-start gap-2 text-sm">
                                         <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
                                         <div>
@@ -85,7 +89,7 @@ export default function Show({ tenant }: Props) {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Contacto Comercial</span>
+                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Contacto Comercial</Label>
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2">
                                             <Mail className="h-4 w-4 text-gray-400" />
@@ -135,9 +139,11 @@ export default function Show({ tenant }: Props) {
                                 {owner ? (
                                     <>
                                         <div className="flex items-center gap-3">
-                                            <div className="h-12 w-12 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center font-bold text-xl">
-                                                {owner.name.charAt(0)}
-                                            </div>
+                                            <Avatar className="h-12 w-12 bg-blue-200 text-blue-700 font-bold text-xl">
+                                                <AvatarFallback className="bg-transparent">
+                                                    {owner.name.charAt(0)}
+                                                </AvatarFallback>
+                                            </Avatar>
                                             <div>
                                                 <div className="font-bold">{owner.name}</div>
                                                 <div className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full inline-block">

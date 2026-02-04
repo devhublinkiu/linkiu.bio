@@ -67,9 +67,9 @@ export default function Edit({ role, permissions, rolePermissions }: { role: any
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     placeholder="Ej. Administrador de Soporte"
-                                    className={errors.name ? 'border-red-500' : ''}
+                                    className={errors.name ? 'border-destructive' : ''}
                                 />
-                                {errors.name && <p className="text-sm text-red-500 font-medium">{errors.name}</p>}
+                                {errors.name && <p className="text-sm text-destructive font-medium">{errors.name}</p>}
                             </div>
                         </CardContent>
                     </Card>
@@ -77,10 +77,10 @@ export default function Edit({ role, permissions, rolePermissions }: { role: any
                     <div className="space-y-4">
                         <div className="flex items-center justify-between px-1">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">Sistema Global</h3>
-                                <p className="text-sm text-slate-500">Selecciona las acciones y accesos para este rol.</p>
+                                <h3 className="text-lg font-bold text-foreground">Sistema Global</h3>
+                                <p className="text-sm text-muted-foreground">Selecciona las acciones y accesos para este rol.</p>
                             </div>
-                            <div className="text-sm font-medium text-slate-500">
+                            <div className="text-sm font-medium text-muted-foreground">
                                 {data.permissions.length} permisos seleccionados
                             </div>
                         </div>
@@ -92,10 +92,10 @@ export default function Edit({ role, permissions, rolePermissions }: { role: any
                                 const someSelected = moduleNames.some(name => data.permissions.includes(name));
 
                                 return (
-                                    <Card key={moduleName} className="overflow-hidden border-slate-200">
-                                        <div className="bg-slate-50/50 p-3 border-b border-slate-200 flex items-center justify-between">
-                                            <div className="font-bold flex items-center gap-2 text-slate-800">
-                                                <ShieldCheck className={`h-4 w-4 ${someSelected ? 'text-blue-600' : 'text-slate-400'}`} />
+                                    <Card key={moduleName} className="overflow-hidden border-border bg-card">
+                                        <div className="bg-muted p-3 border-b border-border flex items-center justify-between">
+                                            <div className="font-bold flex items-center gap-2 text-foreground">
+                                                <ShieldCheck className={`h-4 w-4 ${someSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                                                 {moduleName}
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -106,7 +106,7 @@ export default function Edit({ role, permissions, rolePermissions }: { role: any
                                                 />
                                                 <label
                                                     htmlFor={`module-${moduleName}`}
-                                                    className="text-xs font-medium text-slate-500 cursor-pointer select-none"
+                                                    className="text-xs font-medium text-muted-foreground cursor-pointer select-none"
                                                 >
                                                     Todos
                                                 </label>
@@ -114,7 +114,7 @@ export default function Edit({ role, permissions, rolePermissions }: { role: any
                                         </div>
                                         <CardContent className="p-3 grid gap-2">
                                             {modulePermissions.map((permission: any) => (
-                                                <div key={permission.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                                <div key={permission.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                                                     <Checkbox
                                                         id={permission.name}
                                                         checked={data.permissions.includes(permission.name)}

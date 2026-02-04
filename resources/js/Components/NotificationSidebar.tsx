@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-} from "@/Components/ui/sheet";
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerDescription,
+} from "@/Components/ui/drawer";
 import { Button } from "@/Components/ui/button";
 import { Bell, CheckCircle2, ShoppingBag, CreditCard, ChevronRight, Check, Trash2, X } from "lucide-react";
 import { router } from '@inertiajs/react';
@@ -132,20 +132,20 @@ export default function NotificationSidebar({
     };
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="w-full sm:max-w-md p-0 gap-0 flex flex-col border-l border-slate-200">
-                <SheetHeader className="p-6 border-b border-slate-100 bg-white">
+        <Drawer open={open} onOpenChange={onOpenChange} direction="right">
+            <DrawerContent className="w-full sm:max-w-md p-0 gap-0 flex flex-col border-l border-border h-full outline-none">
+                <DrawerHeader className="p-6 border-b border-border bg-background text-left">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="h-9 w-9 bg-primary/10 rounded-xl flex items-center justify-center">
                                 <Bell className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <SheetTitle className="text-lg font-bold text-slate-900">Notificaciones</SheetTitle>
-                                <SheetDescription className="sr-only">
+                                <DrawerTitle className="text-lg font-bold text-foreground">Notificaciones</DrawerTitle>
+                                <DrawerDescription className="sr-only">
                                     Centro de notificaciones y avisos del sistema
-                                </SheetDescription>
-                                <p className="text-xs text-slate-500 font-medium">
+                                </DrawerDescription>
+                                <p className="text-xs text-muted-foreground font-medium">
                                     {unreadCount > 0
                                         ? `Tienes ${unreadCount} ${unreadCount === 1 ? 'nueva notificacion' : 'notificaciones nuevas'}`
                                         : 'Estás al día'}
@@ -170,7 +170,7 @@ export default function NotificationSidebar({
                                     variant="ghost"
                                     size="sm"
                                     onClick={clearAllRead}
-                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 font-bold text-xs gap-2 px-2 h-8"
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-bold text-xs gap-2 px-2 h-8"
                                     title="Eliminar leídas"
                                 >
                                     <Trash2 className="h-4 w-4" />
@@ -178,18 +178,18 @@ export default function NotificationSidebar({
                             )}
                         </div>
                     </div>
-                </SheetHeader>
+                </DrawerHeader>
 
                 <div className="flex-1 overflow-y-auto px-1">
-                    <div className="divide-y divide-slate-50">
+                    <div className="divide-y divide-border">
                         {localNotifications.length > 0 ? (
                             localNotifications.map((notification) => (
                                 <div
                                     key={notification.id}
                                     onClick={() => handleNotificationClick(notification)}
                                     className={cn(
-                                        "p-5 transition-all cursor-pointer group hover:bg-slate-50 flex gap-4 items-start relative select-none",
-                                        !notification.read_at && "bg-blue-50/30"
+                                        "p-5 transition-all cursor-pointer group hover:bg-muted/50 flex gap-4 items-start relative select-none",
+                                        !notification.read_at && "bg-primary/5"
                                     )}
                                 >
                                     {!notification.read_at && (
@@ -199,8 +199,8 @@ export default function NotificationSidebar({
                                     <div className={cn(
                                         "h-10 w-10 shrink-0 rounded-xl flex items-center justify-center shadow-sm border",
                                         !notification.read_at
-                                            ? "bg-white border-blue-100"
-                                            : "bg-slate-50 border-slate-100"
+                                            ? "bg-background border-primary/20"
+                                            : "bg-muted border-border"
                                     )}>
                                         {getIcon(notification.data.type)}
                                     </div>
@@ -209,14 +209,14 @@ export default function NotificationSidebar({
                                         <div className="flex justify-between items-start mb-1">
                                             <p className={cn(
                                                 "text-sm leading-tight pr-6",
-                                                !notification.read_at ? "font-bold text-slate-900" : "font-medium text-slate-600"
+                                                !notification.read_at ? "font-bold text-foreground" : "font-medium text-muted-foreground"
                                             )}>
                                                 {notification.data.message}
                                             </p>
                                         </div>
 
                                         <div className="flex items-center gap-2 mt-2">
-                                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
+                                            <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
                                                 {new Date(notification.created_at).toLocaleDateString('es-ES', {
                                                     day: '2-digit',
                                                     month: 'short',
@@ -226,7 +226,7 @@ export default function NotificationSidebar({
                                             </span>
                                             {notification.data.url && (
                                                 <>
-                                                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                                    <span className="h-1 w-1 rounded-full bg-border" />
                                                     <span className="text-[10px] font-bold text-primary flex items-center gap-1 group-hover:gap-2 transition-all uppercase tracking-wider">
                                                         Ver detalle <ChevronRight className="h-2.5 w-2.5" />
                                                     </span>
@@ -241,7 +241,7 @@ export default function NotificationSidebar({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 rounded-lg hover:bg-white hover:text-green-600 hover:shadow-sm"
+                                                className="h-7 w-7 rounded-lg hover:bg-background hover:text-green-600 hover:shadow-sm"
                                                 title="Marcar como leído"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -254,7 +254,7 @@ export default function NotificationSidebar({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 rounded-lg hover:bg-red-50 hover:text-red-600"
+                                                className="h-7 w-7 rounded-lg hover:bg-destructive/10 hover:text-destructive"
                                                 title="Eliminar"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -269,24 +269,24 @@ export default function NotificationSidebar({
                             ))
                         ) : (
                             <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-                                <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                                    <Bell className="h-8 w-8 text-slate-200" />
+                                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                                    <Bell className="h-8 w-8 text-muted-foreground/30" />
                                 </div>
-                                <h3 className="text-slate-900 font-bold mb-1">Sin notificaciones</h3>
-                                <p className="text-slate-500 text-sm">No tienes nada nuevo por aquí.</p>
+                                <h3 className="text-foreground font-bold mb-1">Sin notificaciones</h3>
+                                <p className="text-muted-foreground text-sm">No tienes nada nuevo por aquí.</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {localNotifications.length > 0 && (
-                    <div className="p-4 bg-slate-50 border-t border-slate-100">
-                        <p className="text-[10px] text-center font-bold text-slate-400 uppercase tracking-widest">
+                    <div className="p-4 bg-muted/30 border-t border-border">
+                        <p className="text-[10px] text-center font-bold text-muted-foreground uppercase tracking-widest">
                             Mostrando últimas {localNotifications.length} notificaciones
                         </p>
                     </div>
                 )}
-            </SheetContent>
-        </Sheet>
+            </DrawerContent>
+        </Drawer>
     );
 }

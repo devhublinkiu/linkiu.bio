@@ -4,10 +4,12 @@ import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/Components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Separator } from '@/Components/ui/separator';
-import { Upload, Save, Image as ImageIcon, AtSign, Facebook, Instagram, Twitter, Globe, Mail, CreditCard } from 'lucide-react';
+import { Alert, AlertDescription } from '@/Components/ui/alert';
+import { FieldError } from '@/Components/ui/field';
+import { Upload, Save, Image as ImageIcon, AtSign, Facebook, Instagram, Twitter, Globe, Mail, CreditCard, Info } from 'lucide-react';
 import { PageProps } from '@/types';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
@@ -134,16 +136,13 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
             <div className="max-w-4xl mx-auto py-6">
                 <form onSubmit={submit}>
                     <Tabs defaultValue="general" className="w-full">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="mb-6">
                             <TabsList>
                                 <TabsTrigger value="general">Identidad</TabsTrigger>
                                 <TabsTrigger value="contact">Contacto y Redes</TabsTrigger>
                                 <TabsTrigger value="billing">Facturación</TabsTrigger>
                                 <TabsTrigger value="seo">SEO Global</TabsTrigger>
                             </TabsList>
-                            <Button type="submit" disabled={processing} size="sm">
-                                {processing ? 'Guardando...' : 'Guardar Cambios'}
-                            </Button>
                         </div>
 
                         <TabsContent value="general" className="space-y-6">
@@ -169,7 +168,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                             placeholder="Ej. Mi Plataforma SaaS"
                                         />
                                         <p className="text-[0.8rem] text-muted-foreground">Este nombre aparecerá en títulos y correos electrónicos.</p>
-                                        {errors.app_name && <p className="text-red-500 text-sm">{errors.app_name}</p>}
+                                        <FieldError>{errors.app_name}</FieldError>
                                     </div>
 
                                     <Separator />
@@ -179,20 +178,20 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         {/* Logo Uploader */}
                                         <div className="space-y-3">
                                             <Label>Logo Principal</Label>
-                                            <div className="flex items-start gap-4 p-4 border border-dashed rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors relative group">
-                                                <div className="h-16 w-16 flex-shrink-0 bg-white border rounded-md shadow-sm flex items-center justify-center p-1 overflow-hidden pointer-events-none">
+                                            <div className="flex items-start gap-4 p-4 border border-dashed rounded-lg bg-muted/50 hover:bg-muted transition-colors relative group">
+                                                <div className="h-16 w-16 flex-shrink-0 bg-background border rounded-md shadow-sm flex items-center justify-center p-1 overflow-hidden pointer-events-none">
                                                     {logoPreview ? (
                                                         <img src={logoPreview} className="w-full h-full object-contain" alt="Logo" />
                                                     ) : (
-                                                        <ImageIcon className="h-6 w-6 text-gray-300" />
+                                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0 space-y-1">
-                                                    <p className="text-sm font-medium text-gray-900">Subir imagen</p>
+                                                    <p className="text-sm font-medium text-foreground">Subir imagen</p>
                                                     <p className="text-xs text-muted-foreground">
                                                         Recomendado: SVG o PNG transparente.<br />Máx. 2MB.
                                                     </p>
-                                                    {errors.logo && <p className="text-red-500 text-xs mt-1">{errors.logo}</p>}
+                                                    <FieldError className="mt-1">{errors.logo}</FieldError>
                                                 </div>
                                                 <Input
                                                     type="file"
@@ -207,20 +206,20 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         {/* Favicon Uploader */}
                                         <div className="space-y-3">
                                             <Label>Favicon</Label>
-                                            <div className="flex items-start gap-4 p-4 border border-dashed rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors relative group">
-                                                <div className="h-16 w-16 flex-shrink-0 bg-white border rounded-md shadow-sm flex items-center justify-center p-3 overflow-hidden pointer-events-none">
+                                            <div className="flex items-start gap-4 p-4 border border-dashed rounded-lg bg-muted/50 hover:bg-muted transition-colors relative group">
+                                                <div className="h-16 w-16 flex-shrink-0 bg-background border rounded-md shadow-sm flex items-center justify-center p-3 overflow-hidden pointer-events-none">
                                                     {faviconPreview ? (
                                                         <img src={faviconPreview} className="w-full h-full object-contain" alt="Favicon" />
                                                     ) : (
-                                                        <Globe className="h-6 w-6 text-gray-300" />
+                                                        <Globe className="h-6 w-6 text-muted-foreground" />
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0 space-y-1">
-                                                    <p className="text-sm font-medium text-gray-900">Subir icono</p>
+                                                    <p className="text-sm font-medium text-foreground">Subir icono</p>
                                                     <p className="text-xs text-muted-foreground">
                                                         Visible en la pestaña del navegador.<br />ICO, PNG o SVG.
                                                     </p>
-                                                    {errors.favicon && <p className="text-red-500 text-xs mt-1">{errors.favicon}</p>}
+                                                    <FieldError className="mt-1">{errors.favicon}</FieldError>
                                                 </div>
                                                 <Input
                                                     type="file"
@@ -233,6 +232,11 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         </div>
                                     </div>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Guardando...' : 'Guardar Cambios'}
+                                    </Button>
+                                </CardFooter>
                             </Card>
 
                             {/* Admin Profile */}
@@ -244,7 +248,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                 <CardContent>
                                     <div className="flex items-center gap-6">
                                         <div className="relative group">
-                                            <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-white shadow-md bg-gray-100 flex-shrink-0">
+                                            <div className="h-24 w-24 rounded-full overflow-hidden border-2 border-background shadow-md bg-muted flex-shrink-0">
                                                 <img
                                                     src={data.profile_photo_preview || usePage<any>().props.auth.user.profile_photo_url || `https://ui-avatars.com/api/?name=${usePage<any>().props.auth.user.name}&background=0D8ABC&color=fff`}
                                                     alt="Profile"
@@ -252,7 +256,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                                 />
                                             </div>
                                             {/* Decorative status dot */}
-                                            <div className="absolute bottom-1 right-1 h-5 w-5 bg-green-500 border-2 border-white rounded-full"></div>
+                                            <div className="absolute bottom-1 right-1 h-5 w-5 bg-green-500 border-2 border-background rounded-full"></div>
                                         </div>
 
                                         <div className="flex-1 space-y-3">
@@ -279,10 +283,15 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                                     JPG, PNG o WebP. Máx 2MB.
                                                 </p>
                                             </div>
-                                            {errors.profile_photo && <p className="text-red-500 text-xs">{errors.profile_photo}</p>}
+                                            {errors.profile_photo && <FieldError>{errors.profile_photo}</FieldError>}
                                         </div>
                                     </div>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Guardando...' : 'Guardar Cambios'}
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </TabsContent>
 
@@ -296,32 +305,37 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                     <div className="grid gap-2">
                                         <Label htmlFor="support_email">Email de Soporte</Label>
                                         <div className="relative">
-                                            <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                            <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input id="support_email" type="email" className="pl-9" placeholder="support@linkiu.bio" value={data.support_email} onChange={e => setData('support_email', e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="facebook">Facebook URL</Label>
                                         <div className="relative">
-                                            <Facebook className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                            <Facebook className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input id="facebook" className="pl-9" placeholder="https://facebook.com/..." value={data.facebook_url} onChange={e => setData('facebook_url', e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="instagram">Instagram URL</Label>
                                         <div className="relative">
-                                            <Instagram className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                            <Instagram className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input id="instagram" className="pl-9" placeholder="https://instagram.com/..." value={data.instagram_url} onChange={e => setData('instagram_url', e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="twitter">Twitter / X URL</Label>
                                         <div className="relative">
-                                            <Twitter className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                            <Twitter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input id="twitter" className="pl-9" placeholder="https://x.com/..." value={data.twitter_url} onChange={e => setData('twitter_url', e.target.value)} />
                                         </div>
                                     </div>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Guardando...' : 'Guardar Cambios'}
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </TabsContent>
 
@@ -343,6 +357,11 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         <p className="text-xs text-muted-foreground text-right">{data.meta_description.length}/160</p>
                                     </div>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Guardando...' : 'Guardar Cambios'}
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </TabsContent>
 
@@ -357,7 +376,7 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         <div className="grid gap-2">
                                             <Label htmlFor="bank_name">Nombre del Banco</Label>
                                             <div className="relative">
-                                                <CreditCard className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                                <CreditCard className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                                 <Input id="bank_name" className="pl-9" placeholder="Ej. Bancolombia" value={data.bank_name} onChange={e => setData('bank_name', e.target.value)} />
                                             </div>
                                         </div>
@@ -383,11 +402,18 @@ export default function Index({ settings, logo_url, favicon_url }: Props) {
                                         <Input id="bank_account_holder" placeholder="Nombre completo o Razón Social" value={data.bank_account_holder} onChange={e => setData('bank_account_holder', e.target.value)} />
                                     </div>
 
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 flex gap-3 items-start">
-                                        <div className="mt-0.5 min-w-[16px]">ℹ️</div>
-                                        <p>Estos datos aparecerán automáticamente en la tarjeta de suscripción del panel de inquilinos cuando su plan esté por vencer.</p>
-                                    </div>
+                                    <Alert>
+                                        <Info className="h-4 w-4" />
+                                        <AlertDescription>
+                                            Estos datos aparecerán automáticamente en la tarjeta de suscripción del panel de inquilinos cuando su plan esté por vencer.
+                                        </AlertDescription>
+                                    </Alert>
                                 </CardContent>
+                                <CardFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        {processing ? 'Guardando...' : 'Guardar Cambios'}
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </TabsContent>
                     </Tabs>

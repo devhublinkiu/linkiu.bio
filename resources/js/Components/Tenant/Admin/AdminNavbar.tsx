@@ -142,6 +142,27 @@ export default function AdminNavbar({ title, onMenuClick }: AdminNavbarProps) {
                         read_at: null
                     };
                     setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+                })
+                .listen('.icon.status_updated', (e: any) => {
+                    const isApproved = e.status === 'approved';
+                    if (isApproved) {
+                        toast.success('¡Icono Aprobado!', { description: e.message });
+                    } else {
+                        toast.error('Icono Rechazado', { description: e.message });
+                    }
+                    setUnreadCount(prev => prev + 1);
+
+                    const newNotification = {
+                        id: Math.random().toString(),
+                        data: {
+                            message: e.message,
+                            type: 'icon_status_updated',
+                            url: e.url
+                        },
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    };
+                    setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
                 });
         }
     }, [currentTenant?.id]);

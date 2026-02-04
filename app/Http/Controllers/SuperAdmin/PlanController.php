@@ -20,9 +20,17 @@ class PlanController extends Controller
         $this->middleware('sa.permission:sa.plans.delete')->only(['destroy']);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $plans = Plan::with('vertical')->orderBy('sort_order')->orderBy('created_at', 'desc')->get();
+        $plans = Plan::with('vertical')
+            ->when($request->search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->orderBy('sort_order')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('SuperAdmin/Plans/Index', [
             'plans' => $plans
         ]);

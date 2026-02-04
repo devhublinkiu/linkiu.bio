@@ -22,6 +22,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/Components/ui/alert-dialog"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/Components/ui/tooltip"
 
 export default function Index({ roles }: { roles: any }) {
     const { auth } = usePage<any>().props;
@@ -59,7 +65,7 @@ export default function Index({ roles }: { roles: any }) {
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-xl font-bold tracking-tight">Roles del Sistema</h2>
+                    <h2 className="text-3xl font-bold tracking-tight text-foreground">Roles del Sistema</h2>
                     <p className="text-sm text-muted-foreground mt-1">Define los roles y permisos globales para los administradores.</p>
                 </div>
                 <Button asChild className="cursor-pointer">
@@ -75,7 +81,7 @@ export default function Index({ roles }: { roles: any }) {
                 </Button>
             </div>
 
-            <div className="bg-white rounded-md border shadow-sm">
+            <div className="bg-card rounded-md border border-border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -93,18 +99,18 @@ export default function Index({ roles }: { roles: any }) {
                                         <Shield className="h-4 w-4 text-primary" />
                                         {role.name}
                                         {role.name === 'Super Admin' && (
-                                            <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 uppercase font-bold">
+                                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20 uppercase">
                                                 Sistema
                                             </span>
                                         )}
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <span className="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border">
                                         {role.users_count} usuarios
                                     </span>
                                 </TableCell>
-                                <TableCell className="text-gray-500 text-xs">
+                                <TableCell className="text-muted-foreground text-xs">
                                     {role.guard_name}
                                 </TableCell>
                                 <TableCell className="text-right space-x-2">
@@ -120,15 +126,37 @@ export default function Index({ roles }: { roles: any }) {
                                                     <Pencil className="h-4 w-4 text-gray-500" />
                                                 </Link>
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-                                                onClick={() => handleDelete(role)}
-                                                disabled={role.users_count > 0}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+
+                                            {role.users_count > 0 ? (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span tabIndex={0}>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-gray-300 cursor-not-allowed"
+                                                                    disabled
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>No se puede eliminar: tiene usuarios asignados</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                                    onClick={() => handleDelete(role)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </>
                                     )}
                                 </TableCell>
@@ -154,6 +182,6 @@ export default function Index({ roles }: { roles: any }) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </SuperAdminLayout>
+        </SuperAdminLayout >
     );
 }

@@ -17,9 +17,21 @@ import {
     FolderOpen,
     Check,
     ShieldCheck,
-    Lock
+    Lock,
+    Image,
+    Inbox,
+    ClipboardList
 } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/Components/ui/breadcrumb"
+import { NavUser } from "@/Components/nav-user"
 import { Badge } from '@/Components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/Components/ui/sheet';
 import NotificationSidebar from '@/Components/NotificationSidebar';
@@ -36,6 +48,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { PageProps } from '@/types';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/Components/ui/sidebar';
+import { SuperAdminSidebar } from '@/Components/SuperAdminSidebar';
+import { Separator } from '@/Components/ui/separator';
 
 interface SuperAdminLayoutProps {
     children: React.ReactNode;
@@ -51,12 +66,16 @@ interface NavItem {
 }
 
 export default function SuperAdminLayout({ children, header }: SuperAdminLayoutProps) {
-    const { auth, flash } = usePage<PageProps & {
+    const { auth, flash, site_settings } = usePage<PageProps & {
         auth: {
             notifications: { unread_count: number, recent: any[] },
             permissions: string[]
         },
-        flash: { success?: string, error?: string }
+        flash: { success?: string, error?: string },
+        site_settings?: {
+            app_name: string;
+            logo_url: string | null;
+        }
     }>().props;
     const user = auth.user;
     const permissions = auth.permissions || [];
@@ -142,8 +161,47 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                         read_at: null
                     };
                     setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+                })
+                .listen('.icon.requested', (e: any) => {
+                    console.log('[Echo] Received .icon.requested event:', e);
+                    toast.info(`¡Nueva solicitud de icono!`, {
+                        description: e.message
+                    });
+                    setUnreadCount(prev => prev + 1);
+
+                    const newNotification = {
+                        id: Math.random().toString(),
+                        data: {
+                            message: e.message,
+                            type: 'icon_requested',
+                            url: e.url
+                        },
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    };
+                    setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
                 });
-            console.log('[Echo] Listeners attached successfully');
+
+
+            // Debug Connection
+            console.log('[Echo] Listeners attached to superadmin-updates');
+            // @ts-ignore
+            if (window.Echo.connector.ably.connection.state === 'connected') {
+                console.log('[Echo] Status: Connected');
+            } else {
+                console.log('[Echo] Status:', window.Echo.connector.ably.connection.state);
+                // @ts-ignore
+                window.Echo.connector.ably.connection.on('connected', () => console.log('[Echo] Connected!'));
+            }
+
+            // Debug: spy on all messages on this channel
+            // @ts-ignore
+            if (window.Echo.connector.ably.channels.get('superadmin-updates')) {
+                // @ts-ignore
+                window.Echo.connector.ably.channels.get('superadmin-updates').subscribe((msg) => {
+                    console.log('[Ably Raw] Message received:', msg.name, msg.data);
+                });
+            }
         } else {
             console.warn('[Echo] window.Echo not available');
         }
@@ -158,181 +216,32 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
         }
     }, [flash]);
 
-    // Navigation Structure
-    const navGroups: { group: string; hideLabel?: boolean; items: NavItem[] }[] = [
-        {
-            group: 'General',
-            hideLabel: true,
-            items: [
-                { label: 'Dashboard', route: 'superadmin.dashboard', icon: LayoutDashboard },
-            ]
-        },
-        {
-            group: 'Tienda',
-            items: [
-                { label: 'Tiendas', route: 'tenants.index', icon: Store, permission: 'sa.tenants.view' },
-                { label: 'Categorías de negocio', route: 'categories.index', icon: Grid, permission: 'sa.categories.view' },
-                { label: 'Planes', route: 'plans.index', icon: CreditCard, permission: 'sa.plans.view' },
-                { label: 'Suscripciones', route: 'subscriptions.index', icon: Receipt, permission: 'sa.subscriptions.view' },
-                { label: 'Auditoría Pagos', route: 'payments.index', icon: Banknote, permission: 'sa.payments.view' },
-            ]
-        },
-        {
-            group: 'Contenido',
-            items: [
-                { label: 'Gestión de Archivos', route: 'media.index', icon: FolderOpen, permission: 'sa.media.view' },
-            ]
-        },
-        {
-            group: 'Usuarios',
-            items: [
-                { label: 'Lista de usuarios', route: 'users.index', icon: Users, permission: 'sa.users.view' },
-                { label: 'Roles y Permisos', route: 'roles.index', icon: ShieldCheck, permission: 'sa.roles.view' },
-            ]
-        }
-    ];
-
-    const { props } = usePage<PageProps & {
-        site_settings?: {
-            app_name: string;
-            logo_url: string | null;
-        }
-    }>();
-
-    const siteSettings = props.site_settings;
-
-    const SidebarContent = () => (
-        <div className="flex flex-col h-full bg-white border-r border-gray-100">
+    return (
+        <SidebarProvider>
             <PermissionDeniedModal
                 open={showPermissionModal}
                 onOpenChange={setShowPermissionModal}
             />
 
-            {/* Logo */}
-            <div className="p-4 pl-8 pt-4 h-14 flex items-start border-b border-gray-50 justify-start">
-                <Link href={route('superadmin.dashboard')} className="block">
-                    {siteSettings?.logo_url ? (
-                        <img
-                            src={siteSettings.logo_url}
-                            alt={siteSettings.app_name || 'Logo'}
-                            className="h-8 w-auto object-contain max-w-[200px]"
-                            onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                const fallback = e.currentTarget.parentElement?.querySelector('.fallback-logo');
-                                if (fallback) fallback.classList.remove('hidden');
-                            }}
-                        />
-                    ) : null}
+            <SuperAdminSidebar user={user} logo={{ url: site_settings?.logo_url || null, name: site_settings?.app_name || 'Linkiu' }} />
 
-                    <div className={`fallback-logo flex items-center gap-2 font-bold text-xl tracking-tight text-gray-900 ${(siteSettings?.logo_url) ? 'hidden' : ''}`}>
-                        <div className="h-8 w-8 flex items-center justify-center bg-blue-600 p-1.5 rounded-lg">
-                            <ShoppingBag className="h-5 w-5 text-white" />
-                        </div>
-                        <span>
-                            {siteSettings?.app_name || 'Linkiu.bio'}
-                        </span>
-                    </div>
-                </Link>
-            </div>
-
-            {/* Scrollable Nav */}
-            <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
-                {navGroups.map((group, groupIdx) => (
-                    <div key={groupIdx}>
-                        {!group.hideLabel && (
-                            <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                {group.group}
-                            </h3>
-                        )}
-                        <div className="space-y-1">
-                            {group.items.map((item) => {
-                                const isActive = item.route !== '#' && route().current(item.route);
-                                const isLocked = item.permission && !checkPermission(item.permission);
-
-                                return (
-                                    <Link
-                                        key={item.label}
-                                        href={item.route === '#' ? '#' : route(item.route)}
-                                        onClick={(e) => handleNavigation(e, item.permission)}
-                                        className={`group flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 cursor-pointer
-                                            ${isActive
-                                                ? 'bg-blue-50 text-blue-600'
-                                                : isLocked
-                                                    ? 'text-gray-400 hover:bg-red-50 hover:text-red-500' // Visual feedback on hover for locked items
-                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                            }`}
-                                    >
-                                        <item.icon className={`h-4 w-4 transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                                        <span className={isLocked ? "opacity-70" : ""}>{item.label}</span>
-                                        {isLocked && (
-                                            <div className="ml-auto">
-                                                <div className="h-6 w-6 flex items-center justify-center rounded-full bg-red-50 group-hover:bg-red-100 transition-colors">
-                                                    <Lock className="h-3.5 w-3.5 text-red-500" />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {item.label === 'Tiendas' && newTenantsCount > 0 && !isLocked && (
-                                            <span className="ml-auto bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-bounce">
-                                                {newTenantsCount}
-                                            </span>
-                                        )}
-                                    </Link>
-                                )
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Sidebar Footer info */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 ring-2 ring-white">
-                        <AvatarImage src={user.profile_photo_url || `https://ui-avatars.com/api/?name=${user.name}&background=0D8ABC&color=fff`} className="object-cover" />
-                        <AvatarFallback>AD</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                        <p className="text-xs text-gray-500 truncate">
-                            {user.is_super_admin ? 'Super Administrador' : (user.global_role?.name || 'Administrador')}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="min-h-screen bg-gray-50/50 flex text-gray-900 font-sans antialiased">
-            {/* Desktop Sidebar */}
-            <aside className="hidden md:block w-72 fixed inset-y-0 left-0 z-50">
-                <SidebarContent />
-            </aside>
-
-            {/* Mobile Sidebar (Sheet) */}
-            <Sheet>
-                <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="md:hidden fixed top-3 left-4 z-50 bg-white shadow-sm border">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 w-72 border-r-0">
-                    <SidebarContent />
-                </SheetContent>
-            </Sheet>
-
-            {/* Main Content */}
-            <main className="flex-1 md:ml-72 min-h-screen flex flex-col">
+            <SidebarInset>
                 {/* Navbar */}
-                <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 h-16 flex items-center justify-between px-8 sticky top-0 z-30">
-                    <div className="flex items-center gap-4">
-                        <div className="md:hidden w-8"></div> {/* Spacer for mobile button */}
-                        <div className="flex items-center text-sm font-medium text-gray-500">
-                            <span className="hidden sm:inline">SuperLinkiu</span>
-                            <span className="mx-2 text-gray-300">/</span>
-                            <span className="text-gray-900">{header}</span>
-                        </div>
+                <header className="bg-background/80 backdrop-blur-md rounded-t-3xl border-b border-border h-12 flex items-center justify-between px-4 sticky top-0 z-30 gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                    <div className="flex items-center gap-2">
+                        <SidebarTrigger className="-ml-1 md:hidden" />
+                        {/*<Separator orientation="vertical" className="mr-2 h-4" />*/}
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="#">SuperLinkiu</BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator className="hidden md:block" />
+                                <BreadcrumbItem>
+                                    <BreadcrumbPage>{header}</BreadcrumbPage>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -340,12 +249,12 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="relative text-gray-400 hover:text-gray-600"
+                            className="relative text-muted-foreground hover:text-foreground"
                             onClick={() => setIsNotificationSidebarOpen(true)}
                         >
                             <Bell className="h-5 w-5" />
                             {unreadCount > 0 && (
-                                <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white" />
+                                <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full animate-pulse ring-2 ring-background" />
                             )}
                         </Button>
 
@@ -357,70 +266,27 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                             onAllRead={handleAllRead}
                         />
 
-                        {/* Separator */}
-                        <div className="h-6 w-px bg-gray-200 mx-1"></div>
-
-                        {/* Profile Dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="pl-2 pr-1 gap-2 rounded-full hover:bg-gray-100">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={user.profile_photo_url || `https://ui-avatars.com/api/?name=${user.name}&background=random`} className="object-cover" />
-                                        <AvatarFallback>AD</AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel className="font-normal">
-                                    <div className="flex flex-col space-y-1">
-                                        <p className="text-sm font-medium leading-none">{user.name}</p>
-                                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                                    </div>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild className="cursor-pointer">
-                                    <Link href={route('superadmin.profile.edit')} className="flex items-center w-full">
-                                        <User className="mr-2 h-4 w-4" />
-                                        <span>Mi Cuenta</span>
-                                    </Link>
-                                </DropdownMenuItem>
-                                {checkPermission('sa.settings.view') && (
-                                    <DropdownMenuItem className="cursor-pointer">
-                                        <Link href={route('settings.index')} className="flex items-center w-full">
-                                            <Settings className="mr-2 h-4 w-4" />
-                                            <span>Configuración</span>
-                                        </Link>
-                                    </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer" asChild>
-                                    <Link href={route('logout')} method="post" as="button" className="w-full">
-                                        <LogOut className="mr-2 h-4 w-4" />
-                                        Cerrar Sesión
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Note: User menu is now in the Sidebar Footer */}
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <div className="flex-1 p-8 overflow-auto">
+                <div className="flex-1 p-4 md:px-8 overflow-auto">
                     {children}
                 </div>
 
                 {/* Footer */}
-                <footer className="border-t border-gray-100 bg-white p-6 text-center">
-                    <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 rounded-lg p-4 text-xs text-gray-500">
+                <footer className="border-t border-border bg-background px-6 py-2 text-center rounded-b-3xl">
+                    <div className="flex flex-col md:flex-row justify-between items-center p-4 text-xs text-muted-foreground">
                         <span>&copy; 2026 <strong>Linkiu.bio</strong>. Todos los derechos reservados.</span>
                         <div className="flex items-center gap-4 mt-2 md:mt-0">
                             <span>v1.0.0 (Beta)</span>
-                            <span className="h-3 w-px bg-gray-300"></span>
-                            <a href="#" className="hover:text-gray-900">Soporte</a>
+                            <span className="h-3 w-px bg-border"></span>
+                            <a href="#" className="hover:text-foreground">Soporte</a>
                         </div>
                     </div>
                 </footer>
-            </main>
-        </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }

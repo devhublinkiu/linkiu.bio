@@ -8,6 +8,10 @@ import { Input } from '@/Components/ui/input';
 import { Plus, Search, Store, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import Pagination from '@/Components/Shared/Pagination';
+import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/Components/ui/input-group';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/Components/ui/empty';
 
 // Interfaces
 interface Tenant {
@@ -63,14 +67,17 @@ export default function Index({ tenants, filters }: Props) {
 
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                    <form onSubmit={handleSearch} className="relative w-full max-w-sm">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                        <Input
-                            placeholder="Buscar por nombre, slug o NIT..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9"
-                        />
+                    <form onSubmit={handleSearch} className="w-full max-w-sm">
+                        <InputGroup>
+                            <InputGroupAddon>
+                                <Search className="h-4 w-4" />
+                            </InputGroupAddon>
+                            <InputGroupInput
+                                placeholder="Buscar por nombre, enlace o NIT..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </InputGroup>
                     </form>
                     <Button asChild>
                         <Link href={route('tenants.create')} onClick={handleCreateClick}>
@@ -82,7 +89,7 @@ export default function Index({ tenants, filters }: Props) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Listado de Tiendas (Tenants)</CardTitle>
+                        <CardTitle>Listado de Tiendas</CardTitle>
                         <CardDescription>Todas las tiendas registradas en la plataforma.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -99,8 +106,15 @@ export default function Index({ tenants, filters }: Props) {
                             <TableBody>
                                 {tenants.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                            No se encontraron tiendas registradas.
+                                        <TableCell colSpan={5} className="py-8">
+                                            <Empty>
+                                                <EmptyHeader>
+                                                    <EmptyTitle>No se encontraron tiendas</EmptyTitle>
+                                                    <EmptyDescription>
+                                                        No hay tiendas registradas que coincidan con tu búsqueda.
+                                                    </EmptyDescription>
+                                                </EmptyHeader>
+                                            </Empty>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -108,9 +122,11 @@ export default function Index({ tenants, filters }: Props) {
                                         <TableRow key={tenant.id}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                                        <Store className="h-5 w-5" />
-                                                    </div>
+                                                    <Avatar className="h-10 w-10 bg-blue-100 text-blue-600 rounded-lg">
+                                                        <AvatarFallback className="bg-transparent rounded-lg">
+                                                            <Store className="h-5 w-5" />
+                                                        </AvatarFallback>
+                                                    </Avatar>
                                                     <div className="flex flex-col">
                                                         <span>{tenant.name}</span>
                                                         <span className="text-xs text-muted-foreground">/{tenant.slug}</span>
@@ -124,9 +140,9 @@ export default function Index({ tenants, filters }: Props) {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
                                                     {tenant.doc_number || 'N/A'}
-                                                </code>
+                                                </span>
                                             </TableCell>
                                             <TableCell>
                                                 {new Date(tenant.created_at).toLocaleDateString()}
@@ -143,9 +159,13 @@ export default function Index({ tenants, filters }: Props) {
                                 )}
                             </TableBody>
                         </Table>
+
+                        <div className="mt-4 flex justify-end">
+                            <Pagination links={tenants.links} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>
-        </SuperAdminLayout>
+        </SuperAdminLayout >
     );
 }

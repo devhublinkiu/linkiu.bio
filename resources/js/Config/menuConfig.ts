@@ -119,7 +119,7 @@ export const MODULE_LABELS: Record<string, string> = {
 export const MODULE_ROUTES: Record<string, string> = {
     dashboard: 'tenant.dashboard',
     orders: '#',
-    categories: '#',
+    categories: 'tenant.categories.index',
     products: '#',
     product_drop: '#',
     variables: '#',

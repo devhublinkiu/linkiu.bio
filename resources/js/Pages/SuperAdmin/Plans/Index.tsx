@@ -4,7 +4,9 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Eye, Search } from 'lucide-react';
+import { Input } from '@/Components/ui/input';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/Components/ui/empty';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,6 +18,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/Components/ui/alert-dialog";
+import Pagination from '@/Components/Shared/Pagination';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { useState } from 'react';
 
@@ -32,7 +35,7 @@ interface Plan {
 }
 
 interface Props {
-    plans: Plan[];
+    plans: any;
 }
 
 export default function Index({ plans }: Props) {
@@ -40,6 +43,19 @@ export default function Index({ plans }: Props) {
     const permissions = auth.permissions || [];
     const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    const plansList = plans.data || plans;
+    const plansLinks = plans.links || [];
+
+    const [search, setSearch] = useState('');
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.get(route('plans.index'), { search }, {
+            preserveState: true,
+            replace: true
+        });
+    };
 
     const handleDelete = (id: number) => {
         if (!hasPermission('sa.plans.delete')) {
@@ -76,24 +92,35 @@ export default function Index({ plans }: Props) {
             <Head title="Planes" />
 
             <div className="max-w-7xl mx-auto py-6">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
+                <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
+                    <div className="space-y-1">
                         <h2 className="text-2xl font-bold tracking-tight">Planes y Precios</h2>
                         <p className="text-muted-foreground">Gestiona la oferta comercial por verticales y monedas.</p>
                     </div>
-                    <Button asChild>
-                        <Link href={route('plans.create')} onClick={handleCreateClick}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Crear Nuevo Plan
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <form onSubmit={handleSearch} className="relative w-full sm:w-80">
+                            <Search className="absolute left-3 top-2 h-4 w-4 text-gray-400" />
+                            <Input
+                                placeholder="Buscar planes..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-9"
+                            />
+                        </form>
+                        <Button asChild>
+                            <Link href={route('plans.create')} onClick={handleCreateClick}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Crear Nuevo Plan
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Listado de Planes</CardTitle>
                         <CardDescription>
-                            Mostrando {plans.length} planes registrados.
+                            Mostrando {plansList.length} planes registrados.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -109,7 +136,7 @@ export default function Index({ plans }: Props) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {plans.map((plan) => (
+                                {plansList.map((plan: Plan) => (
                                     <TableRow key={plan.id}>
                                         <TableCell className="font-medium">
                                             <div className="flex flex-col">
@@ -120,7 +147,7 @@ export default function Index({ plans }: Props) {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100">
+                                            <Badge variant="outline">
                                                 {plan.vertical?.name || 'General'}
                                             </Badge>
                                         </TableCell>
@@ -132,7 +159,7 @@ export default function Index({ plans }: Props) {
                                         </TableCell>
                                         <TableCell>
                                             {plan.trial_days > 0 ? (
-                                                <Badge variant="secondary" className="bg-green-50 text-green-700">
+                                                <Badge variant="secondary">
                                                     {plan.trial_days} días
                                                 </Badge>
                                             ) : (
@@ -142,7 +169,7 @@ export default function Index({ plans }: Props) {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {plan.is_public ? (
-                                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Público</Badge>
+                                                    <Badge className="bg-green-500 hover:bg-green-600">Público</Badge>
                                                 ) : (
                                                     <Badge variant="secondary">Oculto</Badge>
                                                 )}
@@ -197,15 +224,37 @@ export default function Index({ plans }: Props) {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {plans.length === 0 && (
+                                {plansList.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                            No hay planes creados todavía.
+                                        <TableCell colSpan={6} className="h-[400px]">
+                                            <Empty className="h-full">
+                                                <EmptyHeader>
+                                                    <div className="bg-gray-50 p-4 rounded-full mb-4">
+                                                        <Plus className="h-8 w-8 text-gray-400" />
+                                                    </div>
+                                                </EmptyHeader>
+                                                <EmptyContent>
+                                                    <EmptyTitle>No hay planes</EmptyTitle>
+                                                    <EmptyDescription>
+                                                        Comienza creando tu primer plan de suscripción para las tiendas.
+                                                    </EmptyDescription>
+                                                </EmptyContent>
+                                                <div className="mt-6">
+                                                    <Button asChild onClick={handleCreateClick}>
+                                                        <Link href={route('plans.create')}>
+                                                            Crear Primer Plan
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </Empty>
                                         </TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
                         </Table>
+                        <div className="mt-4 flex justify-end">
+                            <Pagination links={plansLinks} />
+                        </div>
                     </CardContent>
                 </Card>
             </div>

@@ -18,6 +18,17 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
+Route::get('/test-broadcast', function () {
+    // Manually broadcast to check connection
+    $msg = 'Helllo from server ' . now();
+    // Use Ably SDK directly if possible or mock event
+    \Illuminate\Support\Facades\Broadcast::on(new \Illuminate\Broadcasting\Channel('superadmin-updates'))
+        ->as('icon.requested')
+        ->with(['message' => $msg])
+        ->send();
+    return "Broadcast sent: $msg";
+});
+
 
 
 // Public Tenant Onboarding (Multi-step)
@@ -75,6 +86,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.markRead');
     Route::delete('/notifications/destroy-all-read', [\App\Http\Controllers\NotificationController::class, 'destroyAllRead'])->name('notifications.destroyAllRead');
     Route::delete('/notifications/{id}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    // Debug Route
+    Route::get('/test-notification', function () {
+        $iconRequest = \App\Models\IconRequest::first();
+        if (!$iconRequest)
+            return 'No IconRequest found. Please create one first.';
+
+        \Illuminate\Support\Facades\Log::info('Manually triggering IconRequestedNotification for IconRequest #' . $iconRequest->id);
+
+        \Illuminate\Support\Facades\Notification::send(
+            \App\Models\User::where('is_super_admin', true)->get(),
+            new \App\Notifications\IconRequestedNotification($iconRequest)
+        );
+
+        return 'Sent IconRequestedNotification to all SuperAdmins. Check logs and frontend.';
+    });
 });
 
 // 3. SuperAdmin Zone
@@ -87,6 +114,16 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
     Route::resource('categories', \App\Http\Controllers\SuperAdmin\BusinessCategoryController::class)->except(['create', 'show', 'edit']);
     Route::resource('users', \App\Http\Controllers\SuperAdmin\UserController::class)->except(['show', 'edit']);
     Route::resource('roles', \App\Http\Controllers\SuperAdmin\RoleController::class);
+
+    // Categories & Icons
+    Route::resource('category-icons', \App\Http\Controllers\SuperAdmin\CategoryIconController::class);
+
+    // Support & Requests
+    Route::prefix('support')->group(function () {
+        Route::get('requests', [\App\Http\Controllers\SuperAdmin\IconRequestController::class, 'index'])->name('icon-requests.index');
+    });
+    Route::patch('icon-requests/{iconRequest}/approve', [\App\Http\Controllers\SuperAdmin\IconRequestController::class, 'approve'])->name('icon-requests.approve');
+    Route::patch('icon-requests/{iconRequest}/reject', [\App\Http\Controllers\SuperAdmin\IconRequestController::class, 'reject'])->name('icon-requests.reject');
 
     // Settings
     Route::get('/settings', [\App\Http\Controllers\SuperAdmin\SettingController::class, 'index'])->name('settings.index');
@@ -104,21 +141,16 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
     // Media Management
     // Media Management (Unified Shared Controller)
     Route::prefix('media')->name('media.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Shared\MediaController::class, 'index'])->name('index');
-        Route::get('/list', [\App\Http\Controllers\Shared\MediaController::class, 'list'])->name('list');
-        Route::post('/create-folder', [\App\Http\Controllers\Shared\MediaController::class, 'createFolder'])->name('folder.create');
-        Route::post('/', [\App\Http\Controllers\Shared\MediaController::class, 'store'])->name('store'); // Careful: SuperAdmin controller might have different method signature?
-        // Shared controller uses 'store'. SuperAdmin legacy used 'store'.
-        // Shared controller 'createFolder' vs SuperAdmin 'createFolder'. 
-        // Shared controller: 'folder.create'. Frontend expects 'folder.create' (MediaManager line 80 logic: 'tenant.media.folder.create' or 'media.folder.create').
-        // So name MUST be 'folder.create'.
-
-        Route::delete('/{id}', [\App\Http\Controllers\Shared\MediaController::class, 'destroy'])->name('destroy');
-        // Legacy bulk delete? Shared controller doesn't have it yet.
-        // Route::post('/bulk-delete', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'bulkDelete'])->name('bulk-delete'); 
-
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'index'])->name('index');
+        // Route::get('/list', [\App\Http\Controllers\Shared\MediaController::class, 'list'])->name('list'); // Unused in SA Media?
+        Route::post('/create-folder', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'createFolder'])->name('create-folder'); // Matches Index.tsx
+        Route::post('/delete-folder', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'deleteFolder'])->name('folder.delete');
+        Route::post('/', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'store'])->name('store');
+        Route::delete('/{id}', [\App\Http\Controllers\SuperAdmin\MediaController::class, 'destroy'])->name('destroy');
     });
 });
+
+
 
 // 4. Tenant Zone
 Route::prefix('{tenant}')->group(function () {
@@ -157,6 +189,11 @@ Route::prefix('{tenant}')->group(function () {
 
             // 4.3b Members
             Route::resource('members', \App\Http\Controllers\Tenant\Admin\MemberController::class)->names('tenant.members');
+
+            // 4.4 Categories
+            Route::resource('categories', \App\Http\Controllers\Tenant\Admin\CategoryController::class)->names('tenant.categories');
+            Route::patch('categories/{category}/toggle-active', [\App\Http\Controllers\Tenant\Admin\CategoryController::class, 'toggleActive'])->name('tenant.categories.toggle-active');
+            Route::post('categories/request-icon', [\App\Http\Controllers\Tenant\Admin\CategoryController::class, 'requestIcon'])->name('tenant.categories.request-icon');
 
             Route::get('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'edit'])->name('tenant.settings.edit');
             Route::patch('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'update'])->name('tenant.settings.update');

@@ -26,6 +26,7 @@ class SuperAdminPermissionsSeeder extends Seeder
             ['name' => 'sa.categories.create', 'label' => 'Crear Categoría', 'module' => 'Categorías de negocios'],
             ['name' => 'sa.categories.update', 'label' => 'Editar Categoría', 'module' => 'Categorías de negocios'],
             ['name' => 'sa.categories.delete', 'label' => 'Eliminar Categoría', 'module' => 'Categorías de negocios'],
+            ['name' => 'sa.categories.manage', 'label' => 'Gestionar (Iconos y Solicitudes)', 'module' => 'Categorías de negocios'],
 
             // Planes
             ['name' => 'sa.plans.view', 'label' => 'Ver Planes', 'module' => 'Planes'],
@@ -72,6 +73,9 @@ class SuperAdminPermissionsSeeder extends Seeder
             ['name' => 'sa.settings.delete', 'label' => 'Eliminar Settings', 'module' => 'Setting'],
             ['name' => 'sa.settings.create', 'label' => 'Crear Settings', 'module' => 'Setting'],
             ['name' => 'sa.settings.upload', 'label' => 'Subir Archivos de Configuración', 'module' => 'Setting'],
+
+            // Permisos de Tenant (Categorías)
+            ['name' => 'tenant.categories.manage', 'label' => 'Gestionar Categorías', 'module' => 'Categorías de negocios'],
         ];
 
         foreach ($permissions as $perm) {

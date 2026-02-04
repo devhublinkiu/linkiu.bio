@@ -1,53 +1,31 @@
-import { useState, useEffect } from 'react';
-import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
-import { Head, useForm, router, usePage } from '@inertiajs/react';
-import { Button } from '@/Components/ui/button';
-import { Input } from '@/Components/ui/input';
-import { Label } from '@/Components/ui/label';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
-} from '@/Components/ui/table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger
-} from '@/Components/ui/dialog';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/Components/ui/alert-dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
-} from "@/Components/ui/select"
-import { Checkbox } from '@/Components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
-import { Check, ShieldAlert, BadgeCheck, Plus, Pencil, Trash2, Search, Store } from 'lucide-react';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/Components/ui/empty';
+import { FieldError } from '@/Components/ui/field';
+import { Input } from '@/Components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/Components/ui/input-group';
+import { Label } from '@/Components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/Components/ui/alert-dialog";
+import { BadgeCheck, Pencil, Plus, Search, ShieldAlert, Store, Trash2 } from 'lucide-react';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
+import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
+import Pagination from '@/Components/Shared/Pagination';
+import { useEffect, useState } from 'react';
 
-
-export default function Index({ categories, verticals, filters, flash }: { categories: any[], verticals: any[], filters: any, flash: any }) {
-    const { auth } = usePage<any>().props;
+export default function Index({ categories, verticals, filters, flash }: { categories: any, verticals: any[], filters: any, flash: any }) {
+    const { auth, route } = usePage<any>().props;
     const permissions = auth.permissions || [];
     const hasPermission = (p: string) => permissions.includes('*') || permissions.includes(p);
+
+    const categoriesList = categories.data || categories;
+    const categoriesLinks = categories.links || [];
 
     // State
     const [createOpen, setCreateOpen] = useState(false);
@@ -165,7 +143,7 @@ export default function Index({ categories, verticals, filters, flash }: { categ
 
                 <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-blue-600 hover:bg-blue-700" onClick={(e) => {
+                        <Button onClick={(e) => {
                             if (!hasPermission('sa.categories.create')) {
                                 e.preventDefault();
                                 setShowPermissionModal(true);
@@ -182,24 +160,29 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                                 <DialogDescription>Añade una nueva categoría para que los tenants la seleccionen.</DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="c-name">Nombre</Label>
                                     <Input id="c-name" value={createData.name} onChange={(e) => setCreateData('name', e.target.value)} required />
-                                    {createErrors.name && <span className="text-red-500 text-xs">{createErrors.name}</span>}
+                                    <FieldError>{createErrors.name}</FieldError>
                                 </div>
-                                <div className="grid gap-2">
+                                <div className="flex flex-col gap-1.5">
                                     <Label htmlFor="c-vertical">Vertical</Label>
-                                    <select
-                                        id="c-vertical"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                    <Select
                                         value={createData.vertical_id}
-                                        onChange={(e) => setCreateData('vertical_id', e.target.value)}
-                                        required
+                                        onValueChange={(value) => setCreateData('vertical_id', value)}
                                     >
-                                        <option value="">Selecciona Vertical...</option>
-                                        {verticals.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                    </select>
-                                    {createErrors.vertical_id && <span className="text-red-500 text-xs">{createErrors.vertical_id}</span>}
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Selecciona Vertical..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {verticals.map(v => (
+                                                <SelectItem key={v.id} value={v.id.toString()}>
+                                                    {v.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FieldError>{createErrors.vertical_id}</FieldError>
                                 </div>
                                 <div className="flex items-center space-x-2 mt-2 border p-3 rounded-md bg-gray-50">
                                     <Checkbox
@@ -208,9 +191,9 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                                         onCheckedChange={(checked) => setCreateData('require_verification', checked === true)}
                                     />
                                     <div className="grid gap-1.5 leading-none">
-                                        <label htmlFor="c-verif" className="text-sm font-medium leading-none cursor-pointer">
+                                        <Label htmlFor="c-verif" className="text-sm font-medium leading-none cursor-pointer">
                                             Requiere Aprobación Manual
-                                        </label>
+                                        </Label>
                                         <p className="text-xs text-muted-foreground">Para negocios regulados (Salud, Alcohol).</p>
                                     </div>
                                 </div>
@@ -224,19 +207,22 @@ export default function Index({ categories, verticals, filters, flash }: { categ
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 mb-6">
-                <div className="relative w-full max-w-sm">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Buscar categorías..."
-                        className="pl-8 bg-white"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="w-full max-sm:w-full md:max-w-sm">
+                    <InputGroup>
+                        <InputGroupAddon>
+                            <Search className="h-4 w-4" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                            type="search"
+                            placeholder="Buscar categorías..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </InputGroup>
                 </div>
                 <Select value={verticalFilter} onValueChange={handleVerticalChange}>
-                    <SelectTrigger className="w-[200px] bg-white">
+                    <SelectTrigger className="w-full md:w-[200px] bg-white">
                         <SelectValue placeholder="Filtrar por Vertical" />
                     </SelectTrigger>
                     <SelectContent>
@@ -261,28 +247,28 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {categories.map((category) => (
+                        {categoriesList.map((category: any) => (
                             <TableRow key={category.id}>
                                 <TableCell className="font-medium">
                                     <div>{category.name}</div>
-                                    <div className="text-xs text-gray-400">/{category.slug}</div>
+                                    <div className="text-xs text-muted-foreground">/{category.slug}</div>
                                 </TableCell>
                                 <TableCell>
-                                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                    <Badge variant="outline">
                                         {category.vertical?.name}
-                                    </span>
+                                    </Badge>
                                 </TableCell>
                                 <TableCell>
                                     {category.require_verification ? (
-                                        <div className="flex items-center text-amber-600 text-xs font-medium">
-                                            <ShieldAlert className="h-4 w-4 mr-1" />
+                                        <Badge variant="secondary" className="gap-1 text-amber-600 bg-amber-50 hover:bg-amber-100">
+                                            <ShieldAlert className="h-3 w-3" />
                                             Manual
-                                        </div>
+                                        </Badge>
                                     ) : (
-                                        <div className="flex items-center text-green-600 text-xs font-medium">
-                                            <BadgeCheck className="h-4 w-4 mr-1" />
+                                        <Badge variant="secondary" className="gap-1 text-green-600 bg-green-50 hover:bg-green-100">
+                                            <BadgeCheck className="h-3 w-3" />
                                             Automática
-                                        </div>
+                                        </Badge>
                                     )}
                                 </TableCell>
                                 <TableCell>
@@ -301,15 +287,25 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {categories.length === 0 && (
+                        {categoriesList.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    No se encontraron categorías.
+                                <TableCell colSpan={5} className="py-12">
+                                    <Empty>
+                                        <EmptyHeader>
+                                            <EmptyTitle>No se encontraron categorías</EmptyTitle>
+                                            <EmptyDescription>
+                                                No hay categorías registradas que coincidan con tu búsqueda.
+                                            </EmptyDescription>
+                                        </EmptyHeader>
+                                    </Empty>
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
+            </div>
+            <div className="mt-4 flex justify-end">
+                <Pagination links={categoriesLinks} />
             </div>
 
             {/* Edit Modal */}
@@ -321,24 +317,29 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                             <DialogDescription>Modifica los datos de la categoría.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="e-name">Nombre</Label>
                                 <Input id="e-name" value={editData.name} onChange={(e) => setEditData('name', e.target.value)} required />
-                                {editErrors.name && <span className="text-red-500 text-xs">{editErrors.name}</span>}
+                                <FieldError>{editErrors.name}</FieldError>
                             </div>
-                            <div className="grid gap-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="e-vertical">Vertical</Label>
-                                <select
-                                    id="e-vertical"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                <Select
                                     value={editData.vertical_id}
-                                    onChange={(e) => setEditData('vertical_id', e.target.value)}
-                                    required
+                                    onValueChange={(value) => setEditData('vertical_id', value)}
                                 >
-                                    <option value="">Selecciona Vertical...</option>
-                                    {verticals.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                </select>
-                                {editErrors.vertical_id && <span className="text-red-500 text-xs">{editErrors.vertical_id}</span>}
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Selecciona Vertical..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {verticals.map(v => (
+                                            <SelectItem key={v.id} value={v.id.toString()}>
+                                                {v.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FieldError>{editErrors.vertical_id}</FieldError>
                             </div>
                             <div className="flex items-center space-x-2 mt-2 border p-3 rounded-md bg-gray-50">
                                 <Checkbox
@@ -347,9 +348,9 @@ export default function Index({ categories, verticals, filters, flash }: { categ
                                     onCheckedChange={(checked) => setEditData('require_verification', checked === true)}
                                 />
                                 <div className="grid gap-1.5 leading-none">
-                                    <label htmlFor="e-verif" className="text-sm font-medium leading-none cursor-pointer">
+                                    <Label htmlFor="e-verif" className="text-sm font-medium leading-none cursor-pointer">
                                         Requiere Aprobación Manual
-                                    </label>
+                                    </Label>
                                 </div>
                             </div>
                         </div>

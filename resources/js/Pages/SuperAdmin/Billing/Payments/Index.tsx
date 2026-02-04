@@ -13,6 +13,8 @@ import { CheckCircle, XCircle, FileText, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Pagination from '@/Components/Shared/Pagination';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/Components/ui/empty';
 
 interface Invoice {
     id: number;
@@ -81,9 +83,9 @@ export default function Index({ payments }: Props) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'paid':
-                return <Badge className="bg-green-500 hover:bg-green-600">Pagado</Badge>;
+                return <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">Pagado</Badge>;
             case 'pending_review':
-                return <Badge className="bg-yellow-500 hover:bg-yellow-600">Revisión</Badge>;
+                return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100">Revisión</Badge>;
             case 'rejected':
                 return <Badge variant="destructive">Rechazado</Badge>;
             case 'pending':
@@ -103,84 +105,97 @@ export default function Index({ payments }: Props) {
             />
             <Head title="Pagos" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Pagos Pendientes</CardTitle>
-                            <CardDescription>Revisa y aprueba los reportes de pago de los planes.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Plan</TableHead>
-                                        <TableHead>Valor</TableHead>
-                                        <TableHead>Comprobante</TableHead>
-                                        <TableHead>Estado</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {payments.data.length > 0 ? (
-                                        payments.data.map((invoice) => (
-                                            <TableRow key={invoice.id}>
-                                                <TableCell>{format(new Date(invoice.created_at), 'dd MMM yyyy', { locale: es })}</TableCell>
-                                                <TableCell>
-                                                    <div className="font-medium text-sm">{invoice.tenant?.name}</div>
-                                                </TableCell>
-                                                <TableCell>{invoice.subscription?.plan?.name}</TableCell>
-                                                <TableCell>${Number(invoice.amount).toLocaleString()}</TableCell>
-                                                <TableCell>
-                                                    {invoice.proof_of_payment_path ? (
-                                                        <a
-                                                            href={route('media.proxy', { path: invoice.proof_of_payment_path })}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center text-blue-600 hover:underline"
-                                                            onClick={(e) => {
-                                                                if (!hasPermission('sa.payments.proof.view')) {
-                                                                    e.preventDefault();
-                                                                    setShowPermissionModal(true);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <FileText className="w-4 h-4 mr-1" />
-                                                            Ver
-                                                        </a>
-                                                    ) : (
-                                                        <span className="text-muted-foreground">-</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {invoice.status === 'pending_review' && (
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700 h-8" onClick={() => openDialog(invoice, 'approve')}>
-                                                                <CheckCircle className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button size="sm" variant="destructive" className="h-8" onClick={() => openDialog(invoice, 'reject')}>
-                                                                <XCircle className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                                No hay pagos pendientes de revisión.
+            <div className="max-w-7xl mx-auto py-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Pagos Pendientes</CardTitle>
+                        <CardDescription>Revisa y aprueba los reportes de pago de los planes.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Fecha</TableHead>
+                                    <TableHead>Cliente</TableHead>
+                                    <TableHead>Plan</TableHead>
+                                    <TableHead>Valor</TableHead>
+                                    <TableHead>Comprobante</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead className="text-right">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {payments.data.length > 0 ? (
+                                    payments.data.map((invoice) => (
+                                        <TableRow key={invoice.id}>
+                                            <TableCell>{format(new Date(invoice.created_at), 'dd MMM yyyy', { locale: es })}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium text-sm">{invoice.tenant?.name}</div>
+                                            </TableCell>
+                                            <TableCell>{invoice.subscription?.plan?.name}</TableCell>
+                                            <TableCell>${Number(invoice.amount).toLocaleString()}</TableCell>
+                                            <TableCell>
+                                                {invoice.proof_of_payment_path ? (
+                                                    <a
+                                                        href={route('media.proxy', { path: invoice.proof_of_payment_path })}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center text-blue-600 hover:underline"
+                                                        onClick={(e) => {
+                                                            if (!hasPermission('sa.payments.proof.view')) {
+                                                                e.preventDefault();
+                                                                setShowPermissionModal(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <FileText className="w-4 h-4 mr-1.5" />
+                                                        <span className="font-medium">Ver comprobante</span>
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs italic">Sin adjunto</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                                            <TableCell className="text-right">
+                                                {invoice.status === 'pending_review' && (
+                                                    <div className="flex justify-end gap-1.5">
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200" onClick={() => openDialog(invoice, 'approve')} title="Aprobar">
+                                                            <CheckCircle className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => openDialog(invoice, 'reject')} title="Rechazar">
+                                                            <XCircle className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </div>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-[400px]">
+                                            <Empty className="h-full">
+                                                <EmptyHeader>
+                                                    <div className="bg-gray-50 p-4 rounded-full mb-4">
+                                                        <FileText className="h-8 w-8 text-gray-400" />
+                                                    </div>
+                                                </EmptyHeader>
+                                                <EmptyContent>
+                                                    <EmptyTitle>No hay pagos pendientes</EmptyTitle>
+                                                    <EmptyDescription>
+                                                        Todas las solicitudes de pago han sido procesadas o no hay registros aún.
+                                                    </EmptyDescription>
+                                                </EmptyContent>
+                                            </Empty>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                        <div className="mt-4 flex justify-end">
+                            <Pagination links={payments.links} />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -193,9 +208,9 @@ export default function Index({ payments }: Props) {
                                 : 'Indica la razón del rechazo para que el cliente pueda corregirlo.'}
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={submitAction} className="space-y-4">
+                    <form onSubmit={submitAction} className="space-y-6 pt-4">
                         {action === 'reject' && (
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label>Motivo del rechazo</Label>
                                 <Textarea
                                     placeholder="Ej: No se ve el número de transferencia..."
@@ -206,7 +221,7 @@ export default function Index({ payments }: Props) {
                             </div>
                         )}
                         {action === 'approve' && (
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-1.5">
                                 <Label>Notas internas (opcional)</Label>
                                 <Textarea
                                     placeholder="Ej: Aprobado por Whatsapp..."
