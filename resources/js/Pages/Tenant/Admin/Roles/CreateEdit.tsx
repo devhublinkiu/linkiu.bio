@@ -83,7 +83,7 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
 
             <div className="max-w-4xl mx-auto space-y-6">
                 <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild className="cursor-pointer">
                         <Link href={route('tenant.roles.index', { tenant: currentTenant.slug })}>
                             <ArrowLeft className="h-5 w-5" />
                         </Link>
@@ -92,7 +92,7 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
                         <h2 className="text-2xl font-bold tracking-tight">
                             {isEditing ? `Editar Rol: ${role.name}` : 'Crear Nuevo Rol'}
                         </h2>
-                        <p className="text-slate-500">Define el nombre del rol y sus permisos de acceso.</p>
+                        <p className="text-muted-foreground">Define el nombre del rol y sus permisos de acceso.</p>
                     </div>
                 </div>
 
@@ -112,9 +112,8 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
                                     placeholder="Ej. Gerente de Tienda"
                                     value={data.name}
                                     onChange={e => setData('name', e.target.value)}
-                                    className={errors.name ? 'border-red-500' : ''}
                                 />
-                                {errors.name && <p className="text-sm text-red-500 font-medium">{errors.name}</p>}
+                                {errors.name && <p className="text-sm text-destructive font-medium">{errors.name}</p>}
                             </div>
                         </CardContent>
                     </Card>
@@ -137,10 +136,10 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
                                 const someSelected = moduleIds.some(id => data.permissions.includes(id));
 
                                 return (
-                                    <Card key={module} className="overflow-hidden border-slate-200">
-                                        <div className="bg-slate-50/50 p-3 border-b border-slate-200 flex items-center justify-between">
+                                    <Card key={module}>
+                                        <CardHeader className="bg-muted/30 pb-3 flex flex-row items-center justify-between space-y-0">
                                             <div className="font-bold flex items-center gap-2">
-                                                <ShieldCheck className={`h-4 w-4 ${someSelected ? 'text-primary' : 'text-slate-400'}`} />
+                                                <ShieldCheck className={`h-4 w-4 ${someSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                                                 {module}
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -149,29 +148,29 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
                                                     checked={allSelected}
                                                     onCheckedChange={() => toggleModule(modulePermissions)}
                                                 />
-                                                <label
+                                                <Label
                                                     htmlFor={`module-${module}`}
-                                                    className="text-xs font-medium text-slate-500 cursor-pointer select-none"
+                                                    className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer select-none"
                                                 >
                                                     Todos
-                                                </label>
+                                                </Label>
                                             </div>
-                                        </div>
-                                        <CardContent className="p-3 grid gap-2">
+                                        </CardHeader>
+                                        <CardContent className="p-4 grid gap-3">
                                             {modulePermissions.map((permission) => (
-                                                <div key={permission.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                                <div key={permission.id} className="flex items-start space-x-3">
                                                     <Checkbox
                                                         id={`perm-${permission.id}`}
                                                         checked={data.permissions.includes(permission.id)}
                                                         onCheckedChange={() => togglePermission(permission.id)}
                                                     />
                                                     <div className="grid gap-1.5 leading-none">
-                                                        <label
+                                                        <Label
                                                             htmlFor={`perm-${permission.id}`}
                                                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                                                         >
                                                             {permission.label || permission.name}
-                                                        </label>
+                                                        </Label>
                                                     </div>
                                                 </div>
                                             ))}
@@ -183,13 +182,13 @@ export default function RolesCreateEdit({ role, permissions, currentTenant }: Pr
                     </div>
 
                     <div className="flex items-center justify-end gap-4 pt-4 pb-12">
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" asChild className="cursor-pointer">
                             <Link href={route('tenant.roles.index', { tenant: currentTenant.slug })}>
                                 Cancelar
                             </Link>
                         </Button>
-                        <Button type="submit" disabled={processing} className="min-w-[150px] font-bold">
-                            <Save className="mr-2 h-4 w-4" />
+                        <Button type="submit" disabled={processing} className="min-w-[150px] cursor-pointer">
+                            <Save />
                             {processing ? 'Guardando...' : 'Guardar Rol'}
                         </Button>
                     </div>

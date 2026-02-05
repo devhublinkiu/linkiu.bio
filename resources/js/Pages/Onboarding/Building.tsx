@@ -34,7 +34,7 @@ export default function Building({ tenantName, tenantSlug, requiresApproval }: P
     const buildSteps = [
         { icon: Layout, label: 'Estructurando tu tienda...', detail: 'Creando bases de datos y archivos' },
         { icon: Paintbrush, label: 'Aplicando diseño...', detail: 'Configurando el tema visual' },
-        { icon: Globe, label: 'Lanzando al mundo...', detail: 'Generando tu subdominio personalizado' },
+        { icon: Globe, label: 'Lanzando al mundo...', detail: 'Generando tu slug personalizado' },
         { icon: Rocket, label: '¡Todo listo!', detail: 'Tu espacio está preparado' },
     ];
 

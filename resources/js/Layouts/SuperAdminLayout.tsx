@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard,
@@ -52,9 +52,15 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/Components/ui/s
 import { SuperAdminSidebar } from '@/Components/SuperAdminSidebar';
 import { Separator } from '@/Components/ui/separator';
 
+export interface BreadcrumbItem {
+    label: string;
+    href?: string;
+}
+
 interface SuperAdminLayoutProps {
     children: React.ReactNode;
     header?: React.ReactNode;
+    breadcrumbs?: BreadcrumbItem[];
 }
 
 interface NavItem {
@@ -65,7 +71,7 @@ interface NavItem {
     count?: number;
 }
 
-export default function SuperAdminLayout({ children, header }: SuperAdminLayoutProps) {
+export default function SuperAdminLayout({ children, header, breadcrumbs }: SuperAdminLayoutProps) {
     const { auth, flash, site_settings } = usePage<PageProps & {
         auth: {
             notifications: { unread_count: number, recent: any[] },
@@ -137,6 +143,72 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                         data: {
                             ...e, // Spread all properties (message, owner_email, plan_name, etc.)
                             type: 'tenant_created',
+                        },
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    };
+                    setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+                })
+                .listen('.ticket.created', (e: any) => {
+                    console.log('[Echo] Received .ticket.created event:', e);
+                    toast.info('¡Nuevo ticket de soporte!', {
+                        description: e.message,
+                        action: {
+                            label: 'Ver',
+                            onClick: () => window.location.href = e.url
+                        }
+                    });
+                    setUnreadCount(prev => prev + 1);
+
+                    const newNotification = {
+                        id: Math.random().toString(),
+                        data: {
+                            ...e,
+                            type: 'ticket_created',
+                        },
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    };
+                    setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+                })
+                .listen('.ticket.replied', (e: any) => {
+                    console.log('[Echo] Received .ticket.replied event:', e);
+                    toast.info('Nueva respuesta en ticket', {
+                        description: e.message,
+                        action: {
+                            label: 'Ver',
+                            onClick: () => window.location.href = e.url
+                        }
+                    });
+                    setUnreadCount(prev => prev + 1);
+
+                    const newNotification = {
+                        id: Math.random().toString(),
+                        data: {
+                            ...e,
+                            type: 'ticket_replied',
+                        },
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    };
+                    setRecentNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+                })
+                .listen('.ticket.assigned', (e: any) => {
+                    console.log('[Echo] Received .ticket.assigned event:', e);
+                    toast.success('Ticket asignado', {
+                        description: e.message,
+                        action: {
+                            label: 'Ver',
+                            onClick: () => window.location.href = e.url
+                        }
+                    });
+                    setUnreadCount(prev => prev + 1);
+
+                    const newNotification = {
+                        id: Math.random().toString(),
+                        data: {
+                            ...e,
+                            type: 'ticket_assigned',
                         },
                         created_at: new Date().toISOString(),
                         read_at: null
@@ -234,12 +306,31 @@ export default function SuperAdminLayout({ children, header }: SuperAdminLayoutP
                         <Breadcrumb>
                             <BreadcrumbList>
                                 <BreadcrumbItem className="hidden md:block">
-                                    <BreadcrumbLink href="#">SuperLinkiu</BreadcrumbLink>
+                                    <BreadcrumbLink asChild>
+                                        <Link href={route('superadmin.dashboard')}>SuperLinkiu</Link>
+                                    </BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator className="hidden md:block" />
-                                <BreadcrumbItem>
-                                    <BreadcrumbPage>{header}</BreadcrumbPage>
-                                </BreadcrumbItem>
+                                {breadcrumbs ? (
+                                    breadcrumbs.map((item, index) => (
+                                        <React.Fragment key={index}>
+                                            <BreadcrumbItem>
+                                                {item.href ? (
+                                                    <BreadcrumbLink asChild>
+                                                        <Link href={item.href}>{item.label}</Link>
+                                                    </BreadcrumbLink>
+                                                ) : (
+                                                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                                                )}
+                                            </BreadcrumbItem>
+                                            {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                                        </React.Fragment>
+                                    ))
+                                ) : (
+                                    <BreadcrumbItem>
+                                        <BreadcrumbPage>{header}</BreadcrumbPage>
+                                    </BreadcrumbItem>
+                                )}
                             </BreadcrumbList>
                         </Breadcrumb>
                     </div>

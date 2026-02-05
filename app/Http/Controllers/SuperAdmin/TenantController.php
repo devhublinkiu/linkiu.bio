@@ -116,7 +116,7 @@ class TenantController extends Controller
             // Specific Custom Messages
             'tenant_name.required' => 'Debes ingresar un nombre para tu negocio.',
             'slug.required' => 'El slug/URL es obligatorio.',
-            'slug.unique' => 'Esta URL ya está en uso. Por favor ingresa otra diferente.',
+            'slug.unique' => 'Este slug ya está en uso. Por favor ingresa otra diferente.',
             'slug.alpha_dash' => 'La URL solo puede contener letras, números y guiones.',
             'owner_email.required' => 'El correo electrónico es obligatorio.',
             'owner_email.email' => 'Ingresa un correo electrónico válido.',

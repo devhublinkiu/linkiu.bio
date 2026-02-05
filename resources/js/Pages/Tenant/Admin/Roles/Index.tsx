@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { PageProps } from '@/types';
 import { Button } from '@/Components/ui/button';
@@ -21,6 +22,16 @@ import {
 import { Shield, MoreHorizontal, Plus, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/Components/ui/badge';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 
 interface Role {
     id: number;
@@ -35,9 +46,9 @@ interface Props extends PageProps {
     currentTenant: any;
 }
 
-export default function RolesIndex({ roles, currentTenant }: Props) {
-    const { currentUserRole } = usePage<PageProps>().props;
+export default function RolesIndex({ auth, roles, currentUserRole, currentTenant }: PageProps<{ roles: any[] }>) {
     const [showPermissionModal, setShowPermissionModal] = useState(false);
+    const [roleToDelete, setRoleToDelete] = useState<any>(null);
 
     const checkPermission = (permission: string) => {
         if (!currentUserRole) return false;
@@ -55,10 +66,11 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
         }
     };
 
-    const handleProtectedDelete = (e: React.MouseEvent, permission: string, url: string) => {
-        e.preventDefault();
+    const handleProtectedDelete = (permission: string, url: string) => {
         if (checkPermission(permission)) {
-            router.delete(url);
+            router.delete(url, {
+                onSuccess: () => toast.success('Rol eliminado con éxito'),
+            });
         } else {
             setShowPermissionModal(true);
         }
@@ -80,10 +92,10 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                         <p className="text-slate-500">Administra los roles y niveles de acceso de tu equipo.</p>
                     </div>
                     <Button
-                        className="font-bold"
-                        onClick={(e) => handleProtectedNavigation(e, 'roles.create', route('tenant.roles.create', { tenant: currentTenant.slug }))}
+                        className="cursor-pointer"
+                        onClick={(e) => handleProtectedNavigation(e, 'roles.create', route('tenant.roles.create', { tenant: currentTenant?.slug }))}
                     >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus />
                         Crear Nuevo Rol
                     </Button>
                 </div>
@@ -91,7 +103,7 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                 <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                            <TableRow>
                                 <TableHead className="w-[300px]">Nombre del Rol</TableHead>
                                 <TableHead>Permisos Asignados</TableHead>
                                 <TableHead>Tipo</TableHead>
@@ -103,9 +115,7 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                                 <TableRow key={role.id}>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                                                <Shield className="h-4 w-4" />
-                                            </div>
+                                            <Shield className="h-4 w-4 text-muted-foreground" />
                                             {role.name}
                                         </div>
                                     </TableCell>
@@ -116,15 +126,15 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         {role.is_system ? (
-                                            <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200">Sistema</Badge>
+                                            <Badge variant="secondary">Sistema</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Personalizado</Badge>
+                                            <Badge variant="outline">Personalizado</Badge>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
                                                     <MoreHorizontal className="h-4 w-4" />
                                                     <span className="sr-only">Abrir menú</span>
                                                 </Button>
@@ -132,7 +142,8 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                                 <DropdownMenuItem
-                                                    onClick={(e) => handleProtectedNavigation(e, 'roles.update', route('tenant.roles.edit', { tenant: currentTenant.slug, role: role.id }))}
+                                                    className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                                    onClick={(e) => handleProtectedNavigation(e, 'roles.update', route('tenant.roles.edit', { tenant: currentTenant?.slug, role: role.id }))}
                                                 >
                                                     <Edit className="mr-2 h-4 w-4" />
                                                     Editar Permisos
@@ -140,8 +151,9 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                                                 {!role.is_system && (
                                                     <>
                                                         <DropdownMenuItem
-                                                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                                            onClick={(e) => handleProtectedDelete(e, 'roles.delete', route('tenant.roles.destroy', { tenant: currentTenant.slug, role: role.id }))}
+                                                            variant="destructive"
+                                                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                                            onSelect={() => setRoleToDelete(role)}
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar Rol
@@ -165,6 +177,30 @@ export default function RolesIndex({ roles, currentTenant }: Props) {
                     </Table>
                 </div>
             </div>
+
+            <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar Rol?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que deseas eliminar el rol <span className="font-bold">{roleToDelete?.name}</span>? Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                handleProtectedDelete('roles.delete', route('tenant.roles.destroy', { tenant: currentTenant?.slug, role: roleToDelete?.id }));
+                                setRoleToDelete(null);
+                            }}
+                            variant="destructive"
+                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AdminLayout>
     );
 }

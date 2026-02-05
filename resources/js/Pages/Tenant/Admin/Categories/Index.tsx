@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
+import { PageProps } from '@/types';
 import Pagination from '@/Components/Shared/Pagination';
+import { toast } from 'sonner';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -38,9 +40,21 @@ import {
 } from "@/Components/ui/table";
 import { Switch } from "@/Components/ui/switch";
 import { Card, CardContent } from '@/Components/ui/card';
-import { Plus, Edit, Trash2, Search, HelpCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Search, HelpCircle, Bug, Headphones } from "lucide-react";
 import { Badge } from '@/Components/ui/badge';
 import { ScrollArea } from '@/Components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
+import { Separator } from '@/Components/ui/separator';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 
 interface CategoryIcon {
     id: number;
@@ -86,11 +100,12 @@ export default function Index({ categories, availableIcons, myRequests, parents 
     // Helper to handle both Paginator and Array (backwards compatibility)
     const requestsList = (myRequests as any).data || myRequests;
     const requestsLinks = (myRequests as any).links || [];
-    const { currentTenant } = usePage().props as any;
+    const { currentTenant } = usePage<PageProps>().props;
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isRequestIconOpen, setIsRequestIconOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [iconSearch, setIconSearch] = useState('');
+    const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
     // Create/Edit Form
     const { data, setData, post, put, processing, errors, reset, clearErrors, transform } = useForm({
@@ -132,25 +147,28 @@ export default function Index({ categories, availableIcons, myRequests, parents 
         }));
 
         if (editingCategory) {
-            put(route('tenant.categories.update', [currentTenant.slug, editingCategory.id]), {
+            put(route('tenant.categories.update', [currentTenant?.slug, editingCategory.id]), {
                 onSuccess: () => setIsCreateOpen(false),
             });
         } else {
-            post(route('tenant.categories.store', currentTenant.slug), {
+            post(route('tenant.categories.store', currentTenant?.slug), {
                 onSuccess: () => setIsCreateOpen(false),
             });
         }
     };
 
-    const handleDelete = (id: number) => {
-        if (confirm('¿Estás seguro de eliminar esta categoría?')) {
-            router.delete(route('tenant.categories.destroy', [currentTenant.slug, id]));
-        }
+    const handleDelete = (categoryId: number) => {
+        router.delete(route('tenant.categories.destroy', [currentTenant?.slug, categoryId]), {
+            onSuccess: () => {
+                toast.success('Categoría eliminada con éxito');
+                setCategoryToDelete(null);
+            },
+        });
     };
 
     const submitRequestIcon = (e: React.FormEvent) => {
         e.preventDefault();
-        postRequest(route('tenant.categories.request-icon', currentTenant.slug), {
+        postRequest(route('tenant.categories.request-icon', currentTenant?.slug), {
             onSuccess: () => {
                 setIsRequestIconOpen(false);
                 resetRequest();
@@ -166,13 +184,13 @@ export default function Index({ categories, availableIcons, myRequests, parents 
         <AdminLayout title="Categorías">
             <Head title="Categorías" />
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div className="flex items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Categorías</h1>
-                    <p className="text-muted-foreground">Organiza tus productos en categorías.</p>
+                    <p className="text-sm text-muted-foreground">Organiza tus productos en categorías.</p>
                 </div>
-                <Button onClick={openCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> Nueva Categoría
+                <Button onClick={openCreate} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                    <Plus /> Nueva Categoría
                 </Button>
             </div>
 
@@ -199,23 +217,22 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                     {categories.data.map((category) => (
                                         <TableRow key={category.id}>
                                             <TableCell>
-                                                <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center p-2 border">
-                                                    {category.icon ? (
-                                                        <img src={`/media/${category.icon.path}`} alt={category.icon.name} className="w-full h-full object-contain" />
-                                                    ) : (
-                                                        <div className="w-3 h-3 rounded-full bg-gray-300" />
-                                                    )}
-                                                </div>
+                                                <Avatar className="rounded-lg">
+                                                    {category.icon && <AvatarImage src={`/media/${category.icon.path}`} alt={category.icon.name} className="object-contain p-1" />}
+                                                    <AvatarFallback className="bg-muted">
+                                                        <div className="size-2 rounded-full bg-slate-300" />
+                                                    </AvatarFallback>
+                                                </Avatar>
                                             </TableCell>
                                             <TableCell className="font-medium">{category.name}</TableCell>
                                             <TableCell>
                                                 {category.parent ? (
-                                                    <span className="flex flex-col text-xs">
-                                                        <span className="text-muted-foreground">Subcategoría de:</span>
-                                                        <span className="font-semibold">{category.parent.name}</span>
-                                                    </span>
+                                                    <div className="flex flex-col text-[10px] uppercase tracking-wider font-bold">
+                                                        <span className="text-muted-foreground">Subcategoría</span>
+                                                        <span>{category.parent.name}</span>
+                                                    </div>
                                                 ) : (
-                                                    <Badge variant="outline" className="text-xs font-normal">Principal</Badge>
+                                                    <Badge variant="outline">Principal</Badge>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-center">
@@ -223,21 +240,27 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Switch
+                                                    className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                                                     checked={category.is_active}
                                                     onCheckedChange={() => {
-                                                        router.patch(route('tenant.categories.toggle-active', [currentTenant.slug, category.id]), {}, {
+                                                        router.patch(route('tenant.categories.toggle-active', [currentTenant?.slug, category.id]), {}, {
                                                             preserveScroll: true,
                                                         });
                                                     }}
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button size="icon" variant="ghost" onClick={() => openEdit(category)}>
-                                                        <Edit className="h-4 w-4" />
+                                                <div className="flex justify-end gap-1">
+                                                    <Button size="icon" variant="ghost" className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => openEdit(category)}>
+                                                        <Edit />
                                                     </Button>
-                                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(category.id)}>
-                                                        <Trash2 className="h-4 w-4" />
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={() => setCategoryToDelete(category)}
+                                                    >
+                                                        <Trash2 />
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -266,24 +289,27 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                             {requestsList.length === 0 ? (
                                 <p className="text-sm text-muted-foreground text-center py-4">No has solicitado iconos.</p>
                             ) : (
-                                <div className="space-y-3">
-                                    {requestsList.map((req: IconRequest) => (
-                                        <div key={req.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0 last:pb-0">
-                                            <span>{req.requested_name}</span>
-                                            <Badge variant={req.status === 'approved' ? 'default' : (req.status === 'rejected' ? 'destructive' : 'secondary')}>
-                                                {req.status === 'approved' ? 'Aprobado' : (req.status === 'rejected' ? 'Rechazado' : 'Pendiente')}
-                                            </Badge>
-                                        </div>
+                                <div className="space-y-1">
+                                    {requestsList.map((req: IconRequest, index: number) => (
+                                        <React.Fragment key={req.id}>
+                                            <div className="flex justify-between items-center py-2 px-1">
+                                                <span className="text-sm font-medium">{req.requested_name}</span>
+                                                <Badge variant={req.status === 'approved' ? 'default' : (req.status === 'rejected' ? 'destructive' : 'secondary')}>
+                                                    {req.status === 'approved' ? 'Aprobado' : (req.status === 'rejected' ? 'Rechazado' : 'Pendiente')}
+                                                </Badge>
+                                            </div>
+                                            {index < requestsList.length - 1 && <Separator className="opacity-50" />}
+                                        </React.Fragment>
                                     ))}
                                     {/* Small Pagination */}
-                                    <div className="flex justify-center mt-2">
-                                        <Pagination links={requestsLinks} className="justify-center scale-90 origin-top" />
+                                    <div className="flex justify-center pt-2">
+                                        <Pagination links={requestsLinks} className="scale-90" />
                                     </div>
                                 </div>
                             )}
                             <Button
                                 variant="outline"
-                                className="w-full mt-4"
+                                className="w-full mt-4 cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                                 onClick={() => setIsRequestIconOpen(true)}
                             >
                                 Solicitar Icono Nuevo
@@ -295,7 +321,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
 
             {/* Create/Edit Modal */}
             <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+                <SheetContent side="right">
                     <SheetHeader>
                         <SheetTitle>{editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}</SheetTitle>
                         <SheetDescription>
@@ -311,6 +337,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 required
+                                className="ring-0 hover:ring-0 focus:ring-0"
                             />
                             {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
                         </div>
@@ -321,7 +348,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                 value={data.parent_id}
                                 onValueChange={(val) => setData('parent_id', val)}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="ring-0 hover:ring-0 focus:ring-0 cursor-pointer">
                                     <SelectValue placeholder="Selecciona..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -329,7 +356,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                     {parents
                                         .filter(p => !editingCategory || p.id !== editingCategory.id) // Filter self
                                         .map(p => (
-                                            <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                                            <SelectItem key={p.id} value={p.id.toString()} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">{p.name}</SelectItem>
                                         ))}
                                 </SelectContent>
                             </Select>
@@ -340,7 +367,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                             <Label>Icono</Label>
                             <Input
                                 placeholder="Buscar icono..."
-                                className="mb-2"
+                                className="mb-2 ring-0 hover:ring-0 focus:ring-0"
                                 value={iconSearch}
                                 onChange={(e) => setIconSearch(e.target.value)}
                             />
@@ -348,9 +375,9 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                 {filteredIcons.map(icon => (
                                     <div
                                         key={icon.id}
-                                        className={`cursor-pointer rounded border p-2 flex flex-col items-center justify-center gap-1 transition-colors ${data.category_icon_id == icon.id.toString()
-                                            ? 'border-gray-500 bg-gray-100' // Distinct selection
-                                            : 'border-gray-200 hover:bg-gray-50' // Subtle default
+                                        className={`cursor-pointer rounded border p-2 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${data.category_icon_id == icon.id.toString()
+                                            ? 'border-primary bg-primary/5' // Pure choice
+                                            : 'border-muted hover:bg-muted/50' // Pure default
                                             }`}
                                         onClick={() => setData('category_icon_id', icon.id.toString())}
                                     >
@@ -371,8 +398,8 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                         </div>
 
                         <div className="flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                            <Button type="submit" disabled={processing}>{editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}</Button>
+                            <Button type="button" variant="outline" className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={processing} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">{editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}</Button>
                         </div>
                     </form>
                 </SheetContent>
@@ -396,6 +423,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                 value={requestData.requested_name}
                                 onChange={(e) => setRequestData('requested_name', e.target.value)}
                                 required
+                                className="ring-0 hover:ring-0 focus:ring-0"
                             />
                         </div>
 
@@ -406,18 +434,40 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                 accept="image/*"
                                 onChange={(e) => setRequestData('reference_image', e.target.files ? e.target.files[0] : null)}
                                 required
+                                className="ring-0 hover:ring-0 focus:ring-0 border-dashed"
                             />
                             <p className="text-[0.8rem] text-muted-foreground">Máximo 2MB</p>
                             {errorsRequest.reference_image && <p className="text-red-500 text-xs">{errorsRequest.reference_image}</p>}
                         </div>
 
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsRequestIconOpen(false)}>Cancelar</Button>
-                            <Button type="submit" disabled={processingRequest}>Enviar Solicitud</Button>
+                            <Button type="button" variant="outline" className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => setIsRequestIconOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={processingRequest} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Enviar Solicitud</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar Categoría?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que deseas eliminar la categoría <span className="font-bold">{categoryToDelete?.name}</span>? Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => categoryToDelete && handleDelete(categoryToDelete.id)}
+                            variant="destructive"
+                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
         </AdminLayout>
     );

@@ -315,7 +315,7 @@ const SidebarInset = React.forwardRef<
             ref={ref}
             className={cn(
                 "relative flex min-h-svh flex-1 flex-col bg-background",
-                "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+                "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-2xl/80",
                 className
             )}
             {...props}
@@ -545,7 +545,7 @@ const SidebarMenuButton = React.forwardRef<
                     "data-[size=sm]:text-xs",
                     "data-[size=lg]:text-sm",
                     variant === "outline" &&
-                    "border border-sidebar-border bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
+                    "border border-sidebar-border bg-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     className
                 )}
                 {...props}

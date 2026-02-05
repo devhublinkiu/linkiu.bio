@@ -102,17 +102,18 @@ class OnboardingController extends Controller
             'doc_dv' => 'nullable|string|max:10',
             'is_address_same' => 'boolean',
             'fiscal_address' => 'required_if:is_address_same,false|nullable|string|max:500',
-            'public_email' => 'required|email|max:255',
+            'public_email' => 'required|email|max:255|unique:tenants,contact_email',
         ], [
             'tenant_name.required' => 'Ingresa el nombre de tu negocio',
             'slug.required' => 'La URL de tu tienda es requerida',
-            'slug.unique' => 'Esta URL ya está en uso',
+            'slug.unique' => 'Este slug ya está en uso',
             'slug.alpha_dash' => 'La URL solo puede contener letras, números y guiones',
             'fiscal_regime.required' => 'El régimen fiscal es obligatorio',
             'doc_type.required' => 'El tipo de documento es obligatorio',
             'doc_number.required' => 'El número de documento es obligatorio',
             'public_email.required' => 'El correo de contacto público es obligatorio',
             'public_email.email' => 'Ingresa un correo de contacto válido',
+            'public_email.unique' => 'Este correo ya está registrado en otra tienda',
         ]);
 
         // Merge with existing session data
@@ -135,6 +136,51 @@ class OnboardingController extends Controller
             'onboardingData' => session('onboarding'),
             'siteSettings' => $this->getSiteSettings(),
         ]);
+    }
+
+    /**
+     * Validate a specific field (Real-time checks)
+     */
+    public function validateField(Request $request)
+    {
+        $request->validate([
+            'field' => 'required|string|in:slug,tenant_name,public_email',
+            'value' => 'nullable|string',
+        ]);
+
+        $field = $request->field;
+        $value = $request->value;
+
+        // Custom messages map
+        $messages = [
+            'slug.unique' => 'Este slug ya está en uso',
+            'slug.alpha_dash' => 'Solo letras, números y guiones',
+            'public_email.email' => 'Ingresa un correo válido',
+            'public_email.unique' => 'Este correo ya está registrado',
+            'tenant_name.required' => 'El nombre es obligatorio',
+        ];
+
+        $rules = match ($field) {
+            'slug' => 'required|string|max:255|unique:tenants,slug|alpha_dash',
+            'tenant_name' => 'required|string|max:255',
+            'public_email' => 'required|email|max:255|unique:tenants,contact_email',
+            default => 'nullable'
+        };
+
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            [$field => $value],
+            [$field => $rules],
+            $messages
+        );
+
+        if ($validator->fails()) {
+            return response()->json([
+                'valid' => false,
+                'message' => $validator->errors()->first($field),
+            ]);
+        }
+
+        return response()->json(['valid' => true]);
     }
 
     /**

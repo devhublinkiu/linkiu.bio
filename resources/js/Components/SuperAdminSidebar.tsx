@@ -9,7 +9,8 @@ import {
     SquareTerminal,
     Users,
     Inbox,
-    ShieldCheck
+    ShieldCheck,
+    LifeBuoy
 } from "lucide-react"
 import { usePage } from "@inertiajs/react"
 
@@ -73,7 +74,7 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                 title: "Contenido",
                 url: "#",
                 icon: LayoutGrid,
-                isActive: url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/support'),
+                isActive: url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/support') || url.startsWith('/superlinkiu/media'),
                 items: [
                     {
                         title: "Categorías e Iconos",
@@ -82,6 +83,23 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                     {
                         title: "Solicitudes",
                         url: "/superlinkiu/support/requests",
+                    },
+                    {
+                        title: "Mis archivos",
+                        url: "/superlinkiu/media",
+                    },
+
+                ],
+            },
+            {
+                title: "Atención",
+                url: "#",
+                icon: LifeBuoy,
+                isActive: url.startsWith('/superlinkiu/support'),
+                items: [
+                    {
+                        title: "Tickets de Soporte",
+                        url: "/superlinkiu/support",
                     },
                 ],
             },

@@ -38,6 +38,16 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog"
 import { toast } from 'sonner';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { PageProps } from '@/types';
@@ -71,6 +81,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
     const { currentUserRole } = usePage<PageProps>().props;
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
 
     const checkPermission = (permission: string) => {
@@ -102,7 +113,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
         handleActionWithPermission('users.create', () => {
-            post(route('tenant.members.store', { tenant: currentTenant.slug }), {
+            post(route('tenant.members.store', { tenant: currentTenant?.slug }), {
                 onSuccess: () => {
                     setIsInviteOpen(false);
                     reset();
@@ -117,7 +128,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
 
     const handleUpdateRole = (memberId: number, newRoleId: string) => {
         handleActionWithPermission('users.update', () => {
-            router.put(route('tenant.members.update', { tenant: currentTenant.slug, member: memberId }), {
+            router.put(route('tenant.members.update', { tenant: currentTenant?.slug, member: memberId }), {
                 role_id: newRoleId
             }, {
                 onSuccess: () => toast.success('Rol actualizado'),
@@ -128,12 +139,13 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
 
     const handleDelete = (memberId: number) => {
         handleActionWithPermission('users.delete', () => {
-            if (confirm('¿Estás seguro de que deseas eliminar a este miembro del equipo?')) {
-                router.delete(route('tenant.members.destroy', { tenant: currentTenant.slug, member: memberId }), {
-                    onSuccess: () => toast.success('Miembro eliminado'),
-                    onError: () => toast.error('No se pudo eliminar al miembro')
-                });
-            }
+            router.delete(route('tenant.members.destroy', { tenant: currentTenant?.slug, member: memberId }), {
+                onSuccess: () => {
+                    toast.success('Miembro eliminado');
+                    setMemberToDelete(null);
+                },
+                onError: () => toast.error('No se pudo eliminar al miembro')
+            });
         });
     };
 
@@ -160,7 +172,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                         if (open) openInviteModal();
                         else setIsInviteOpen(false);
                     }}>
-                        <Button className="font-bold" onClick={openInviteModal}>
+                        <Button className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={openInviteModal}>
                             <UserPlus className="mr-2 h-4 w-4" />
                             Agregar Miembro
                         </Button>
@@ -180,7 +192,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                             id="email"
                                             type="email"
                                             placeholder="correo@ejemplo.com"
-                                            className="pl-9"
+                                            className="pl-9 ring-0 hover:ring-0 focus:ring-0"
                                             value={data.email}
                                             onChange={e => setData('email', e.target.value)}
                                         />
@@ -195,7 +207,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         <Input
                                             id="name"
                                             placeholder="Nombre Completo"
-                                            className="pl-9"
+                                            className="pl-9 ring-0 hover:ring-0 focus:ring-0"
                                             value={data.name}
                                             onChange={e => setData('name', e.target.value)}
                                         />
@@ -209,6 +221,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         id="password"
                                         type="password"
                                         placeholder="******"
+                                        className="ring-0 hover:ring-0 focus:ring-0"
                                         value={data.password}
                                         onChange={e => setData('password', e.target.value)}
                                     />
@@ -224,12 +237,12 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         onValueChange={(val) => setData('role_id', val)}
                                         value={data.role_id}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                             <SelectValue placeholder="Selecciona un rol" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {roles.map((role) => (
-                                                <SelectItem key={role.id} value={String(role.id)}>
+                                                <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                                     {role.name}
                                                 </SelectItem>
                                             ))}
@@ -238,7 +251,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                     {errors.role_id && <p className="text-sm text-red-500">{errors.role_id}</p>}
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit" disabled={processing} className="w-full font-bold">
+                                    <Button type="submit" disabled={processing} className="w-full cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                         {processing ? 'Procesando...' : 'Agregar Miembro'}
                                     </Button>
                                 </DialogFooter>
@@ -250,7 +263,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                 <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                            <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[40%]">Usuario</TableHead>
                                 <TableHead>Rol Actual</TableHead>
                                 <TableHead>Fecha de Ingreso</TableHead>
@@ -274,7 +287,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         {member.role_type === 'owner' ? (
-                                            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200">
+                                            <Badge variant="secondary">
                                                 Propietario
                                             </Badge>
                                         ) : (
@@ -292,12 +305,12 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                                     onValueChange={(val) => handleUpdateRole(member.id, val)}
                                                     disabled={false} // Always enabled visually to allow click capture
                                                 >
-                                                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                                                    <SelectTrigger className="w-[180px] h-8 text-xs cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                                         <SelectValue placeholder={member.role_label} />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {roles.map((role) => (
-                                                            <SelectItem key={role.id} value={String(role.id)}>
+                                                            <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                                                 {role.name}
                                                             </SelectItem>
                                                         ))}
@@ -313,14 +326,15 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         {member.role_type !== 'owner' && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem
-                                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                                        onClick={() => handleDelete(member.id)}
+                                                        variant="destructive"
+                                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                                        onSelect={() => setMemberToDelete(member)}
                                                     >
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Eliminar del Equipo
@@ -335,6 +349,27 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                     </Table>
                 </div>
             </div>
+
+            <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar Miembro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que deseas eliminar a <span className="font-bold">{memberToDelete?.name}</span> del equipo? Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => memberToDelete && handleDelete(memberToDelete.id)}
+                            variant="destructive"
+                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AdminLayout>
     );
 }

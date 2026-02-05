@@ -18,6 +18,7 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
+/*
 Route::get('/test-broadcast', function () {
     // Manually broadcast to check connection
     $msg = 'Helllo from server ' . now();
@@ -28,6 +29,7 @@ Route::get('/test-broadcast', function () {
         ->send();
     return "Broadcast sent: $msg";
 });
+*/
 
 
 
@@ -44,6 +46,9 @@ Route::prefix('onboarding')->name('onboarding.')->group(function () {
     // Step 3: Account creation
     Route::get('/cuenta', [\App\Http\Controllers\OnboardingController::class, 'step3'])->name('step3');
     Route::post('/complete', [\App\Http\Controllers\OnboardingController::class, 'complete'])->name('complete');
+
+    // Validation
+    Route::post('/validate', [\App\Http\Controllers\OnboardingController::class, 'validateField'])->name('validate');
 
     // Post-registration pages
     Route::get('/construyendo', [\App\Http\Controllers\OnboardingController::class, 'building'])->name('building');
@@ -88,6 +93,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/notifications/{id}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
 
     // Debug Route
+    // Debug Route - DISABLED FOR PRODUCTION
+    /*
     Route::get('/test-notification', function () {
         $iconRequest = \App\Models\IconRequest::first();
         if (!$iconRequest)
@@ -102,6 +109,7 @@ Route::middleware('auth')->group(function () {
 
         return 'Sent IconRequestedNotification to all SuperAdmins. Check logs and frontend.';
     });
+    */
 });
 
 // 3. SuperAdmin Zone
@@ -138,6 +146,11 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
     Route::get('/payments', [\App\Http\Controllers\SuperAdmin\PaymentController::class, 'index'])->name('payments.index');
     Route::put('/payments/{payment}', [\App\Http\Controllers\SuperAdmin\PaymentController::class, 'update'])->name('payments.update');
 
+    // Support Module
+    Route::resource('support', \App\Http\Controllers\SuperAdmin\SupportController::class)->names('superadmin.support');
+    Route::post('support/{ticket}/reply', [\App\Http\Controllers\SuperAdmin\SupportController::class, 'reply'])->name('superadmin.support.reply');
+    Route::post('support/{ticket}/assign', [\App\Http\Controllers\SuperAdmin\SupportController::class, 'assign'])->name('superadmin.support.assign');
+
     // Media Management
     // Media Management (Unified Shared Controller)
     Route::prefix('media')->name('media.')->group(function () {
@@ -161,6 +174,9 @@ Route::prefix('{tenant}')->group(function () {
             'tenant' => app('currentTenant')
         ]);
     })->name('tenant.home');
+
+    // 4.1b Validar Clicks en Sliders (Public)
+    Route::get('/sliders/{slider}/click', [\App\Http\Controllers\Tenant\Admin\SliderController::class, 'click'])->name('tenant.sliders.click');
 
     // 4.2 Tenant Admin Panel
     Route::prefix('admin')->group(function () {
@@ -195,6 +211,9 @@ Route::prefix('{tenant}')->group(function () {
             Route::patch('categories/{category}/toggle-active', [\App\Http\Controllers\Tenant\Admin\CategoryController::class, 'toggleActive'])->name('tenant.categories.toggle-active');
             Route::post('categories/request-icon', [\App\Http\Controllers\Tenant\Admin\CategoryController::class, 'requestIcon'])->name('tenant.categories.request-icon');
 
+            // 4.5 Sliders (Banners)
+            Route::resource('sliders', \App\Http\Controllers\Tenant\Admin\SliderController::class)->names('tenant.sliders');
+
             Route::get('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'edit'])->name('tenant.settings.edit');
             Route::patch('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'update'])->name('tenant.settings.update');
             Route::post('/settings/logo', [\App\Http\Controllers\Tenant\Admin\SettingsController::class, 'updateLogo'])->name('tenant.settings.logo.update');
@@ -211,7 +230,11 @@ Route::prefix('{tenant}')->group(function () {
             Route::get('/invoices', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'index'])->name('tenant.invoices.index');
             Route::get('/invoices/{invoice}', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'show'])->name('tenant.invoices.show');
             Route::post('/invoices/upload', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'store'])->name('tenant.invoices.store');
-            Route::post('/invoices/upload', [\App\Http\Controllers\Tenant\Admin\InvoiceController::class, 'store'])->name('tenant.invoices.store');
+
+            // Support Module
+            Route::resource('support', \App\Http\Controllers\Tenant\Admin\SupportController::class)->names('tenant.support');
+            Route::post('support/{ticket}/reply', [\App\Http\Controllers\Tenant\Admin\SupportController::class, 'reply'])->name('tenant.support.reply');
+            Route::post('support/{ticket}/close', [\App\Http\Controllers\Tenant\Admin\SupportController::class, 'close'])->name('tenant.support.close');
 
             // Shared Media Management (Tenant Context)
             Route::prefix('media')->name('tenant.media.')->group(function () {

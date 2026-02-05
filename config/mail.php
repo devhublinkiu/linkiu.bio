@@ -115,4 +115,21 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Department Email Addresses
+    |--------------------------------------------------------------------------
+    |
+    | These are department-specific email addresses used throughout the
+    | application for different types of notifications.
+    |
+    */
+
+    'addresses' => [
+        'support' => env('MAIL_SUPPORT_ADDRESS', 'support@linkiu.com.co'),
+        'billing' => env('MAIL_BILLING_ADDRESS', 'billing@linkiu.com.co'),
+        'info' => env('MAIL_INFO_ADDRESS', 'info@linkiu.com.co'),
+        'noreply' => env('MAIL_NOREPLY_ADDRESS', 'noreply@linkiu.com.co'),
+    ],
+
 ];

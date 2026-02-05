@@ -9,7 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/Components/ui/sheet';
 import { CreateFolderModal } from './Modals/CreateFolderModal';
 import { UploadModal } from './Modals/UploadModal';
-import { DeleteConfirmationModal } from '@/Components/Shared/DeleteConfirmationModal';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import SharedPagination from '@/Components/Shared/Pagination';
 import {
     Upload,
@@ -284,23 +293,33 @@ export default function Index({ files, stats, folders, filters }: Props) {
                 open={showPermissionModal}
                 onOpenChange={setShowPermissionModal}
             />
-            <DeleteConfirmationModal
+            <AlertDialog
                 open={deleteModalOpen}
                 onOpenChange={setDeleteModalOpen}
-                onConfirm={confirmDelete}
-                title={
-                    itemToDelete?.type === 'folder' ? "¿Eliminar carpeta?" :
-                        itemToDelete?.type === 'single' ? "¿Eliminar archivo?" :
-                            "¿Eliminar archivos seleccionados?"
-                }
-                description={
-                    itemToDelete?.type === 'folder'
-                        ? "Esta acción no se puede deshacer. La carpeta y TODO su contenido serán eliminados permanentemente."
-                        : itemToDelete?.type === 'single'
-                            ? "Esta acción no se puede deshacer. El archivo será eliminado permanentemente."
-                            : `Se eliminarán ${selectedFiles.length} archivos permanentemente. Esta acción no se puede deshacer.`
-                }
-            />
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {itemToDelete?.type === 'folder' ? "¿Eliminar carpeta?" :
+                                itemToDelete?.type === 'single' ? "¿Eliminar archivo?" :
+                                    "¿Eliminar archivos seleccionados?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {itemToDelete?.type === 'folder'
+                                ? "Esta acción no se puede deshacer. La carpeta y TODO su contenido serán eliminados permanentemente."
+                                : itemToDelete?.type === 'single'
+                                    ? "Esta acción no se puede deshacer. El archivo será eliminado permanentemente."
+                                    : `Se eliminarán ${selectedFiles.length} archivos permanentemente. Esta acción no se puede deshacer.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <Head title="Gestión de Archivos" />
 
             <div className="p-6 space-y-6">

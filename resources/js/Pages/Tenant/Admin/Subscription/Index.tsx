@@ -43,7 +43,8 @@ interface Plan {
     is_public: boolean;
     slug: string;
     allow_custom_slug?: boolean;
-    quarterly_price?: number;
+    quarterly_price: number;
+    semiannual_price: number;
 }
 
 interface Subscription {
@@ -78,7 +79,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
     const flash = props.flash || {};
     const subscription = tenant.latest_subscription;
     const currentPlan = subscription?.plan;
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'semiannual' | 'yearly'>('monthly');
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [slugWarning, setSlugWarning] = useState<{
@@ -184,6 +185,37 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
         }).format(amount);
     };
 
+    const getRemainingTimeText = () => {
+        if (!subscription) return 'N/A';
+
+        const days = subscription.status === 'trialing' ? subscription.trial_days_remaining : subscription.days_remaining;
+
+
+        if (days <= 0) return '0 días';
+        if (days < 30) return `${days} días`;
+
+        const months = Math.floor(days / 30);
+        const remainingDays = days % 30;
+
+        if (months > 0 && remainingDays > 0) {
+            return `${months} ${months === 1 ? 'mes' : 'meses'} y ${remainingDays} ${remainingDays === 1 ? 'día' : 'días'}`;
+        } else if (months > 0) {
+            return `${months} ${months === 1 ? 'mes' : 'meses'}`;
+        }
+
+        return `${days} días`;
+    };
+
+    const getCycleLabel = (cycle: string) => {
+        switch (cycle) {
+            case 'monthly': return 'Mensual';
+            case 'quarterly': return 'Trimestral';
+            case 'semiannual': return 'Semestral';
+            case 'yearly': return 'Anual';
+            default: return cycle;
+        }
+    };
+
     return (
         <AdminLayout>
             <Head title="Mi Plan y Suscripción" />
@@ -196,33 +228,32 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
             <div className="max-w-6xl mx-auto space-y-10">
                 {/* Header Header */}
                 <div className="text-center space-y-2">
-                    <h2 className="text-4xl font-black tracking-tight text-slate-900">Planes y Suscripción</h2>
-                    <p className="text-slate-500 font-medium">Gestiona tu nivel de servicio y activa nuevas funcionalidades.</p>
+                    <h2 className="text-4xl font-black tracking-tight uppercase">Planes y Suscripción</h2>
+                    <p className="text-muted-foreground font-medium">Gestiona tu nivel de servicio y activa nuevas funcionalidades.</p>
                 </div>
 
                 {/* Current Status Banner */}
                 <div className="grid md:grid-cols-3 gap-6">
-                    <Card className="md:col-span-2 shadow-xl shadow-slate-200/50 border-slate-100 overflow-hidden relative">
+                    <Card className="md:col-span-2 shadow-xl border overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-12 opacity-[0.03] rotate-12">
                             <Zap className="w-48 h-48" />
                         </div>
                         <CardHeader className="pb-4">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <Badge className="bg-primary/10 text-primary border-primary/20 mb-2 uppercase tracking-widest font-black text-[10px]">
+                                    <Badge variant="outline" className="text-primary border-primary/20 mb-2 uppercase tracking-widest font-black text-[10px] cursor-pointer ring-0 hover:ring-0 focus:ring-0">
                                         Plan Actual
                                     </Badge>
-                                    <CardTitle className="text-3xl font-black text-slate-900">
+                                    <CardTitle className="text-3xl font-black">
                                         {currentPlan?.name || 'Inactivo'}
                                     </CardTitle>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estado</p>
-                                    <Badge className={
-                                        subscription?.status === 'active' || subscription?.status === 'trialing'
-                                            ? "bg-green-100 text-green-700 border-green-200"
-                                            : "bg-red-100 text-red-700 border-red-200"
-                                    }>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Estado</p>
+                                    <Badge
+                                        variant={subscription?.status === 'active' || subscription?.status === 'trialing' ? "default" : "destructive"}
+                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                    >
                                         {subscription?.status === 'trialing' ? 'En Prueba' : 'Suscripción Activa'}
                                     </Badge>
                                 </div>
@@ -231,84 +262,82 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         <CardContent className="space-y-6 relative z-10">
                             <div className="space-y-2">
                                 <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                                    <span className="text-slate-400">Progreso del Ciclo</span>
+                                    <span className="text-muted-foreground">Progreso del Ciclo</span>
                                     <span className="text-primary">{subscription?.percent_completed}% completado</span>
                                 </div>
-                                <Progress value={subscription?.percent_completed} className="h-2 bg-slate-100 shadow-inner" />
+                                <Progress value={subscription?.percent_completed} className="h-2 bg-muted shadow-inner" />
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                        {subscription?.status === 'trialing' ? 'Días de Prueba' : 'Días Restantes'}
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+                                        {subscription?.status === 'trialing' ? 'Días de Prueba' : 'Tiempo Restante'}
                                     </p>
                                     <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4 text-slate-300" />
-                                        <span className="font-black text-slate-700">
-                                            {subscription?.status === 'trialing' ? subscription?.trial_days_remaining : subscription?.days_remaining} días
+                                        <Clock className="w-4 h-4 text-muted-foreground" />
+                                        <span className="font-black">
+                                            {getRemainingTimeText()}
                                         </span>
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Próximo Cobro</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Próximo Cobro</p>
                                     <div className="flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-slate-300" />
-                                        <span className="font-black text-slate-700">
+                                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                                        <span className="font-black">
                                             {subscription?.next_payment_date ? new Date(subscription.next_payment_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Pendiente'}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                        Valor {
-                                            subscription?.billing_cycle === 'yearly' ? 'Anual' :
-                                                subscription?.billing_cycle === 'quarterly' ? 'Trimestral' : 'Mensual'
-                                        }
+                                <div className="col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
+                                        Valor {getCycleLabel(subscription?.billing_cycle)}
                                     </p>
                                     <p className="text-xl font-black text-primary">
                                         {formatCurrency(
                                             subscription?.billing_cycle === 'yearly' ? currentPlan?.yearly_price || 0 :
-                                                subscription?.billing_cycle === 'quarterly' ? currentPlan?.quarterly_price || 0 :
-                                                    currentPlan?.monthly_price || 0
+                                                subscription?.billing_cycle === 'semiannual' ? currentPlan?.semiannual_price || 0 :
+                                                    subscription?.billing_cycle === 'quarterly' ? currentPlan?.quarterly_price || 0 :
+                                                        currentPlan?.monthly_price || 0
                                         )}
                                     </p>
                                 </div>
                             </div>
 
                             {/* Payment Actions */}
-                            <div className="pt-4 flex flex-wrap gap-4 border-t border-slate-50">
+                            <div className="pt-4 flex flex-wrap gap-4 border-t">
                                 {pendingInvoice ? (
-                                    <div className="flex items-center gap-4 bg-amber-50 p-4 rounded-2xl border border-amber-100 w-full animate-in fade-in slide-in-from-top-2">
-                                        <div className="h-10 w-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+                                    <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-2xl border w-full animate-in fade-in slide-in-from-top-2">
+                                        <div className="h-10 w-10 bg-muted rounded-xl flex items-center justify-center text-amber-600">
                                             <AlertCircle className="w-6 h-6" />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-xs font-black text-amber-900 uppercase tracking-tight">Tienes una factura pendiente</p>
-                                            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">#{pendingInvoice.id} • {formatCurrency(pendingInvoice.amount)}</p>
+                                            <p className="text-xs font-black uppercase tracking-tight">Tienes una factura pendiente</p>
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">#{pendingInvoice.id} • {formatCurrency(pendingInvoice.amount)}</p>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" className="h-9 px-4 rounded-xl font-bold border-amber-200 text-amber-700 bg-white hover:bg-amber-50" asChild>
-                                                <Link href={route('tenant.invoices.show', { tenant: tenant.slug, invoice: pendingInvoice.id })}>
+                                            <Button size="sm" variant="outline" className="h-9 px-4 rounded-xl font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background" asChild>
+                                                <Link href={route('tenant.invoices.show', { tenant: tenant?.slug, invoice: pendingInvoice.id })}>
                                                     <Eye className="w-4 h-4 mr-2" /> Detalle
                                                 </Link>
                                             </Button>
-                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-200" onClick={() => handleActionWithPermission('billing.manage', () => setIsUploadOpen(true))}>
+                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => handleActionWithPermission('billing.manage', () => setIsUploadOpen(true))}>
                                                 <Upload className="w-4 h-4 mr-2" /> Pagar Ahora
                                             </Button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center justify-between w-full bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <div className="flex items-center justify-between w-full bg-muted/30 p-4 rounded-2xl border">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center text-slate-400">
+                                            <div className="h-9 w-9 bg-background rounded-xl shadow-sm border flex items-center justify-center text-muted-foreground">
                                                 <Banknote className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">¿Quieres pagar por adelantado?</p>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Asegura tu servicio para el próximo ciclo</p>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">¿Quieres pagar por adelantado?</p>
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asegura tu servicio para el próximo ciclo</p>
                                             </div>
                                         </div>
-                                        <Button size="sm" variant="outline" className="h-9 px-6 rounded-xl font-bold bg-white border-slate-200 text-slate-600 hover:bg-slate-50 transition-all hover:scale-[1.02]" onClick={handleAdvanceInvoice}>
+                                        <Button size="sm" variant="outline" className="h-9 px-6 rounded-xl font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background transition-all hover:scale-[1.02]" onClick={handleAdvanceInvoice}>
                                             Adelantar Pago
                                         </Button>
                                     </div>
@@ -317,19 +346,19 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         </CardContent>
                     </Card>
 
-                    <Card className="shadow-lg border-slate-100 bg-slate-50 flex flex-col justify-between">
+                    <Card className="shadow-lg border bg-muted/30 flex flex-col justify-between">
                         <CardHeader className="pb-4">
-                            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-600 uppercase tracking-widest">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-widest">
                                 <ShieldCheck className="w-4 h-4" />
                                 Tu Seguridad
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                            <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                                 Tu información de facturación está protegida. Si tienes dudas sobre tu plan actual, puedes ver tus facturas anteriores.
                             </p>
-                            <Button variant="outline" className="w-full h-10 border-slate-200 text-slate-700 font-bold bg-white shadow-sm" asChild>
-                                <Link href={route('tenant.invoices.index', { tenant: tenant.slug })}>
+                            <Button variant="outline" className="w-full h-10 font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background" asChild>
+                                <Link href={route('tenant.invoices.index', { tenant: tenant?.slug })}>
                                     Ver Historial de Facturas
                                 </Link>
                             </Button>
@@ -345,28 +374,44 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                 <Sparkles className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Mejora tu impacto</h3>
-                                <p className="text-sm text-slate-500 font-medium tracking-tight">Selecciona el plan que se adapte mejor a tus objetivos.</p>
+                                <h3 className="text-2xl font-black tracking-tight uppercase">Mejora tu impacto</h3>
+                                <p className="text-sm text-muted-foreground font-medium tracking-tight">Selecciona el plan que se adapte mejor a tus objetivos.</p>
                             </div>
                         </div>
 
                         {/* Toggle Billing Cycle */}
-                        <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1">
+                        <div className="bg-muted p-1 rounded-xl flex items-center gap-1 overflow-x-auto">
                             <Button
                                 variant={billingCycle === 'monthly' ? 'default' : 'ghost'}
                                 size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider"
+                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                                 onClick={() => setBillingCycle('monthly')}
                             >
                                 Mensual
                             </Button>
                             <Button
+                                variant={billingCycle === 'quarterly' ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                onClick={() => setBillingCycle('quarterly')}
+                            >
+                                Trimestral
+                            </Button>
+                            <Button
+                                variant={billingCycle === 'semiannual' ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                onClick={() => setBillingCycle('semiannual')}
+                            >
+                                Semestral
+                            </Button>
+                            <Button
                                 variant={billingCycle === 'yearly' ? 'default' : 'ghost'}
                                 size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider"
+                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                                 onClick={() => setBillingCycle('yearly')}
                             >
-                                Anual <Badge className="ml-1 bg-green-500 text-[8px] py-0 px-1 border-none">-15%</Badge>
+                                Anual <Badge className="ml-1 bg-green-500 text-[8px] py-0 px-1 border-none cursor-pointer ring-0 hover:ring-0 focus:ring-0 text-white">-15%</Badge>
                             </Button>
                         </div>
                     </div>
@@ -387,21 +432,29 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                 )}
 
                                 <CardHeader className="text-center pt-10 pb-6">
-                                    <CardTitle className="text-xl font-black text-slate-900 group-hover:text-primary transition-colors">
+                                    <CardTitle className="text-xl font-black group-hover:text-primary transition-colors uppercase">
                                         {plan.name}
                                     </CardTitle>
                                     <div className="mt-4 flex flex-col items-center">
-                                        <div className="text-4xl font-black text-slate-900 tracking-tighter">
-                                            {formatCurrency(billingCycle === 'yearly' ? plan.yearly_price : plan.monthly_price)}
+                                        <div className="text-4xl font-black tracking-tighter">
+                                            {formatCurrency(
+                                                billingCycle === 'yearly' ? plan.yearly_price :
+                                                    billingCycle === 'semiannual' ? plan.semiannual_price || 0 :
+                                                        billingCycle === 'quarterly' ? plan.quarterly_price || 0 :
+                                                            plan.monthly_price
+                                            )}
                                         </div>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                                            {billingCycle === 'yearly' ? 'por año' : 'por mes'}
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                                            {billingCycle === 'yearly' ? 'por año' :
+                                                billingCycle === 'semiannual' ? 'por 6 meses' :
+                                                    billingCycle === 'quarterly' ? 'por 3 meses' :
+                                                        'por mes'}
                                         </p>
                                     </div>
                                 </CardHeader>
 
                                 <CardContent className="space-y-6 px-8">
-                                    <p className="text-slate-500 text-xs text-center font-medium min-h-[40px]">
+                                    <p className="text-muted-foreground text-xs text-center font-medium min-h-[40px]">
                                         {plan.description}
                                     </p>
 
@@ -411,7 +464,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                                 <div className="mt-0.5">
                                                     <CheckCircle2 className="w-4 h-4 text-primary" />
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-700 leading-snug">{feature}</span>
+                                                <span className="text-xs font-bold leading-snug">{feature}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -419,8 +472,8 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
 
                                 <CardFooter className="pt-8 pb-8 px-8 flex-col gap-3">
                                     <Button
-                                        className={`w-full h-12 rounded-2xl font-black shadow-lg transition-all ${plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle
-                                            ? "bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-default shadow-none border-none"
+                                        className={`w-full h-12 rounded-2xl font-black shadow-lg transition-all cursor-pointer ring-0 hover:ring-0 focus:ring-0 ${plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle
+                                            ? "bg-muted text-muted-foreground hover:bg-muted cursor-default shadow-none border-none"
                                             : "bg-primary text-white shadow-primary/20 hover:scale-[1.02]"
                                             }`}
                                         onClick={(e) => {
@@ -430,12 +483,20 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                     >
                                         {plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle ? "Activo" : "Elegir Plan"}
                                     </Button>
-                                    {billingCycle === 'yearly' ? (
+                                    {billingCycle === 'yearly' && plan.yearly_price ? (
                                         <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
                                             Ahorras {formatCurrency((plan.monthly_price * 12) - plan.yearly_price)} al año
                                         </p>
+                                    ) : billingCycle === 'semiannual' && plan.semiannual_price ? (
+                                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
+                                            Ahorras {formatCurrency((plan.monthly_price * 6) - plan.semiannual_price)} cada 6 meses
+                                        </p>
+                                    ) : billingCycle === 'quarterly' && plan.quarterly_price ? (
+                                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
+                                            Ahorras {formatCurrency((plan.monthly_price * 3) - plan.quarterly_price)} cada 3 meses
+                                        </p>
                                     ) : (
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                                             Sin permanencia mínima
                                         </p>
                                     )}
@@ -446,16 +507,16 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                 </div>
 
                 {/* FAQ or Info Section */}
-                <div className="bg-slate-50 rounded-3xl p-10 flex flex-col md:flex-row items-center justify-between gap-8 border border-slate-100">
+                <div className="bg-muted/30 rounded-3xl p-10 flex flex-col md:flex-row items-center justify-between gap-8 border">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-primary">
                             <AlertCircle className="w-4 h-4" />
                             <span className="text-xs font-black uppercase tracking-widest">Importante</span>
                         </div>
-                        <h4 className="text-xl font-black text-slate-900">¿Necesitas un plan personalizado?</h4>
-                        <p className="text-slate-500 text-sm font-medium">Si tu proyecto requiere límites especiales o integraciones dedicadas, estamos aquí para ayudarte.</p>
+                        <h4 className="text-xl font-black uppercase">¿Necesitas un plan personalizado?</h4>
+                        <p className="text-muted-foreground text-sm font-medium">Si tu proyecto requiere límites especiales o integraciones dedicadas, estamos aquí para ayudarte.</p>
                     </div>
-                    <Button size="lg" className="rounded-2xl font-black h-14 px-8 bg-white border-slate-200 text-slate-900 hover:bg-slate-50 border-2 shadow-sm min-w-[200px]">
+                    <Button size="lg" className="rounded-2xl font-black h-14 px-8 border-2 shadow-sm min-w-[200px] cursor-pointer ring-0 hover:ring-0 focus:ring-0" variant="outline">
                         Contactar Soporte
                     </Button>
                 </div>
@@ -485,19 +546,19 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                 </p>
                                 <div className="bg-slate-50 rounded-lg p-4 space-y-2">
                                     <div className="flex items-center gap-2 text-sm">
-                                        <span className="text-slate-500">Actual:</span>
-                                        <code className="bg-red-100 text-red-700 px-2 py-1 rounded font-mono text-sm">
+                                        <span className="text-muted-foreground">Actual:</span>
+                                        <code className="bg-muted px-2 py-1 rounded font-bold text-sm">
                                             /{slugWarning.currentSlug}
                                         </code>
                                     </div>
                                     <div className="flex items-center gap-2 text-sm">
-                                        <span className="text-slate-500">Nueva:</span>
-                                        <code className="bg-green-100 text-green-700 px-2 py-1 rounded font-mono text-sm">
+                                        <span className="text-muted-foreground">Nueva:</span>
+                                        <code className="bg-muted px-2 py-1 rounded font-bold text-sm">
                                             /{slugWarning.newAutoSlug}
                                         </code>
                                     </div>
                                 </div>
-                                <p className="text-amber-600 text-sm font-medium">
+                                <p className="text-amber-600 text-sm font-bold">
                                     ⚠️ Todos los enlaces anteriores a tu tienda dejarán de funcionar.
                                 </p>
                             </div>
@@ -507,12 +568,14 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         <Button
                             variant="outline"
                             onClick={() => setSlugWarning({ ...slugWarning, show: false })}
+                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                         >
                             Cancelar
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={handleConfirmSlugLoss}
+                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                         >
                             Entiendo, cambiar de plan
                         </Button>
