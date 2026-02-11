@@ -19,16 +19,21 @@ class Category extends Model
 
     public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Category::class, 'parent_id');
+        return $this->belongsTo(Category::class , 'parent_id');
     }
 
     public function children(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(Category::class, 'parent_id');
+        return $this->hasMany(Category::class , 'parent_id');
     }
 
     public function icon(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(CategoryIcon::class, 'category_icon_id');
+        return $this->belongsTo(CategoryIcon::class , 'category_icon_id');
+    }
+
+    public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Product::class)->where('is_available', true)->where('status', 'active')->orderBy('sort_order', 'asc');
     }
 }

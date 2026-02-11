@@ -129,6 +129,7 @@ class HandleInertiaRequests extends Middleware
                     'favicon_url' => $settings->favicon_path ? $disk->url($settings->favicon_path) : null,
                 ] : null;
             }),
+            'selectedTable' => session('selected_table'),
         ];
     }
 }

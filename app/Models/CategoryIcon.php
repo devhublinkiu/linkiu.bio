@@ -20,6 +20,13 @@ class CategoryIcon extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = ['icon_url'];
+
+    public function getIconUrlAttribute()
+    {
+        return $this->path ? \Illuminate\Support\Facades\Storage::disk('s3')->url($this->path) : null;
+    }
+
     public function vertical()
     {
         return $this->belongsTo(Vertical::class);

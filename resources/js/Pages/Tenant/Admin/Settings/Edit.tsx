@@ -17,7 +17,8 @@ import {
     Upload,
     PenTool,
     Type,
-    Code
+    Code,
+    Gavel
 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 import { toast } from 'sonner';
@@ -61,6 +62,11 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
         facebook_pixel_id: tenantSettings.facebook_pixel_id || '',
         google_analytics_id: tenantSettings.google_analytics_id || '',
         tiktok_pixel_id: tenantSettings.tiktok_pixel_id || '',
+
+        // Tax Settings
+        tax_name: tenantSettings.tax_name || 'IVA',
+        tax_rate: tenantSettings.tax_rate || 0,
+        price_includes_tax: !!tenantSettings.price_includes_tax,
     });
 
     const submitSettings: FormEventHandler = (e) => {
@@ -143,6 +149,10 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                     <Zap className="mr-2" />
                                     Integraciones
                                 </TabsTrigger>
+                                <TabsTrigger value="legal">
+                                    <Gavel className="mr-2" />
+                                    Legal e Impuestos
+                                </TabsTrigger>
                             </TabsList>
                             <Button disabled={processing} className="px-8 cursor-pointer">
                                 <Save />
@@ -175,7 +185,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                         variant="outline"
                                                         size="sm"
                                                         className="cursor-pointer"
-                                                        onClick={() => logoInputRef.current?.click()}
+                                                        onClick={() => checkPermissionAndExecute(() => logoInputRef.current?.click())}
                                                     >
                                                         <Upload /> Cambiar Logo
                                                     </Button>
@@ -200,7 +210,7 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                                         variant="outline"
                                                         size="sm"
                                                         className="cursor-pointer"
-                                                        onClick={() => faviconInputRef.current?.click()}
+                                                        onClick={() => checkPermissionAndExecute(() => faviconInputRef.current?.click())}
                                                     >
                                                         <Upload /> Cambiar Favicon
                                                     </Button>
@@ -448,6 +458,67 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                         Implementar estos píxeles te permitirá hacer anuncios más inteligentes y conocer mejor a tu audiencia.
                                     </p>
                                 </CardFooter>
+                            </Card>
+                        </TabsContent>
+
+                        {/* Legal & Taxes Tab */}
+                        <TabsContent value="legal" className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Impuestos y Facturación</CardTitle>
+                                    <CardDescription>Configura los impuestos aplicables a tus productos.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-3">
+                                            <Label>Nombre del Impuesto</Label>
+                                            <Input
+                                                value={data.tax_name}
+                                                onChange={e => setData('tax_name', e.target.value)}
+                                                placeholder="Ej: IVA, Impoconsumo"
+                                                disabled={!canUpdate}
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">Nombre que aparecerá en el recibo y checkout.</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label>Tarifa (%)</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
+                                                    value={data.tax_rate}
+                                                    onChange={e => setData('tax_rate', parseFloat(e.target.value))}
+                                                    placeholder="0"
+                                                    min={0}
+                                                    max={100}
+                                                    step={0.01}
+                                                    disabled={!canUpdate}
+                                                    className="pr-8"
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                                            </div>
+                                            {errors.tax_rate && <p className="text-xs font-bold text-destructive">{errors.tax_rate}</p>}
+                                            <p className="text-[10px] text-muted-foreground">Porcentaje global aplicado a todos los productos (a menos que se anule por producto).</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 border rounded-lg bg-slate-50">
+                                        <div className="space-y-1">
+                                            <Label className="text-base">Precios incluyen Impuesto</Label>
+                                            <div className="text-sm text-muted-foreground space-y-1">
+                                                <p>Define si tus precios de venta ya incluyen el impuesto.</p>
+                                                <ul className="list-disc list-inside text-xs">
+                                                    <li><strong>Activado:</strong> El precio ingresado es el precio final (Impuesto incluido).</li>
+                                                    <li><strong>Desactivado:</strong> El impuesto se sumará al precio ingresado en el checkout.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={data.price_includes_tax}
+                                            onCheckedChange={(checked) => setData('price_includes_tax', checked)}
+                                            disabled={!canUpdate}
+                                        />
+                                    </div>
+                                </CardContent>
                             </Card>
                         </TabsContent>
                     </Tabs>

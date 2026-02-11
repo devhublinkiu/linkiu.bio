@@ -1,41 +1,28 @@
 import { Head, useForm, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import axios from 'axios';
 import { route } from 'ziggy-js';
 import OnboardingLayout from '@/Layouts/OnboardingLayout';
-import { useEffect } from 'react';
 
 // ShadCN Components
 import { Button } from '@/Components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { Separator } from '@/Components/ui/separator';
 import { Badge } from '@/Components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from "@/Components/ui/alert";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/Components/ui/select";
 
 // Lucide Icons
 import {
-    ShoppingBag,
     ArrowRight,
     ChevronLeft,
+    Store,
+    Link as LinkIcon,
+    RefreshCw,
     CheckCircle2,
-    User,
-    Mail,
-    Lock,
-    Eye,
-    EyeOff,
-    Rocket,
-    Check,
-    ShieldCheck
+    Loader2,
+    Sparkles,
+    Globe
 } from 'lucide-react';
 
 interface Props {
@@ -48,349 +35,226 @@ interface Props {
 
 export default function Step3({ onboardingData, siteSettings }: Props) {
     const { data, setData, post, processing, errors } = useForm({
-        owner_name: onboardingData?.owner_name || '',
-        owner_email: onboardingData?.owner_email || '',
-        owner_password: '',
-        owner_password_confirmation: '',
-        owner_doc_type: onboardingData?.owner_doc_type || 'CC',
-        owner_doc_number: onboardingData?.owner_doc_number || '',
-        owner_phone: onboardingData?.owner_phone || '',
-        owner_address: onboardingData?.owner_address || '',
-        owner_country: onboardingData?.owner_country || 'Colombia',
-        owner_state: onboardingData?.owner_state || '',
-        owner_city: onboardingData?.owner_city || '',
+        tenant_name: onboardingData?.tenant_name || '',
+        slug: onboardingData?.slug || '',
     });
 
-    const [showPassword, setShowPassword] = useState(false);
+    const [isValidating, setIsValidating] = useState(false);
+    const [slugError, setSlugError] = useState<string | null>(null);
+    const [isDirty, setIsDirty] = useState(false);
+    const [randomId, setRandomId] = useState(() => Math.floor(1000 + Math.random() * 9000));
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Pure helper to convert string to slug
+    const toSlug = (text: string) => {
+        return text
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+    };
+
+    // Slug generation logic with random part (for the helper button)
+    const generateSlugWithNewId = (name: string) => {
+        const newId = Math.floor(1000 + Math.random() * 9000);
+        setRandomId(newId);
+        const base = toSlug(name);
+        return base ? `${base}-${newId}` : `tienda-${newId}`;
+    };
+
+    // Remove the old useEffect that only ran once
+    // We'll handle sync in the onChange for better control
+
+    // Validate slug in real-time
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (data.slug) {
+                setIsValidating(true);
+                setSlugError(null);
+                try {
+                    const response = await axios.post(route('onboarding.validate'), {
+                        field: 'slug',
+                        value: data.slug
+                    });
+                    if (!response.data.valid) {
+                        setSlugError(response.data.message);
+                    }
+                } catch (e) {
+                    console.error('Validation error', e);
+                } finally {
+                    setIsValidating(false);
+                }
+            }
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [data.slug]);
+
+    const handleComplete = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (data.owner_password !== data.owner_password_confirmation) {
-            toast.error('Las contraseñas no coinciden');
+        if (slugError) {
+            toast.error(slugError);
             return;
         }
 
         post(route('onboarding.complete'), {
-            onError: (errors) => {
-                const firstError = Object.values(errors)[0];
-                toast.error(typeof firstError === 'string' ? firstError : 'Revisa los campos requeridos');
-            },
-            onSuccess: () => {
-                localStorage.removeItem(STORAGE_KEY);
+            onError: (err) => {
+                const msg = Object.values(err)[0];
+                toast.error(typeof msg === 'string' ? msg : 'Revisa los datos de tu tienda');
             }
         });
     };
-
-    const passwordRequirements = [
-        { label: 'Mínimo 8 caracteres', met: data.owner_password.length >= 8 },
-        { label: 'Contraseñas coinciden', met: data.owner_password !== '' && data.owner_password === data.owner_password_confirmation },
-    ];
-
-    // Persistence Logic
-    const STORAGE_KEY = 'onboarding_step3_data';
-
-    useEffect(() => {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (savedData) {
-            try {
-                const parsed = JSON.parse(savedData);
-                setData(prev => ({ ...prev, ...parsed }));
-            } catch (e) {
-                console.error('Error loading saved data', e);
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }, [data]);
 
     return (
         <OnboardingLayout
             currentStep={3}
             siteSettings={siteSettings}
-            title="Paso 4 - Crear Cuenta | Linkiu"
+            title="Nombra tu tienda | Linkiu"
         >
-            <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
-                <div className="text-center mb-10">
-                    <Badge variant="secondary" className="mb-4">Paso Final</Badge>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">
-                        Crea tu cuenta de administrador
-                    </h2>
-                    <p className="text-lg text-gray-500">
-                        Con estos datos podrás gestionar tu tienda {onboardingData?.tenant_name && <span className="text-primary font-semibold">"{onboardingData.tenant_name}"</span>}
+            <div className="max-w-xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                {/* Header Section */}
+                <div className="text-center space-y-4">
+                    <Badge variant="outline" className="px-4 py-1.5 border-primary/20 bg-primary/5 text-primary">
+                        <Sparkles className="w-3.5 h-3.5 mr-2" />
+                        Paso 3: Identidad
+                    </Badge>
+                    <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+                        ¿Cómo se llama tu <span className="text-primary">Negocio</span>?
+                    </h1>
+                    <p className="text-slate-500">
+                        Este será el nombre público de tu tienda y tu dirección web única.
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit}>
-                    <Card className="border-border shadow-sm overflow-hidden bg-card mb-8">
-                        <CardHeader className="bg-muted/40 border-b pb-6">
-                            <div className="flex items-center gap-2">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                    <User className="w-5 h-5" />
+                {/* Form Card */}
+                <form onSubmit={handleComplete} className="space-y-6">
+                    <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8">
+                        {/* Tenant Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="tenant_name" className="text-sm font-bold text-slate-700 ml-1">
+                                Nombre de la Tienda
+                            </Label>
+                            <div className="relative group">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">
+                                    <Store className="w-5 h-5" />
                                 </div>
-                                <div className="space-y-1">
-                                    <CardTitle className="text-lg">Información Personal</CardTitle>
-                                    <CardDescription>Crea tus credenciales de acceso</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-6">
-                            <div className="grid sm:grid-cols-2 gap-6">
-                                {/* Full Name */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_name" className="text-sm font-semibold">
-                                        Nombre completo
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="owner_name"
-                                            placeholder="Ej: Juan Pérez"
-                                            className={cn(errors.owner_name && "border-destructive")}
-                                            value={data.owner_name}
-                                            onChange={e => setData('owner_name', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    {errors.owner_name && <p className="text-destructive text-xs">{errors.owner_name}</p>}
-                                </div>
-
-                                {/* Email */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_email" className="text-sm font-semibold">
-                                        Correo electrónico
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="owner_email"
-                                            type="email"
-                                            placeholder="linkiucloud@gmail.com"
-                                            className={cn(errors.owner_email && "border-destructive")}
-                                            value={data.owner_email}
-                                            onChange={e => setData('owner_email', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    {errors.owner_email && <p className="text-destructive text-xs">{errors.owner_email}</p>}
-                                </div>
-                            </div>
-
-                            <div className="grid sm:grid-cols-3 gap-6">
-                                {/* Doc Type */}
-                                <div className="space-y-2 sm:col-span-1">
-                                    <Label htmlFor="owner_doc_type" className="text-sm font-semibold">
-                                        Tipo Doc
-                                    </Label>
-                                    <Select
-                                        value={data.owner_doc_type}
-                                        onValueChange={v => setData('owner_doc_type', v)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Tipo" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="CC">CC</SelectItem>
-                                            <SelectItem value="NIT">NIT</SelectItem>
-                                            <SelectItem value="CE">CE</SelectItem>
-                                            <SelectItem value="PP">Pasaporte</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Doc Number */}
-                                <div className="space-y-2 sm:col-span-1">
-                                    <Label htmlFor="owner_doc_number" className="text-sm font-semibold">
-                                        Número Documento
-                                    </Label>
-                                    <Input
-                                        id="owner_doc_number"
-                                        placeholder="10024939863"
-                                        value={data.owner_doc_number}
-                                        onChange={e => setData('owner_doc_number', e.target.value)}
-                                        required
-                                    />
-                                </div>
-
-                                {/* Phone */}
-                                <div className="space-y-2 sm:col-span-1">
-                                    <Label htmlFor="owner_phone" className="text-sm font-semibold">
-                                        Celular / WhatsApp
-                                    </Label>
-                                    <Input
-                                        id="owner_phone"
-                                        placeholder="3233332176"
-                                        value={data.owner_phone}
-                                        onChange={e => setData('owner_phone', e.target.value)}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Personal Address */}
-                            <div className="space-y-2">
-                                <Label htmlFor="owner_address" className="text-sm font-semibold">
-                                    Dirección Personal
-                                </Label>
                                 <Input
-                                    id="owner_address"
-                                    placeholder="Calle 11A"
-                                    value={data.owner_address}
-                                    onChange={e => setData('owner_address', e.target.value)}
+                                    id="tenant_name"
+                                    placeholder="Ej: Deluxe Burger"
+                                    className={cn(
+                                        "h-14 pl-12 rounded-2xl border-slate-200 transition-all focus:ring-4 focus:ring-primary/10 font-medium",
+                                        errors.tenant_name && "border-destructive ring-destructive/10"
+                                    )}
+                                    value={data.tenant_name}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (!isDirty) {
+                                            const base = toSlug(val);
+                                            setData({
+                                                ...data,
+                                                tenant_name: val,
+                                                slug: base ? `${base}-${randomId}` : ''
+                                            });
+                                        } else {
+                                            setData('tenant_name', val);
+                                        }
+                                    }}
                                     required
                                 />
                             </div>
+                        </div>
 
-                            <div className="grid sm:grid-cols-3 gap-6">
-                                {/* Country */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_country" className="text-sm font-semibold">
-                                        País
-                                    </Label>
-                                    <Input
-                                        id="owner_country"
-                                        placeholder="Colombia"
-                                        value={data.owner_country}
-                                        onChange={e => setData('owner_country', e.target.value)}
-                                        required
-                                    />
+                        {/* Slug Field (The URL) */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between ml-1">
+                                <Label htmlFor="slug" className="text-sm font-bold text-slate-700">
+                                    Tu dirección web (Link)
+                                </Label>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsDirty(true);
+                                        setData('slug', generateSlugWithNewId(data.tenant_name));
+                                    }}
+                                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                                >
+                                    <RefreshCw className="w-3 h-3" />
+                                    Generar otro
+                                </button>
+                            </div>
+
+                            <div className="relative group">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm flex items-center gap-1">
+                                    <Globe className="w-4 h-4" />
+                                    <span>linkiu.bio/</span>
                                 </div>
-
-                                {/* State */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_state" className="text-sm font-semibold">
-                                        Departamento
-                                    </Label>
-                                    <Input
-                                        id="owner_state"
-                                        placeholder="Sucre"
-                                        value={data.owner_state}
-                                        onChange={e => setData('owner_state', e.target.value)}
-                                        required
-                                    />
-                                </div>
-
-                                {/* City */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_city" className="text-sm font-semibold">
-                                        Ciudad
-                                    </Label>
-                                    <Input
-                                        id="owner_city"
-                                        placeholder="Sincelejo"
-                                        value={data.owner_city}
-                                        onChange={e => setData('owner_city', e.target.value)}
-                                        required
-                                    />
+                                <Input
+                                    id="slug"
+                                    className={cn(
+                                        "h-14 pl-[105px] pr-12 rounded-2xl border-slate-200 transition-all focus:ring-4 focus:ring-primary/10 font-bold text-primary",
+                                        (errors.slug || slugError) && "border-destructive ring-destructive/10"
+                                    )}
+                                    value={data.slug}
+                                    onChange={e => {
+                                        setIsDirty(true);
+                                        setData('slug', e.target.value.toLowerCase().replace(/ /g, '-'));
+                                    }}
+                                    required
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                    {isValidating ? (
+                                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                                    ) : data.slug && !slugError && (
+                                        <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in" />
+                                    )}
                                 </div>
                             </div>
 
-                            <Separator className="my-6" />
+                            <p className="text-[11px] text-slate-400 ml-1 leading-normal">
+                                {slugError
+                                    ? <span className="text-destructive font-medium">{slugError}</span>
+                                    : "Puedes personalizar este link ahora o cambiarlo más tarde desde tu panel."
+                                }
+                            </p>
+                        </div>
 
-                            <div className="grid sm:grid-cols-2 gap-6 pt-2">
-                                {/* Password */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_password" className="text-sm font-semibold">
-                                        Establecer Contraseña
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="owner_password"
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="••••••••"
-                                            className={cn(errors.owner_password && "border-destructive")}
-                                            value={data.owner_password}
-                                            onChange={e => setData('owner_password', e.target.value)}
-                                            autoComplete="new-password"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            className="absolute right-3 top-2 text-muted-foreground hover:text-foreground"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Confirm Password */}
-                                <div className="space-y-2">
-                                    <Label htmlFor="owner_password_confirmation" className="text-sm font-semibold">
-                                        Confirmar Contraseña
-                                    </Label>
-                                    <div className="relative">
-                                        <Input
-                                            id="owner_password_confirmation"
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="••••••••"
-                                            className={cn(errors.owner_password_confirmation && "border-destructive")}
-                                            value={data.owner_password_confirmation}
-                                            onChange={e => setData('owner_password_confirmation', e.target.value)}
-                                            autoComplete="new-password"
-                                            required
-                                        />
-                                    </div>
-                                </div>
+                        {/* Social Proof / Trust */}
+                        <div className="pt-4 flex items-center justify-center gap-6 opacity-40 grayscale hover:grayscale-0 transition-all">
+                            <div className="flex items-center gap-1.5 text-xs font-bold">
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                SSL Seguro
                             </div>
-
-                            {/* Password Strength/Verification Indicators */}
-                            <div className="flex flex-wrap gap-4 pt-2">
-                                {passwordRequirements.map((req, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <div className={cn(
-                                            "w-4 h-4 rounded-full flex items-center justify-center transition-colors",
-                                            req.met ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-300"
-                                        )}>
-                                            <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                                        </div>
-                                        <span className={cn(
-                                            "text-xs font-medium transition-colors",
-                                            req.met ? "text-green-700" : "text-gray-400"
-                                        )}>
-                                            {req.label}
-                                        </span>
-                                    </div>
-                                ))}
+                            <div className="flex items-center gap-1.5 text-xs font-bold">
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                CDN Ultra Rápido
                             </div>
-                            {errors.owner_password && <p className="text-destructive text-xs">{errors.owner_password}</p>}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    <Alert className="mb-10 bg-primary/5 border-primary/20">
-                        <AlertTitle>
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Casi terminamos
-                        </AlertTitle>
-                        <AlertDescription>
-                            Al hacer clic en el botón, completaremos la configuración técnica de tu espacio y podrás empezar a vender de inmediato.
-                        </AlertDescription>
-                    </Alert>
-
-                    {/* Navigation Footer */}
-                    <Card className="flex flex-row justify-between items-center p-6 shadow-sm mt-8">
+                    {/* Footer Actions */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                         <Link
                             href={route('onboarding.step2')}
-                            className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-4 py-2"
+                            className="flex items-center text-sm font-bold text-slate-400 hover:text-primary transition-colors group"
                         >
-                            <ChevronLeft className="w-4 h-4 mr-2" />
-                            Datos del negocio
+                            <ChevronLeft className="mr-2 w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                            Volver a cuenta
                         </Link>
 
-                        <Button
-                            type="submit"
-                            disabled={processing}
-                        >
-                            {processing ? (
-                                <>Creando tienda...</>
-                            ) : (
-                                <>
-                                    Lanzar mi Tienda
-                                    <Rocket className="w-5 h-5 ml-3 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
-                                </>
-                            )}
-                        </Button>
-                    </Card>
+                        <div className="flex items-center gap-4">
+                            <span className="text-xs font-bold text-slate-300 tracking-widest uppercase">¡Casi listo!</span>
+                            <Button
+                                type="submit"
+                                size="lg"
+                                disabled={processing || isValidating}
+                                className="h-14 px-10 rounded-2xl font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25 transition-all active:scale-95 group"
+                            >
+                                {processing ? 'Finalizando...' : 'Empezar ahora'}
+                                <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
+                            </Button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </OnboardingLayout>

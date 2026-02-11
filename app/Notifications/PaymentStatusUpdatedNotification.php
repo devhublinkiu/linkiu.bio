@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class PaymentStatusUpdatedNotification extends Notification
@@ -31,7 +32,47 @@ class PaymentStatusUpdatedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return $notifiable->email ? ['database', 'broadcast', 'mail'] : ['database', 'broadcast'];
+    }
+
+    /**
+     * Get the mail representation of the notification.
+     */
+    public function toMail(object $notifiable): MailMessage
+    {
+        $tenant = $this->invoice->tenant;
+        $subscription = $this->invoice->subscription;
+        $plan = $subscription->plan;
+
+        $billingCycleMap = [
+            'monthly' => 'Mensual',
+            'quarterly' => 'Trimestral',
+            'yearly' => 'Anual',
+        ];
+
+        // If payment was approved, send confirmation email
+        if ($this->status === 'paid') {
+            return (new MailMessage)
+                ->from(config('mail.addresses.billing'), 'Facturación ' . config('app.name'))
+                ->subject('🎉 ¡Pago Confirmado! - ' . config('app.name'))
+                ->markdown('emails.billing.payment-confirmed', [
+                    'user' => $notifiable,
+                    'tenant' => $tenant,
+                    'invoice' => $this->invoice,
+                    'subscription' => $subscription,
+                    'planName' => $plan->name,
+                    'billingCycle' => $billingCycleMap[$subscription->billing_cycle] ?? 'Mensual',
+                    'dashboardUrl' => route('tenant.dashboard', ['tenant' => $tenant->slug]),
+                ]);
+        }
+
+        // If payment was rejected, send rejection email (optional - can be added later)
+        // For now, we'll just send database/broadcast notification for rejections
+        return (new MailMessage)
+            ->from(config('mail.addresses.billing'), 'Facturación ' . config('app.name'))
+            ->subject('Actualización de Pago - ' . config('app.name'))
+            ->line('Tu pago ha sido actualizado.')
+            ->action('Ver Detalles', route('tenant.subscription.index', ['tenant' => $tenant->slug]));
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class InvoiceGeneratedNotification extends Notification
@@ -29,7 +30,35 @@ class InvoiceGeneratedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return $notifiable->email ? ['database', 'broadcast', 'mail'] : ['database', 'broadcast'];
+    }
+
+    /**
+     * Get the mail representation of the notification.
+     */
+    public function toMail(object $notifiable): MailMessage
+    {
+        $tenant = $this->invoice->tenant;
+        $subscription = $this->invoice->subscription;
+        $plan = $subscription->plan;
+
+        $billingCycleMap = [
+            'monthly' => 'Mensual',
+            'quarterly' => 'Trimestral',
+            'yearly' => 'Anual',
+        ];
+
+        return (new MailMessage)
+            ->from(config('mail.addresses.billing'), 'Facturación ' . config('app.name'))
+            ->subject('📄 Nueva Factura Generada - ' . config('app.name'))
+            ->markdown('emails.billing.invoice-generated', [
+                'user' => $notifiable,
+                'tenant' => $tenant,
+                'invoice' => $this->invoice,
+                'planName' => $plan->name,
+                'billingCycle' => $billingCycleMap[$subscription->billing_cycle] ?? 'Mensual',
+                'paymentUrl' => route('tenant.subscription.index', ['tenant' => $tenant->slug]),
+            ]);
     }
 
     /**

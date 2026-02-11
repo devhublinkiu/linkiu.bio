@@ -28,7 +28,7 @@ class ImportExistingMediaFiles extends Command
     public function handle()
     {
         $disk = 's3';
-        $folders = $this->option('folder') ?: ['plans', 'uploads'];
+        $folders = $this->option('folder') ?: ['plans', 'uploads', 'profiles'];
 
         $this->info('🔍 Scanning S3 storage for existing files...');
         $this->newLine();
@@ -68,7 +68,8 @@ class ImportExistingMediaFiles extends Command
                         $size = Storage::disk($disk)->size($filePath);
                         $mimeType = Storage::disk($disk)->mimeType($filePath);
                         $url = Storage::disk($disk)->url($filePath);
-                    } catch (\Exception $e) {
+                    }
+                    catch (\Exception $e) {
                         $this->warn("\n  ⚠️  Error getting file info for {$fileName}: " . $e->getMessage());
                         $totalSkipped++;
                         $progressBar->advance();
@@ -95,13 +96,24 @@ class ImportExistingMediaFiles extends Command
                             }
 
                             @unlink($tempFile);
-                        } catch (\Exception $e) {
-                            // Ignore errors
+                        }
+                        catch (\Exception $e) {
+                        // Ignore errors
+                        }
+                    }
+
+                    // Extract Tenant ID from path (uploads/{tenant_id}/... or profiles/{tenant_id}/...)
+                    $tenantId = null;
+                    if (str_starts_with($filePath, 'uploads/') || str_starts_with($filePath, 'profiles/')) {
+                        $parts = explode('/', $filePath);
+                        if (count($parts) >= 2 && is_numeric($parts[1])) {
+                            $tenantId = (int)$parts[1];
                         }
                     }
 
                     // Create media file record
                     MediaFile::create([
+                        'tenant_id' => $tenantId,
                         'name' => $fileName,
                         'path' => $filePath,
                         'disk' => $disk,
@@ -124,7 +136,8 @@ class ImportExistingMediaFiles extends Command
                 $progressBar->finish();
                 $this->newLine(2);
 
-            } catch (\Exception $e) {
+            }
+            catch (\Exception $e) {
                 $this->error("  ❌ Error processing folder {$folder}: " . $e->getMessage());
                 $this->newLine();
             }
@@ -133,12 +146,12 @@ class ImportExistingMediaFiles extends Command
         $this->newLine();
         $this->info('✅ Import completed!');
         $this->table(
-            ['Status', 'Count'],
-            [
-                ['Imported', $totalImported],
-                ['Skipped (already exists)', $totalSkipped],
-                ['Total', $totalImported + $totalSkipped],
-            ]
+        ['Status', 'Count'],
+        [
+            ['Imported', $totalImported],
+            ['Skipped (already exists)', $totalSkipped],
+            ['Total', $totalImported + $totalSkipped],
+        ]
         );
 
         return Command::SUCCESS;

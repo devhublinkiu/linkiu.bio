@@ -41,19 +41,25 @@ class AppServiceProvider extends ServiceProvider
 
                 $pivot = $member->pivot;
 
-                // Legacy Role Check (Transition period)
-                // Owner has full access to their tenant
+                // Role-based Access Logic
                 if ($pivot->role === 'owner') {
                     return true;
                 }
 
-                // Custom Role Check
                 if ($pivot->role_id) {
                     // Ideally, cache this or eager load on login
                     $role = \App\Models\Role::with('permissions')->find($pivot->role_id);
 
-                    if ($role && $role->permissions->contains('name', $ability)) {
-                        return true;
+                    if ($role) {
+                        // Priority 1: Full Bypass for Propietario system role
+                        if ($role->name === 'Propietario') {
+                            return true;
+                        }
+
+                        // Priority 2: Granular permission check
+                        if ($role->permissions->contains('name', $ability)) {
+                            return true;
+                        }
                     }
                 }
             }

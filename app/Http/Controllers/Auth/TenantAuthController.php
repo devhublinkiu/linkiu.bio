@@ -47,6 +47,10 @@ class TenantAuthController extends Controller
         $tenant = app('currentTenant');
 
         // DO NOT use intended() here to avoid redirection conflicts with SuperAdmin
+        if (Auth::user()->hasRole($tenant->id, 'waiter')) {
+            return redirect()->route('tenant.admin.pos', ['tenant' => $tenant->slug]);
+        }
+
         return redirect()->route('tenant.dashboard', ['tenant' => $tenant->slug]);
     }
 

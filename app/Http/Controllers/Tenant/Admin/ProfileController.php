@@ -7,6 +7,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,8 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        Gate::authorize('profile.view');
+
         $tenant = app('currentTenant');
         if ($tenant) {
             $tenant->load('category.vertical');
@@ -43,6 +46,8 @@ class ProfileController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        Gate::authorize('profile.edit');
+
         $user = $request->user();
 
         $validated = $request->validate([
@@ -71,6 +76,8 @@ class ProfileController extends Controller
      */
     public function updatePassword(Request $request): RedirectResponse
     {
+        Gate::authorize('profile.edit');
+
         $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
             'password' => ['required', Password::defaults(), 'confirmed'],
@@ -88,6 +95,8 @@ class ProfileController extends Controller
      */
     public function updatePhoto(Request $request): RedirectResponse
     {
+        Gate::authorize('profile.edit');
+
         $request->validate([
             'photo' => ['nullable', 'image', 'max:2048'],
             'photo_url' => ['nullable', 'string', 'url'],

@@ -15,23 +15,23 @@ import {
 } from '@/Components/ui/dialog';
 import {
     Zap,
-    CheckCircle2,
-    CreditCard,
     Clock,
     ShieldCheck,
-    ChevronRight,
-    Star,
-    Sparkles,
     AlertCircle,
     Eye,
     Upload,
     Banknote,
-    Link as LinkIcon
+    ChevronRight,
+    Calendar,
+    Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentUploadModal from '@/Components/Tenant/Admin/PaymentUploadModal';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { PageProps } from '@/types';
+import { cn } from '@/lib/utils';
+import { route } from 'ziggy-js';
+import { MODULE_LABELS } from '@/Config/menuConfig';
 
 interface Plan {
     id: number;
@@ -74,12 +74,13 @@ interface Props {
 }
 
 export default function Index({ tenant, plans, pendingInvoice }: Props) {
-    const { props } = usePage<any>();
-    const { currentUserRole } = usePage<PageProps>().props;
-    const flash = props.flash || {};
+    const { props } = usePage<PageProps>();
+    const flash = (props as any).flash || {};
+    const currentUserRole = props.currentUserRole;
+
     const subscription = tenant.latest_subscription;
     const currentPlan = subscription?.plan;
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'semiannual' | 'yearly'>('monthly');
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [slugWarning, setSlugWarning] = useState<{
@@ -113,10 +114,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
 
     // Handle slug warning from backend
     useEffect(() => {
-        console.log('[Subscription] Flash data received:', flash);
-        console.log('[Subscription] props:', props);
         if (flash?.slug_warning) {
-            console.log('[Subscription] Setting slug warning modal to show');
             setSlugWarning({
                 show: true,
                 currentSlug: flash.current_slug || '',
@@ -125,7 +123,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                 pendingBillingCycle: flash.pending_billing_cycle || 'monthly'
             });
         }
-    }, [flash, props]);
+    }, [flash]);
 
     const handleAdvanceInvoice = () => {
         handleActionWithPermission('billing.manage', () => {
@@ -153,9 +151,8 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                 confirm_slug_loss: confirmSlugLoss
             }, {
                 onSuccess: (page: any) => {
-                    // Don't show success toast if slug warning is returned
                     if (page.props?.flash?.slug_warning) {
-                        return; // useEffect will handle showing the modal
+                        return;
                     }
                     toast.success("Solicitud de cambio procesada correctamente");
                     setSlugWarning({ show: false, currentSlug: '', newAutoSlug: '', pendingPlanId: null, pendingBillingCycle: 'monthly' });
@@ -187,22 +184,16 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
 
     const getRemainingTimeText = () => {
         if (!subscription) return 'N/A';
-
         const days = subscription.status === 'trialing' ? subscription.trial_days_remaining : subscription.days_remaining;
-
-
         if (days <= 0) return '0 días';
         if (days < 30) return `${days} días`;
-
         const months = Math.floor(days / 30);
         const remainingDays = days % 30;
-
         if (months > 0 && remainingDays > 0) {
             return `${months} ${months === 1 ? 'mes' : 'meses'} y ${remainingDays} ${remainingDays === 1 ? 'día' : 'días'}`;
         } else if (months > 0) {
             return `${months} ${months === 1 ? 'mes' : 'meses'}`;
         }
-
         return `${days} días`;
     };
 
@@ -225,11 +216,11 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                 onOpenChange={setShowPermissionModal}
             />
 
-            <div className="max-w-6xl mx-auto space-y-10">
-                {/* Header Header */}
+            <div className="max-w-7xl mx-auto space-y-16 pb-20">
+                {/* Headers */}
                 <div className="text-center space-y-2">
-                    <h2 className="text-4xl font-black tracking-tight uppercase">Planes y Suscripción</h2>
-                    <p className="text-muted-foreground font-medium">Gestiona tu nivel de servicio y activa nuevas funcionalidades.</p>
+                    <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-slate-900">Planes y Suscripción</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[11px]">Gestiona tu nivel de servicio y activa nuevas funcionalidades.</p>
                 </div>
 
                 {/* Current Status Banner */}
@@ -241,7 +232,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         <CardHeader className="pb-4">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <Badge variant="outline" className="text-primary border-primary/20 mb-2 uppercase tracking-widest font-black text-[10px] cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                                    <Badge variant="outline" className="text-primary border-primary/20 mb-2 uppercase tracking-widest font-black text-[10px]">
                                         Plan Actual
                                     </Badge>
                                     <CardTitle className="text-3xl font-black">
@@ -252,7 +243,6 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Estado</p>
                                     <Badge
                                         variant={subscription?.status === 'active' || subscription?.status === 'trialing' ? "default" : "destructive"}
-                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                                     >
                                         {subscription?.status === 'trialing' ? 'En Prueba' : 'Suscripción Activa'}
                                     </Badge>
@@ -283,7 +273,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                 <div>
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Próximo Cobro</p>
                                     <div className="flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                                        <Calendar className="w-4 h-4 text-muted-foreground" />
                                         <span className="font-black">
                                             {subscription?.next_payment_date ? new Date(subscription.next_payment_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Pendiente'}
                                         </span>
@@ -291,7 +281,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                 </div>
                                 <div className="col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
                                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">
-                                        Valor {getCycleLabel(subscription?.billing_cycle)}
+                                        Valor {getCycleLabel(subscription?.billing_cycle || '')}
                                     </p>
                                     <p className="text-xl font-black text-primary">
                                         {formatCurrency(
@@ -316,12 +306,12 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">#{pendingInvoice.id} • {formatCurrency(pendingInvoice.amount)}</p>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="outline" className="h-9 px-4 rounded-xl font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background" asChild>
+                                            <Button size="sm" variant="outline" className="h-9 px-4 rounded-xl font-bold bg-background" asChild>
                                                 <Link href={route('tenant.invoices.show', { tenant: tenant?.slug, invoice: pendingInvoice.id })}>
                                                     <Eye className="w-4 h-4 mr-2" /> Detalle
                                                 </Link>
                                             </Button>
-                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => handleActionWithPermission('billing.manage', () => setIsUploadOpen(true))}>
+                                            <Button size="sm" className="h-9 px-6 rounded-xl font-black" onClick={() => handleActionWithPermission('billing.manage', () => setIsUploadOpen(true))}>
                                                 <Upload className="w-4 h-4 mr-2" /> Pagar Ahora
                                             </Button>
                                         </div>
@@ -337,7 +327,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asegura tu servicio para el próximo ciclo</p>
                                             </div>
                                         </div>
-                                        <Button size="sm" variant="outline" className="h-9 px-6 rounded-xl font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background transition-all hover:scale-[1.02]" onClick={handleAdvanceInvoice}>
+                                        <Button size="sm" variant="outline" className="h-9 px-6 rounded-xl font-bold bg-background transition-all hover:scale-[1.02]" onClick={handleAdvanceInvoice}>
                                             Adelantar Pago
                                         </Button>
                                     </div>
@@ -357,7 +347,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                             <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                                 Tu información de facturación está protegida. Si tienes dudas sobre tu plan actual, puedes ver tus facturas anteriores.
                             </p>
-                            <Button variant="outline" className="w-full h-10 font-bold cursor-pointer ring-0 hover:ring-0 focus:ring-0 bg-background" asChild>
+                            <Button variant="outline" className="w-full h-10 font-bold bg-background" asChild>
                                 <Link href={route('tenant.invoices.index', { tenant: tenant?.slug })}>
                                     Ver Historial de Facturas
                                 </Link>
@@ -367,146 +357,158 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                 </div>
 
                 {/* Available Plans Section */}
-                <div className="space-y-8 pt-10">
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-black tracking-tight uppercase">Mejora tu impacto</h3>
-                                <p className="text-sm text-muted-foreground font-medium tracking-tight">Selecciona el plan que se adapte mejor a tus objetivos.</p>
-                            </div>
+                <div className="space-y-12">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                        <div className="space-y-1">
+                            <h3 className="text-2xl font-black tracking-tighter uppercase text-slate-900">Selecciona tu Plan</h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Escoge la opción que mejor se adapte a tu marca.</p>
                         </div>
 
-                        {/* Toggle Billing Cycle */}
-                        <div className="bg-muted p-1 rounded-xl flex items-center gap-1 overflow-x-auto">
-                            <Button
-                                variant={billingCycle === 'monthly' ? 'default' : 'ghost'}
-                                size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                onClick={() => setBillingCycle('monthly')}
-                            >
-                                Mensual
-                            </Button>
-                            <Button
-                                variant={billingCycle === 'quarterly' ? 'default' : 'ghost'}
-                                size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                onClick={() => setBillingCycle('quarterly')}
-                            >
-                                Trimestral
-                            </Button>
-                            <Button
-                                variant={billingCycle === 'semiannual' ? 'default' : 'ghost'}
-                                size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                onClick={() => setBillingCycle('semiannual')}
-                            >
-                                Semestral
-                            </Button>
-                            <Button
-                                variant={billingCycle === 'yearly' ? 'default' : 'ghost'}
-                                size="sm"
-                                className="h-9 px-4 rounded-lg font-extrabold text-[10px] uppercase tracking-wider cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                onClick={() => setBillingCycle('yearly')}
-                            >
-                                Anual <Badge className="ml-1 bg-green-500 text-[8px] py-0 px-1 border-none cursor-pointer ring-0 hover:ring-0 focus:ring-0 text-white">-15%</Badge>
-                            </Button>
+                        {/* Professional Cycle Selector */}
+                        <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center gap-1">
+                            {(['monthly', 'quarterly', 'yearly'] as const).map((cycle) => (
+                                <Button
+                                    key={cycle}
+                                    variant={billingCycle === cycle ? 'default' : 'ghost'}
+                                    size="sm"
+                                    className={cn(
+                                        "h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                                        billingCycle === cycle ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                    onClick={() => setBillingCycle(cycle)}
+                                >
+                                    {cycle === 'monthly' ? 'Mensual' : cycle === 'quarterly' ? 'Trimestral' : 'Anual'}
+                                    {cycle === 'yearly' && <Badge className="ml-2 bg-green-500 text-[8px] py-0 px-1 border-none text-white">-15%</Badge>}
+                                </Button>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-8">
-                        {plans.map((plan) => (
-                            <Card
-                                key={plan.id}
-                                className={`relative shadow-xl transition-all duration-300 group hover:-translate-y-1 ${plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle
-                                    ? "border-primary ring-4 ring-primary/10"
-                                    : "border-slate-100 hover:border-primary/20"
-                                    }`}
-                            >
-                                {plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">
-                                        Tu Plan Actual
-                                    </div>
-                                )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {plans.map((plan) => {
+                            const isFeatured = plan.name.toLowerCase().includes('pro') || plan.name.toLowerCase().includes('premium');
+                            const price = billingCycle === 'yearly' ? plan.yearly_price :
+                                billingCycle === 'quarterly' ? plan.quarterly_price || 0 :
+                                    plan.monthly_price;
 
-                                <CardHeader className="text-center pt-10 pb-6">
-                                    <CardTitle className="text-xl font-black group-hover:text-primary transition-colors uppercase">
-                                        {plan.name}
-                                    </CardTitle>
-                                    <div className="mt-4 flex flex-col items-center">
-                                        <div className="text-4xl font-black tracking-tighter">
-                                            {formatCurrency(
-                                                billingCycle === 'yearly' ? plan.yearly_price :
-                                                    billingCycle === 'semiannual' ? plan.semiannual_price || 0 :
-                                                        billingCycle === 'quarterly' ? plan.quarterly_price || 0 :
-                                                            plan.monthly_price
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                                            {billingCycle === 'yearly' ? 'por año' :
-                                                billingCycle === 'semiannual' ? 'por 6 meses' :
-                                                    billingCycle === 'quarterly' ? 'por 3 meses' :
-                                                        'por mes'}
-                                        </p>
-                                    </div>
-                                </CardHeader>
+                            const isCurrentCycle = plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle;
 
-                                <CardContent className="space-y-6 px-8">
-                                    <p className="text-muted-foreground text-xs text-center font-medium min-h-[40px]">
-                                        {plan.description}
-                                    </p>
-
-                                    <div className="space-y-4 pt-4">
-                                        {plan.features?.filter(f => typeof f === 'string').map((feature, i) => (
-                                            <div key={i} className="flex items-start gap-3">
-                                                <div className="mt-0.5">
-                                                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                                                </div>
-                                                <span className="text-xs font-bold leading-snug">{feature}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-
-                                <CardFooter className="pt-8 pb-8 px-8 flex-col gap-3">
-                                    <Button
-                                        className={`w-full h-12 rounded-2xl font-black shadow-lg transition-all cursor-pointer ring-0 hover:ring-0 focus:ring-0 ${plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle
-                                            ? "bg-muted text-muted-foreground hover:bg-muted cursor-default shadow-none border-none"
-                                            : "bg-primary text-white shadow-primary/20 hover:scale-[1.02]"
-                                            }`}
-                                        onClick={(e) => {
-                                            if (plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle) return;
-                                            handleActionWithPermission('billing.manage', () => handleSelectPlan(plan));
-                                        }}
-                                    >
-                                        {plan.id === currentPlan?.id && billingCycle === subscription?.billing_cycle ? "Activo" : "Elegir Plan"}
-                                    </Button>
-                                    {billingCycle === 'yearly' && plan.yearly_price ? (
-                                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                                            Ahorras {formatCurrency((plan.monthly_price * 12) - plan.yearly_price)} al año
-                                        </p>
-                                    ) : billingCycle === 'semiannual' && plan.semiannual_price ? (
-                                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                                            Ahorras {formatCurrency((plan.monthly_price * 6) - plan.semiannual_price)} cada 6 meses
-                                        </p>
-                                    ) : billingCycle === 'quarterly' && plan.quarterly_price ? (
-                                        <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
-                                            Ahorras {formatCurrency((plan.monthly_price * 3) - plan.quarterly_price)} cada 3 meses
-                                        </p>
-                                    ) : (
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                            Sin permanencia mínima
-                                        </p>
+                            return (
+                                <Card
+                                    key={plan.id}
+                                    className={cn(
+                                        "relative transition-all duration-500 border-2 flex flex-col h-full overflow-hidden group",
+                                        isFeatured
+                                            ? "border-primary shadow-2xl shadow-primary/10 z-10 scale-[1.02]"
+                                            : "border-slate-100 hover:border-slate-200"
                                     )}
-                                </CardFooter>
-                            </Card>
-                        ))}
+                                >
+                                    {isFeatured && (
+                                        <div className="absolute top-0 right-0 left-0 bg-primary text-white py-2 text-[10px] font-black uppercase tracking-[0.2em] text-center">
+                                            ¡Oferta por tiempo limitado!
+                                        </div>
+                                    )}
+
+                                    <CardHeader className={cn("pt-6", isFeatured && "pt-14")}>
+                                        <CardTitle className="text-xl font-black tracking-tighter text-slate-900 uppercase">
+                                            {plan.name}
+                                        </CardTitle>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-4xl font-black text-slate-900 tracking-tighter">
+                                                    {formatCurrency(price)}
+                                                </span>
+                                                <span className="text-slate-400 text-[10px] font-bold uppercase">
+                                                    /{billingCycle === 'monthly' ? 'mes' : 'ciclo'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent className="flex-1 px-8 flex flex-col">
+                                        <Button
+                                            disabled={isCurrentCycle}
+                                            onClick={() => handleActionWithPermission('billing.manage', () => {
+                                                router.visit(route('tenant.subscription.checkout', {
+                                                    tenant: tenant.slug,
+                                                    plan_id: plan.id,
+                                                    billing_cycle: billingCycle
+                                                }));
+                                            })}
+                                            className={cn(
+                                                "w-full h-8 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all",
+                                                isCurrentCycle
+                                                    ? "bg-slate-100 text-slate-400 border shadow-none"
+                                                    : isFeatured
+                                                        ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
+                                                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                                            )}
+                                        >
+                                            {isCurrentCycle ? "Plan Actual" : "Continuar al Pago"}
+                                        </Button>
+
+                                        <div className="w-full space-y-2 pt-4 border-t border-slate-50">
+                                            {(() => {
+                                                const features = plan.features as any;
+                                                if (!features) return null;
+
+                                                let displayFeatures: string[] = [];
+                                                if (Array.isArray(features)) {
+                                                    features.forEach(f => {
+                                                        if (typeof f === 'string') displayFeatures.push(f);
+                                                        else if (typeof f === 'object' && f !== null) {
+                                                            Object.keys(f).forEach(k => {
+                                                                if (f[k] === true || f[k] === 1 || f[k] === '1') displayFeatures.push(k);
+                                                            });
+                                                        }
+                                                    });
+                                                } else if (typeof features === 'object') {
+                                                    Object.keys(features).forEach(k => {
+                                                        if (features[k] === true || features[k] === 1 || features[k] === '1') displayFeatures.push(k);
+                                                    });
+                                                }
+
+                                                if (displayFeatures.length === 0) return null;
+
+                                                return displayFeatures.map((feature, i) => {
+                                                    const isExcluded = feature.startsWith('-');
+                                                    const cleanFeature = isExcluded ? feature.substring(1) : feature;
+
+                                                    // Map technical keys to human labels (imported from menuConfig)
+                                                    const label = (MODULE_LABELS as any)[cleanFeature] || cleanFeature;
+
+                                                    return (
+                                                        <div key={i} className={cn(
+                                                            "flex items-center justify-start",
+                                                            isExcluded ? "opacity-30" : "opacity-100"
+                                                        )}>
+                                                            <Check className={cn(
+                                                                "w-4 h-4 mr-2",
+                                                                isExcluded ? "text-slate-400" : "text-slate-600"
+                                                            )} />
+                                                            <span className={cn(
+                                                                "text-[12px] font-bold",
+                                                                isExcluded ? "text-slate-400" : "text-slate-600"
+                                                            )}>
+                                                                {label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+                                    </CardContent>
+
+                                    <CardFooter className="pb-8 pt-0 px-8 flex flex-col gap-4">
+                                        {/* Spacer */}
+                                    </CardFooter>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* FAQ or Info Section */}
+                {/* FAQ Section */}
                 <div className="bg-muted/30 rounded-3xl p-10 flex flex-col md:flex-row items-center justify-between gap-8 border">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-primary">
@@ -516,7 +518,7 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         <h4 className="text-xl font-black uppercase">¿Necesitas un plan personalizado?</h4>
                         <p className="text-muted-foreground text-sm font-medium">Si tu proyecto requiere límites especiales o integraciones dedicadas, estamos aquí para ayudarte.</p>
                     </div>
-                    <Button size="lg" className="rounded-2xl font-black h-14 px-8 border-2 shadow-sm min-w-[200px] cursor-pointer ring-0 hover:ring-0 focus:ring-0" variant="outline">
+                    <Button size="lg" className="rounded-2xl font-black h-14 px-8 border-2 shadow-sm min-w-[200px]" variant="outline">
                         Contactar Soporte
                     </Button>
                 </div>
@@ -568,14 +570,12 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
                         <Button
                             variant="outline"
                             onClick={() => setSlugWarning({ ...slugWarning, show: false })}
-                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                         >
                             Cancelar
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={handleConfirmSlugLoss}
-                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
                         >
                             Entiendo, cambiar de plan
                         </Button>
@@ -584,26 +584,4 @@ export default function Index({ tenant, plans, pendingInvoice }: Props) {
             </Dialog>
         </AdminLayout>
     );
-}
-
-function CalendarIcon(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-    )
 }

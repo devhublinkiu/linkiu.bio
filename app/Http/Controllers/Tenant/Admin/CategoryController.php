@@ -21,25 +21,28 @@ class CategoryController extends Controller
 
         $categories = Category::where('tenant_id', $tenant->id)
             ->with(['icon', 'parent'])
+            ->withCount(['products', 'children'])
             ->latest()
             ->paginate(20);
 
         // Icons available for this tenant (Global + Matching Vertical & Niche)
         $availableIcons = CategoryIcon::where('is_active', true)
             ->where(function ($query) use ($tenant) {
-                // 1. Global icons
-                $query->where('is_global', true)
-                    // 2. Or Vertical specific
-                    ->orWhere(function ($q) use ($tenant) {
-                    $q->where('vertical_id', $tenant->vertical_id)
-                        ->where(function ($sq) use ($tenant) {
-                            // 2a. Generic Vertical icons (no niche)
-                            $sq->whereNull('business_category_id')
-                                // 2b. Or matching Niche (if tenant has one)
-                                ->orWhere('business_category_id', $tenant->category_id);
-                        });
-                });
-            })
+            // 1. Global icons
+            $query->where('is_global', true)
+                // 2. Or Vertical specific
+                ->orWhere(function ($q) use ($tenant) {
+                $q->where('vertical_id', $tenant->vertical_id)
+                    ->where(function ($sq) use ($tenant) {
+                    // 2a. Generic Vertical icons (no niche)
+                    $sq->whereNull('business_category_id')
+                        // 2b. Or matching Niche (if tenant has one)
+                        ->orWhere('business_category_id', $tenant->category_id);
+                }
+                );
+            }
+            );
+        })
             ->get();
 
         // My Icon Requests
@@ -144,12 +147,19 @@ class CategoryController extends Controller
     public function destroy($category)
     {
         $tenant = app('currentTenant');
-        $categoryModel = Category::where('tenant_id', $tenant->id)->findOrFail($category);
+        $categoryModel = Category::where('tenant_id', $tenant->id)
+            ->withCount('products')
+            ->findOrFail($category);
 
         // Handle children? 
         // If has children, prevent or update them to root?
         if ($categoryModel->children()->count() > 0) {
             return back()->with('error', 'No se puede eliminar una categoría que tiene subcategorías.');
+        }
+
+        // New guard for products
+        if ($categoryModel->products_count > 0) {
+            return back()->with('error', 'No se puede eliminar una categoría que tiene productos asociados.');
         }
 
         $categoryModel->delete();

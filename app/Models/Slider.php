@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Slider extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\BelongsToTenant;
 
     protected $fillable = [
         'tenant_id',
@@ -36,9 +37,16 @@ class Slider extends Model
         'sort_order' => 'integer',
     ];
 
-    public function tenant(): BelongsTo
+    protected $appends = ['image_url', 'desktop_image_url'];
+
+    public function getImageUrlAttribute()
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->image_path ?Storage::disk('s3')->url($this->image_path) : null;
+    }
+
+    public function getDesktopImageUrlAttribute()
+    {
+        return $this->image_path_desktop ?Storage::disk('s3')->url($this->image_path_desktop) : null;
     }
 
     /**
@@ -58,13 +66,13 @@ class Slider extends Model
 
         return $query->where('is_active', true)
             ->where(function ($q) use ($now) {
-                $q->whereNull('start_at')
-                    ->orWhere('start_at', '<=', $now);
-            })
+            $q->whereNull('start_at')
+                ->orWhere('start_at', '<=', $now);
+        })
             ->where(function ($q) use ($now) {
-                $q->whereNull('end_at')
-                    ->orWhere('end_at', '>=', $now);
-            })
+            $q->whereNull('end_at')
+                ->orWhere('end_at', '>=', $now);
+        })
             ->orderBy('sort_order', 'asc');
     }
 }

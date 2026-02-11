@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Vertical;
 use App\Notifications\InvoiceGeneratedNotification;
 use App\Notifications\TenantCreatedNotification;
+use App\Notifications\WelcomeNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -26,20 +27,9 @@ class OnboardingController extends Controller
     public function step1()
     {
         $verticals = Vertical::with('categories')->get();
-        $plans = Plan::all()->map(function ($plan) {
-            if ($plan->cover_path) {
-                /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-                $disk = \Illuminate\Support\Facades\Storage::disk('s3');
-                $plan->cover_url = $disk->url($plan->cover_path);
-            } else {
-                $plan->cover_url = null;
-            }
-            return $plan;
-        });
 
         return Inertia::render('Onboarding/Step1', [
             'verticals' => $verticals,
-            'plans' => $plans,
             'siteSettings' => $this->getSiteSettings(),
         ]);
     }
@@ -52,12 +42,9 @@ class OnboardingController extends Controller
         $validated = $request->validate([
             'vertical_id' => 'required|exists:verticals,id',
             'category_id' => 'required|exists:business_categories,id',
-            'plan_id' => 'required|exists:plans,id',
-            'billing_cycle' => 'required|in:monthly,quarterly,semiannual,yearly',
         ], [
             'vertical_id.required' => 'Selecciona un tipo de negocio',
             'category_id.required' => 'Selecciona una categoría',
-            'plan_id.required' => 'Selecciona un plan',
         ]);
 
         // Store in session
@@ -76,12 +63,8 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        $onboardingData = session('onboarding');
-        $plan = Plan::find($onboardingData['plan_id'] ?? null);
-
         return Inertia::render('Onboarding/Step2', [
-            'onboardingData' => $onboardingData,
-            'plan' => $plan,
+            'onboardingData' => session('onboarding'),
             'siteSettings' => $this->getSiteSettings(),
         ]);
     }
@@ -92,28 +75,15 @@ class OnboardingController extends Controller
     public function storeStep2(Request $request)
     {
         $validated = $request->validate([
-            'tenant_name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:tenants,slug|alpha_dash',
-            'owner_phone' => 'nullable|string|max:20',
-            'owner_country_code' => 'nullable|string|max:5',
-            'fiscal_regime' => 'required|string|max:255',
-            'doc_type' => 'required|string|max:20',
-            'doc_number' => 'required|string|max:50',
-            'doc_dv' => 'nullable|string|max:10',
-            'is_address_same' => 'boolean',
-            'fiscal_address' => 'required_if:is_address_same,false|nullable|string|max:500',
-            'public_email' => 'required|email|max:255|unique:tenants,contact_email',
+            'owner_name' => 'required|string|max:255',
+            'owner_email' => 'required|email|unique:users,email',
+            'owner_password' => 'required|string|min:8|confirmed',
         ], [
-            'tenant_name.required' => 'Ingresa el nombre de tu negocio',
-            'slug.required' => 'La URL de tu tienda es requerida',
-            'slug.unique' => 'Este slug ya está en uso',
-            'slug.alpha_dash' => 'La URL solo puede contener letras, números y guiones',
-            'fiscal_regime.required' => 'El régimen fiscal es obligatorio',
-            'doc_type.required' => 'El tipo de documento es obligatorio',
-            'doc_number.required' => 'El número de documento es obligatorio',
-            'public_email.required' => 'El correo de contacto público es obligatorio',
-            'public_email.email' => 'Ingresa un correo de contacto válido',
-            'public_email.unique' => 'Este correo ya está registrado en otra tienda',
+            'owner_name.required' => 'Ingresa tu nombre completo',
+            'owner_email.required' => 'Ingresa tu correo electrónico',
+            'owner_email.unique' => 'Este correo ya está registrado',
+            'owner_password.min' => 'La contraseña debe tener al menos 8 caracteres',
+            'owner_password.confirmed' => 'Las contraseñas no coinciden',
         ]);
 
         // Merge with existing session data
@@ -127,8 +97,8 @@ class OnboardingController extends Controller
      */
     public function step3()
     {
-        // Check if previous steps were completed
-        if (!session('onboarding.tenant_name')) {
+        // Check if previous step was completed (Account data)
+        if (!session('onboarding.owner_name')) {
             return redirect()->route('onboarding.step2');
         }
 
@@ -144,7 +114,7 @@ class OnboardingController extends Controller
     public function validateField(Request $request)
     {
         $request->validate([
-            'field' => 'required|string|in:slug,tenant_name,public_email',
+            'field' => 'required|string|in:slug,tenant_name,owner_email',
             'value' => 'nullable|string',
         ]);
 
@@ -163,7 +133,7 @@ class OnboardingController extends Controller
         $rules = match ($field) {
             'slug' => 'required|string|max:255|unique:tenants,slug|alpha_dash',
             'tenant_name' => 'required|string|max:255',
-            'public_email' => 'required|email|max:255|unique:tenants,contact_email',
+            'owner_email' => 'required|email|max:255|unique:users,email',
             default => 'nullable'
         };
 
@@ -189,39 +159,21 @@ class OnboardingController extends Controller
     public function complete(Request $request)
     {
         $validated = $request->validate([
-            'owner_name' => 'required|string|max:255',
-            'owner_email' => 'required|email|unique:users,email',
-            'owner_password' => 'required|string|min:8|confirmed',
-            'owner_doc_type' => 'required|string',
-            'owner_doc_number' => 'required|string',
-            'owner_phone' => 'required|string',
-            'owner_address' => 'required|string',
-            'owner_country' => 'required|string',
-            'owner_state' => 'required|string',
-            'owner_city' => 'required|string',
+            'tenant_name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:tenants,slug|alpha_dash',
         ], [
-            'owner_name.required' => 'Ingresa tu nombre completo',
-            'owner_email.required' => 'Ingresa tu correo electrónico',
-            'owner_email.email' => 'Ingresa un correo válido',
-            'owner_email.unique' => 'Este correo ya está registrado',
-            'owner_password.min' => 'La contraseña debe tener al menos 8 caracteres',
-            'owner_password.confirmed' => 'Las contraseñas no coinciden',
-            'owner_doc_type.required' => 'Selecciona el tipo de documento',
-            'owner_doc_number.required' => 'Ingresa el número de documento',
-            'owner_phone.required' => 'Ingresa tu celular',
-            'owner_address.required' => 'Ingresa tu dirección',
-            'owner_country.required' => 'Selecciona el país',
-            'owner_state.required' => 'Ingresa el departamento',
-            'owner_city.required' => 'Ingresa la ciudad',
+            'tenant_name.required' => 'Ingresa el nombre de tu negocio',
+            'slug.required' => 'La URL de tu tienda es requerida',
+            'slug.unique' => 'Este slug ya está en uso',
+            'slug.alpha_dash' => 'La URL solo puede contener letras, números y guiones',
         ]);
 
-        // Merge all data
+        // Merge all data from session
         $onboardingData = session('onboarding', []);
         $allData = array_merge($onboardingData, $validated);
 
-        \Log::info('Onboarding Complete - Data:', $allData);
+        \Log::info('Onboarding Complete (Simplified) - Data:', $allData);
 
-        $plan = Plan::findOrFail($allData['plan_id']);
         $category = BusinessCategory::find($allData['category_id']);
         $requiresApproval = $category && $category->require_verification;
 
@@ -229,121 +181,61 @@ class OnboardingController extends Controller
             $tenant = null;
             $user = null;
 
-            DB::transaction(function () use ($allData, $plan, $requiresApproval, &$tenant, &$user) {
-                // 1. Create User
+            DB::transaction(function () use ($allData, $requiresApproval, &$tenant, &$user) {
+                // Pre-check for Propietario Role
+                $propietarioRole = \App\Models\Role::firstOrCreate(
+                    ['name' => 'Propietario', 'tenant_id' => null],
+                    ['guard_name' => 'web', 'is_system' => true]
+                );
+
+                // 1. Create User (Owner)
                 $user = User::create([
                     'name' => $allData['owner_name'],
                     'email' => $allData['owner_email'],
                     'password' => Hash::make($allData['owner_password']),
-                    'doc_type' => $allData['owner_doc_type'],
-                    'doc_number' => $allData['owner_doc_number'],
-                    'phone' => $allData['owner_phone'],
-                    'address' => $allData['owner_address'],
-                    'country' => $allData['owner_country'],
-                    'state' => $allData['owner_state'],
-                    'city' => $allData['owner_city'],
+                    'role_id' => $propietarioRole->id, // Assign global role
                 ]);
 
-                // 2. Create Tenant
+                // 2. Create Tenant (Store)
                 $tenant = Tenant::create([
                     'name' => $allData['tenant_name'],
                     'slug' => $allData['slug'],
                     'vertical_id' => $allData['vertical_id'],
                     'category_id' => $allData['category_id'],
                     'owner_id' => $user->id,
-                    'doc_type' => $allData['doc_type'], // From Step 2
-                    'doc_number' => $allData['doc_number'], // From Step 2
-                    'verification_digit' => $allData['doc_dv'] ?? null,
-                    'regime' => $allData['fiscal_regime'],
-                    'contact_email' => $allData['public_email'],
-                    'address' => $allData['is_address_same'] ? $allData['owner_address'] : ($allData['fiscal_address'] ?? $allData['owner_address']),
-                    'state' => $allData['owner_state'], // Using owner state as default for tenant
-                    'city' => $allData['owner_city'], // Using owner city as default for tenant
-                    'is_active' => !$requiresApproval, // Inactive if requires approval
+                    'contact_email' => $allData['owner_email'], // Default to owner email
+                    'is_active' => !$requiresApproval,
+                    'trial_ends_at' => now()->addHours(48),
                 ]);
 
-                // 3. Attach User to Tenant as Owner (Pivot Table)
-                $tenant->users()->attach($user->id, ['role' => 'owner']);
-
-                // 4. Create Subscription
-                $startDate = now();
-                $trialDays = $plan->trial_days ?? 0;
-                $trialEndsAt = $trialDays > 0 ? $startDate->copy()->addDays($trialDays) : null;
-
-                $months = match ($allData['billing_cycle']) {
-                    'monthly' => 1,
-                    'quarterly' => 3,
-                    'semiannual' => 6,
-                    'yearly' => 12,
-                    default => 1,
-                };
-
-                $amount = $plan->getPriceForDuration($months);
-
-                $endDate = $startDate->copy()->addMonths($months);
-
-                // Logic:
-                // 1. Free Plan matched by amount=0 => 'active'
-                // 2. Paid Plan + Trial => 'trialing'
-                // 3. Paid Plan + NO Trial => 'on_hold' (This blocks public access via middleware until paid)
-
-                $status = 'active'; // Default
-                if ($amount > 0) {
-                    $status = ($trialDays > 0) ? 'trialing' : 'on_hold';
-                }
-
-                // Calculate next payment date
-                if ($amount > 0 && $trialDays > 0) {
-                    $nextPaymentDate = $trialEndsAt;
-                } else {
-                    $nextPaymentDate = $endDate;
-                }
-
-                $subscription = Subscription::create([
-                    'tenant_id' => $tenant->id,
-                    'plan_id' => $plan->id,
-                    'status' => $status,
-                    'billing_cycle' => $allData['billing_cycle'],
-                    'starts_at' => $startDate,
-                    'ends_at' => $endDate,
-                    'trial_ends_at' => ($amount > 0) ? $trialEndsAt : null,
-                    'next_payment_date' => $nextPaymentDate,
+                // 3. Attach User to Tenant
+                $tenant->users()->attach($user->id, [
+                    'role' => 'owner',
+                    'role_id' => $propietarioRole->id
                 ]);
 
-                // 5. Create Initial Invoice (Only if amount > 0)
-                if ($amount > 0) {
-                    $invoice = Invoice::create([
-                        'tenant_id' => $tenant->id,
-                        'subscription_id' => $subscription->id,
-                        'amount' => $amount,
-                        'status' => 'pending',
-                        'due_date' => now()->addDays(3),
-                    ]);
+                // Initial Subscription: Removed to allow manual selection from dashboard.
 
-                    // 6. Notify Tenant Admin
-                    $user->notify(new InvoiceGeneratedNotification($invoice));
-                }
-
-                // 7. Notify SuperAdmins (Database Notification)
+                // 7. Notify SuperAdmins
                 $superAdmins = User::where('is_super_admin', true)->get();
-                /** @var \App\Models\User $admin */
                 foreach ($superAdmins as $admin) {
                     $admin->notify(new TenantCreatedNotification($tenant));
                 }
 
-                // 8. Broadcast Real-time Event (for toasts)
+                // 7.5 Send Welcome Email to Tenant Owner
+                $user->notify(new WelcomeNotification($tenant));
+
+                // 8. Broadcast
                 broadcast(new TenantCreated($tenant));
 
-                // 5. Log the user in
-                /** @var \Illuminate\Contracts\Auth\StatefulGuard $auth */
-                $auth = auth();
-                $auth->login($user);
+                // 9. Automagically Login
+                auth()->login($user);
             });
 
-            // Clear onboarding session
+            // Clear session
             session()->forget('onboarding');
 
-            // Store data for building page
+            // Store summary for success/building page
             session([
                 'onboarding_complete' => [
                     'tenant_name' => $tenant->name,
@@ -359,7 +251,7 @@ class OnboardingController extends Controller
 
         } catch (\Exception $e) {
             \Log::error('Onboarding Error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Hubo un error al crear tu tienda. Por favor intenta de nuevo.']);
+            return back()->withErrors(['error' => 'Hubo un error al crear tu tienda: ' . $e->getMessage()]);
         }
     }
 

@@ -71,6 +71,7 @@ interface Category {
     parent_id: number | null;
     is_active: boolean;
     products_count?: number;
+    children_count?: number;
     icon?: CategoryIcon;
     parent?: Category;
     children?: Category[]; // If nested
@@ -453,18 +454,35 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar Categoría?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            ¿Estás seguro de que deseas eliminar la categoría <span className="font-bold">{categoryToDelete?.name}</span>? Esta acción no se puede deshacer.
+                            {(categoryToDelete?.products_count || 0) > 0 || (categoryToDelete?.children_count || 0) > 0 ? (
+                                <div className="space-y-3">
+                                    <p className="text-red-500 font-bold">No se puede eliminar esta categoría.</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        {(categoryToDelete?.products_count || 0) > 0 && (
+                                            <li>Tiene <span className="font-bold">{categoryToDelete?.products_count}</span> productos asociados.</li>
+                                        )}
+                                        {(categoryToDelete?.children_count || 0) > 0 && (
+                                            <li>Tiene <span className="font-bold">{categoryToDelete?.children_count}</span> subcategorías asociadas.</li>
+                                        )}
+                                    </ul>
+                                    <p className="text-sm">Debes mover o eliminar estos elementos antes de borrar la categoría.</p>
+                                </div>
+                            ) : (
+                                <p>¿Estás seguro de que deseas eliminar la categoría <span className="font-bold">{categoryToDelete?.name}</span>? Esta acción no se puede deshacer.</p>
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => categoryToDelete && handleDelete(categoryToDelete.id)}
-                            variant="destructive"
-                            className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
+                        <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cerrar</AlertDialogCancel>
+                        {(!categoryToDelete?.products_count || categoryToDelete.products_count === 0) && (!categoryToDelete?.children_count || categoryToDelete.children_count === 0) && (
+                            <AlertDialogAction
+                                onClick={() => categoryToDelete && handleDelete(categoryToDelete.id)}
+                                variant="destructive"
+                                className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                            >
+                                Eliminar
+                            </AlertDialogAction>
+                        )}
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

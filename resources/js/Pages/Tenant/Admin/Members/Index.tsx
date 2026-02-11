@@ -30,7 +30,7 @@ import {
 } from "@/Components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { Badge } from '@/Components/ui/badge';
-import { UserPlus, MoreHorizontal, Trash2, Shield, User, Mail } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Trash2, Shield, User, Mail, Building2 } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -61,6 +61,7 @@ interface Member {
     role_type: 'owner' | 'system' | 'custom' | 'legacy';
     pivot: {
         role_id: number | null;
+        location_id: number | null;
         role: string;
         created_at: string;
     };
@@ -70,14 +71,14 @@ interface Role {
     id: number;
     name: string;
 }
-
 interface Props {
     members: Member[];
     roles: Role[];
+    locations: any[];
     currentTenant: any;
 }
 
-export default function MembersIndex({ members, roles, currentTenant }: Props) {
+export default function MembersIndex({ members, roles, locations, currentTenant }: Props) {
     const { currentUserRole } = usePage<PageProps>().props;
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -98,12 +99,12 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
             setShowPermissionModal(true);
         }
     };
-
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         email: '',
         name: '',
         password: '',
         role_id: '',
+        location_id: '',
     });
 
     const updateForm = useForm({
@@ -126,13 +127,14 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
         });
     };
 
-    const handleUpdateRole = (memberId: number, newRoleId: string) => {
+    const handleUpdatePivot = (memberId: number, field: 'role_id' | 'location_id', value: string) => {
         handleActionWithPermission('users.update', () => {
             router.put(route('tenant.members.update', { tenant: currentTenant?.slug, member: memberId }), {
-                role_id: newRoleId
+                role_id: field === 'role_id' ? value : undefined,
+                location_id: field === 'location_id' ? (value === 'all' ? null : value) : undefined,
             }, {
-                onSuccess: () => toast.success('Rol actualizado'),
-                onError: () => toast.error('Error al actualizar rol')
+                onSuccess: () => toast.success('Usuario actualizado'),
+                onError: () => toast.error('Error al actualizar')
             });
         });
     };
@@ -242,13 +244,34 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {roles.map((role) => (
-                                                <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                                                <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer">
                                                     {role.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                     {errors.role_id && <p className="text-sm text-red-500">{errors.role_id}</p>}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="location">Sede Asignada (Opcional)</Label>
+                                    <Select
+                                        onValueChange={(val) => setData('location_id', val)}
+                                        value={data.location_id}
+                                    >
+                                        <SelectTrigger className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                                            <SelectValue placeholder="Global (Todas las sedes)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Global (Todas las sedes)</SelectItem>
+                                            {locations.map((loc) => (
+                                                <SelectItem key={loc.id} value={String(loc.id)} className="cursor-pointer">
+                                                    {loc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.location_id && <p className="text-sm text-red-500">{errors.location_id}</p>}
                                 </div>
                                 <DialogFooter>
                                     <Button type="submit" disabled={processing} className="w-full cursor-pointer ring-0 hover:ring-0 focus:ring-0">
@@ -264,8 +287,9 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="w-[40%]">Usuario</TableHead>
+                                <TableHead className="w-[30%]">Usuario</TableHead>
                                 <TableHead>Rol Actual</TableHead>
+                                <TableHead>Sede Asignada</TableHead>
                                 <TableHead>Fecha de Ingreso</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -287,9 +311,12 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                     </TableCell>
                                     <TableCell>
                                         {member.role_type === 'owner' ? (
-                                            <Badge variant="secondary">
-                                                Propietario
-                                            </Badge>
+                                            <div className="flex items-center gap-2">
+                                                <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
+                                                    <Shield className="w-3 h-3 mr-1" />
+                                                    Propietario
+                                                </Badge>
+                                            </div>
                                         ) : (
                                             <div
                                                 onClickCapture={(e) => {
@@ -302,16 +329,59 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                             >
                                                 <Select
                                                     defaultValue={member.pivot.role_id ? String(member.pivot.role_id) : undefined}
-                                                    onValueChange={(val) => handleUpdateRole(member.id, val)}
-                                                    disabled={false} // Always enabled visually to allow click capture
+                                                    onValueChange={(val) => handleUpdatePivot(member.id, 'role_id', val)}
+                                                    disabled={!checkPermission('users.update')}
                                                 >
-                                                    <SelectTrigger className="w-[180px] h-8 text-xs cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                                                    <SelectTrigger
+                                                        className={`w-[160px] h-8 text-xs cursor-pointer ring-0 hover:ring-0 focus:ring-0 ${!checkPermission('users.update') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
                                                         <SelectValue placeholder={member.role_label} />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {roles.map((role) => (
-                                                            <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                                                            <SelectItem key={role.id} value={String(role.id)} className="cursor-pointer">
                                                                 {role.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {member.role_type === 'owner' ? (
+                                            <Badge variant="outline" className="text-[10px] h-6 px-2 border-primary/20 bg-primary/5 text-primary">
+                                                <Building2 className="w-3 h-3 mr-1" />
+                                                Acceso Total
+                                            </Badge>
+                                        ) : (
+                                            <div
+                                                onClickCapture={(e) => {
+                                                    if (!checkPermission('users.update')) {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        setShowPermissionModal(true);
+                                                    }
+                                                }}
+                                            >
+                                                <Select
+                                                    defaultValue={member.pivot.location_id ? String(member.pivot.location_id) : "all"}
+                                                    onValueChange={(val) => handleUpdatePivot(member.id, 'location_id', val)}
+                                                    disabled={!checkPermission('users.update')}
+                                                >
+                                                    <SelectTrigger
+                                                        className={`w-[180px] h-8 text-xs cursor-pointer ring-0 hover:ring-0 focus:ring-0 ${!checkPermission('users.update') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <Building2 className="w-3 h-3 text-primary" />
+                                                            <SelectValue placeholder="Global" />
+                                                        </div>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all" className="cursor-pointer">Global (Todas las sedes)</SelectItem>
+                                                        {locations.map((loc) => (
+                                                            <SelectItem key={loc.id} value={String(loc.id)} className="cursor-pointer">
+                                                                {loc.name}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -323,7 +393,11 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                         {new Date(member.pivot.created_at).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {member.role_type !== 'owner' && (
+                                        {member.role_type === 'owner' ? (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 cursor-not-allowed" disabled>
+                                                <Trash2 className="h-4 w-4 text-slate-300" />
+                                            </Button>
+                                        ) : (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer ring-0 hover:ring-0 focus:ring-0">
@@ -334,7 +408,7 @@ export default function MembersIndex({ members, roles, currentTenant }: Props) {
                                                     <DropdownMenuItem
                                                         variant="destructive"
                                                         className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                                        onSelect={() => setMemberToDelete(member)}
+                                                        onSelect={() => handleActionWithPermission('users.delete', () => setMemberToDelete(member))}
                                                     >
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Eliminar del Equipo

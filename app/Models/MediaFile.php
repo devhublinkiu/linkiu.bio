@@ -43,7 +43,7 @@ class MediaFile extends Model
      */
     public function uploader()
     {
-        return $this->belongsTo(User::class, 'uploaded_by');
+        return $this->belongsTo(User::class , 'uploaded_by');
     }
 
     /**
@@ -89,13 +89,13 @@ class MediaFile extends Model
     public function getTypeIconAttribute(): string
     {
         return match ($this->type) {
-            'image' => 'image',
-            'video' => 'video',
-            'document' => 'file-text',
-            'audio' => 'music',
-            'archive' => 'archive',
-            default => 'file',
-        };
+                'image' => 'image',
+                'video' => 'video',
+                'document' => 'file-text',
+                'audio' => 'music',
+                'archive' => 'archive',
+                default => 'file',
+            };
     }
 
     /**
@@ -120,24 +120,24 @@ class MediaFile extends Model
         }
 
         if (
-            in_array($mimeType, [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'text/plain',
-            ])
+        in_array($mimeType, [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+        ])
         ) {
             return 'document';
         }
 
         if (
-            in_array($mimeType, [
-                'application/zip',
-                'application/x-rar-compressed',
-                'application/x-7z-compressed',
-            ])
+        in_array($mimeType, [
+        'application/zip',
+        'application/x-rar-compressed',
+        'application/x-7z-compressed',
+        ])
         ) {
             return 'archive';
         }
@@ -146,13 +146,18 @@ class MediaFile extends Model
     }
 
     /**
-     * Delete file from storage when model is deleted
+     * Delete file from storage when model is deleted (Force Delete)
      */
     protected static function boot()
     {
         parent::boot();
 
         static::deleting(function ($mediaFile) {
+            // ONLY delete the physical file if it's a force delete or if soft deletes aren't available
+            if (method_exists($mediaFile, 'isForceDeleting') && !$mediaFile->isForceDeleting()) {
+                return;
+            }
+
             if ($mediaFile->path && Storage::disk($mediaFile->disk)->exists($mediaFile->path)) {
                 Storage::disk($mediaFile->disk)->delete($mediaFile->path);
             }

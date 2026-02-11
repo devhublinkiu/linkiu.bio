@@ -36,7 +36,8 @@ import {
     ChefHat,
     BarChart3,
     Monitor,
-    ShoppingBag as ShoppingBagIcon
+    ShoppingBag as ShoppingBagIcon,
+    ConciergeBell
 } from 'lucide-react';
 
 export const MODULE_ICONS: Record<string, any> = {
@@ -75,6 +76,7 @@ export const MODULE_ICONS: Record<string, any> = {
     tables: Table,
     reservations: CalendarClock,
     kitchen: ChefHat,
+    waiters: ConciergeBell,
     statistics: BarChart3
 };
 
@@ -93,7 +95,7 @@ export const MODULE_LABELS: Record<string, string> = {
     whatsapp: 'Notificaciones whatsapp', // Lowercase w as requested
     linkiulab: 'LinkiuLab',
     integrations: 'Integraciones',
-    shipping: 'Zonas de envió', // As requested
+    shipping: 'Zonas de Envío', // As requested
     support: 'Soporte',
     services: 'Mis Servicios',
     agenda: 'Mi Agenda',
@@ -106,19 +108,21 @@ export const MODULE_LABELS: Record<string, string> = {
     tickers: 'Ticker promocionales', // Singular Ticker as requested
     locations: 'Sedes',
     settings: 'Configuración',
+
     // Gastronomy Labels
     linkiu_pos: 'linkiuPos',
     digital_menu: 'Carta digital',
     tables: 'Mesas y zonas',
     reservations: 'Reservas',
     kitchen: 'Cocina',
+    waiters: 'Meseros',
     statistics: 'Estadísticas'
 };
 
 // Map module keys to route names (if they exist, otherwise '#')
 export const MODULE_ROUTES: Record<string, string> = {
     dashboard: 'tenant.dashboard',
-    orders: '#',
+    orders: 'tenant.admin.gastronomy.orders.index',
     categories: 'tenant.categories.index',
     products: '#',
     product_drop: '#',
@@ -128,28 +132,29 @@ export const MODULE_ROUTES: Record<string, string> = {
     inventory: '#',
     linkiupay: '#',
     buildiu: '#',
-    whatsapp: '#',
+    whatsapp: 'tenant.whatsapp.edit',
     linkiulab: '#',
     integrations: '#',
-    shipping: '#',
+    shipping: 'tenant.shipping.index',
     support: 'tenant.support.index',
     services: '#',
     agenda: '#',
     appointments: '#',
     customers: '#',
-    team: '#',
+    team: 'tenant.members.index',
     reviews: '#',
-    payment_methods: '#',
+    payment_methods: 'tenant.payment-methods.index',
     coupons: '#',
-    tickers: '#',
-    locations: '#',
+    tickers: 'tenant.admin.tickers.index',
+    locations: 'tenant.locations.index',
     settings: 'tenant.settings.edit',
     // Gastronomy Routes
-    linkiu_pos: '#',
-    digital_menu: '#',
-    tables: '#',
-    reservations: '#',
-    kitchen: '#',
+    linkiu_pos: 'tenant.admin.pos',
+    digital_menu: 'tenant.admin.products.index',
+    tables: 'tenant.admin.tables.index',
+    reservations: 'tenant.admin.reservations.index',
+    kitchen: 'tenant.admin.kitchen.index',
+    waiters: 'tenant.admin.waiters.index',
     statistics: '#'
 };
 
@@ -224,23 +229,24 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'dashboard',
         'orders',
         'linkiu_pos',
-        'categories',
         'digital_menu',
+        'categories',
         'tables',
         'reservations',
         'inventory',
         'kitchen',
+        'waiters',
         'files', // Added Mis Archivos
         'integrations',
         'shipping', // Zonas de envio
         'payment_methods',
         'locations',
         'whatsapp',
-        'coupons',
         'sliders',
         'tickers',
         'support',
-        'statistics'
+        'statistics',
+        'team'
     ],
     'servicios': [
         'dashboard',

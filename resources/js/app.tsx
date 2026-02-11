@@ -30,7 +30,7 @@ createInertiaApp({
         createRoot(el).render(
             <>
                 <App {...props} />
-                <Toaster position="bottom-center" />
+                <Toaster position="top-center" />
             </>
         );
     },

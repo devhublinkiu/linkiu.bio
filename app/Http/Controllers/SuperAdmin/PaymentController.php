@@ -48,7 +48,7 @@ class PaymentController extends Controller
                 $subscription = $invoice->subscription;
 
                 if ($subscription) {
-                    // Determine duration based on billing cycle (simple logic for now)
+                    // Determine duration based on billing cycle
                     $months = match ($subscription->billing_cycle) {
                         'monthly' => 1,
                         'quarterly' => 3,
@@ -57,8 +57,14 @@ class PaymentController extends Controller
                         default => 1
                     };
 
-                    // If sub is expired, past_due, trialing, OR on_hold (first payment), start from now.
-                    if (in_array($subscription->status, ['past_due', 'expired', 'trialing', 'on_hold'])) {
+                    // IMPORTANT: If the subscription already has a valid future ends_at date
+                    // (set by processPayment), don't recalculate it. Only extend if truly needed.
+                    if ($subscription->ends_at && $subscription->ends_at->isFuture()) {
+                        // Subscription already has a valid end date, just activate it
+                        $newEnd = $subscription->ends_at;
+                        $newStart = $subscription->starts_at ?? now();
+                    } elseif (in_array($subscription->status, ['past_due', 'expired', 'trialing', 'on_hold'])) {
+                        // Subscription is expired or new, calculate from now
                         $newEnd = now()->addMonths($months);
                         $newStart = now();
                     } else {

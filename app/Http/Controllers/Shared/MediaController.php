@@ -39,7 +39,8 @@ class MediaController extends Controller
 
         if ($tenant) {
             $query->where('tenant_id', $tenant->id);
-        } else {
+        }
+        else {
             // Global view: Only show global files (SuperAdmin files)
             // Strict isolation: SuperAdmin sees only global files here.
             $query->whereNull('tenant_id');
@@ -50,9 +51,10 @@ class MediaController extends Controller
 
         if ($currentFolder) {
             $query->where('folder', $currentFolder);
-        } else {
-            $query->whereNull('folder');
         }
+        // If no folder is specified, we DON'T apply whereNull('folder') 
+        // This allows seeing all files in a flat view at the root, 
+        // which makes them searchable and visible even if they are in "system" folders.
 
         $files = $query->latest()->get();
 
@@ -88,8 +90,9 @@ class MediaController extends Controller
             'name' => $request->name,
             'type' => 'folder',
             'folder' => $request->input('parent_folder'), // The parent this folder belongs to
-            'disk' => 'public', // Placeholder, folders don't really have a disk
+            'disk' => 's3',
             'path' => null, // Virtual folder, no physical path
+            'uploaded_by' => auth()->id(),
             'is_public' => true,
         ]);
 
@@ -111,7 +114,8 @@ class MediaController extends Controller
             if (!$request->user()->can('media.upload')) {
                 abort(403, 'No tienes permisos para subir archivos.');
             }
-        } elseif (!auth()->user()->is_super_admin && !auth()->user()->hasGlobalPermission('sa.media.upload')) {
+        }
+        elseif (!auth()->user()->is_super_admin && !auth()->user()->hasGlobalPermission('sa.media.upload')) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -121,21 +125,22 @@ class MediaController extends Controller
         // Path structure: uploads/{tenant_id}/filename.ext
         $directory = 'uploads/' . ($tenantId ?: 'global');
 
-        $path = $file->store($directory, 'public');
-        $url = Storage::disk('public')->url($path);
+        $path = $file->store($directory, 's3');
+        $url = Storage::disk('s3')->url($path);
 
         $media = MediaFile::create([
             'tenant_id' => $tenantId,
             'name' => $file->getClientOriginalName(), // Required by DB
             'path' => $path,
             'url' => $url,
-            'disk' => 'public',
+            'disk' => 's3',
             'mime_type' => $file->getMimeType(),
             'size' => $file->getSize(),
             'extension' => $file->getClientOriginalExtension(),
             'type' => MediaFile::determineType($file->getMimeType()),
             'alt_text' => $request->input('alt_text', $file->getClientOriginalName()),
             'folder' => $request->input('folder'),
+            'uploaded_by' => auth()->id(),
         ]);
 
         return response()->json($media, 201);
@@ -157,7 +162,8 @@ class MediaController extends Controller
             if ($media->tenant_id !== $tenant->id) {
                 abort(403, 'No tienes permiso para eliminar este archivo.');
             }
-        } else {
+        }
+        else {
             // Global (SuperAdmin)
             if (!auth()->user()->is_super_admin && !auth()->user()->hasGlobalPermission('sa.media.delete')) {
                 abort(403, 'Unauthorized');

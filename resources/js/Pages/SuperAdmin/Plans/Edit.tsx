@@ -78,31 +78,48 @@ export default function Edit({ plan, verticals }: Props) {
     // Detect existing module config from plan features
     const initialModuleConfig: Record<string, boolean> = (() => {
         // Find the object in features
-        const configObj = plan.features?.find(f => typeof f === 'object' && !Array.isArray(f) && f !== null);
+        const configObj = (plan.features?.find(f => typeof f === 'object' && !Array.isArray(f) && f !== null) || {}) as Record<string, boolean>;
 
-        if (configObj) return configObj as Record<string, boolean>;
+        // Get allowed modules for current vertical
+        const vertical = verticals.find(v => v.id.toString() === plan.vertical_id.toString());
+        if (vertical) {
+            const slug = vertical.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const configKey = Object.keys(VERTICAL_CONFIG).find(k => k === slug) || 'default';
+            const allowedModules = VERTICAL_CONFIG[configKey] || [];
 
-        // Fallback: Enable all for the vertical if it matches
-        // We can try to load default for the vertical if we want, or start empty?
-        // Let's try to load defaults if no config exists, ensuring existing plans "work" (enable all)
-        // rather than "break" (disable all).
-        if (plan.vertical_id) {
-            const vertical = verticals.find(v => v.id === plan.vertical_id);
-            if (vertical) {
-                const slug = vertical.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                // Map to config key if possible, else default
-                // This logic duplicates Create.tsx slightly but is safer here
-                const configKey = Object.keys(VERTICAL_CONFIG).find(k => k === slug) || 'default';
-                const modules = VERTICAL_CONFIG[configKey] || [];
-                const defaults: Record<string, boolean> = {};
-                modules.forEach(m => defaults[m] = true);
-                return defaults;
-            }
+            const filtered: Record<string, boolean> = {};
+            allowedModules.forEach(m => {
+                filtered[m] = configObj.hasOwnProperty(m) ? configObj[m] : true;
+            });
+            return filtered;
         }
+
         return {};
     })();
 
     const [moduleConfig, setModuleConfig] = useState<Record<string, boolean>>(initialModuleConfig);
+
+    // Sync modules when vertical changes
+    useEffect(() => {
+        const vertical = verticals.find(v => v.id.toString() === data.vertical_id);
+        if (vertical) {
+            const slug = vertical.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const configKey = Object.keys(VERTICAL_CONFIG).find(k => k === slug) || 'default';
+            const allowedModules = VERTICAL_CONFIG[configKey] || [];
+
+            // Check if we already have a saved config for this vertical (if it's the original plan vertical)
+            const isOriginalVertical = data.vertical_id === plan.vertical_id.toString();
+            const baseConfig = isOriginalVertical
+                ? (plan.features?.find(f => typeof f === 'object' && !Array.isArray(f) && f !== null) || {}) as Record<string, boolean>
+                : {};
+
+            const newConfig: Record<string, boolean> = {};
+            allowedModules.forEach(m => {
+                newConfig[m] = baseConfig.hasOwnProperty(m) ? baseConfig[m] : true;
+            });
+            setModuleConfig(newConfig);
+        }
+    }, [data.vertical_id]);
 
     const handleModuleToggle = (key: string, enabled: boolean) => {
         setModuleConfig(prev => ({ ...prev, [key]: enabled }));

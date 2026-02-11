@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Link, usePage } from '@inertiajs/react'
+import { Link, usePage, router } from '@inertiajs/react'
 import {
     BadgeCheck,
     Sparkles,
@@ -55,16 +55,52 @@ interface NavItem {
 }
 
 const MODULE_PERMISSIONS: Record<string, string> = {
-    'settings': 'settings.view',
-    'members': 'users.view',
-    'roles': 'roles.view',
+    'dashboard': 'dashboard.view',
+    'orders': 'orders.view',
+    'categories': 'categories.view',
+    'products': 'products.view',
+    'product_drop': 'products.view',
+    'variables': 'products.view',
     'files': 'media.view',
+    'sliders': 'sliders.view',
+    'inventory': 'inventory.view',
+    'linkiupay': 'billing.view',
+    'buildiu': 'buildiu.view',
+    'whatsapp': 'whatsapp.view',
+    'linkiulab': 'linkiulab.view',
+    'integrations': 'integrations.view',
+    'shipping': 'shipping_zones.view',
+    'support': 'support.view',
+    'services': 'services.view',
+    'agenda': 'agenda.view',
+    'appointments': 'appointments.view',
+    'customers': 'customers.view',
+    'team': 'users.view',
+    'reviews': 'reviews.view',
+    'payment_methods': 'payment_methods.view',
+    'coupons': 'coupons.view',
+    'tickers': 'tickers.view',
+    'locations': 'locations.view',
+    'settings': 'settings.view',
+    'roles': 'roles.view',
+    'profile': 'profile.view',
     'subscription': 'billing.view',
     'billing': 'billing.view',
+    'linkiu_pos': 'orders.view',
+    'digital_menu': 'products.view',
+    'tables': 'tables.view',
+    'reservations': 'reservations.view',
+    'kitchen': 'kitchen.view',
+    'waiters': 'waiters.view',
+    'statistics': 'statistics.view',
+    'logout': 'dashboard.view', // Any auth user can logout
 }
 
 export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>) {
-    const { auth, currentTenant, currentUserRole } = usePage<PageProps & { currentTenant: any, currentUserRole: any }>().props
+    const { auth, currentTenant, currentUserRole } = usePage<PageProps & {
+        currentTenant: any & { vertical?: { slug: string } },
+        currentUserRole: any
+    }>().props
     const [showPermissionModal, setShowPermissionModal] = React.useState(false)
 
     // Permission Check
@@ -76,13 +112,28 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
         return currentUserRole.permissions.includes('*') || currentUserRole.permissions.includes(permission)
     }
 
-    const handleNavigation = (e: React.MouseEvent, moduleKey: string) => {
+    const handleNavigation = (e: React.MouseEvent, moduleKey: string, isLocked: boolean) => {
         if (!checkPermission(moduleKey)) {
             e.preventDefault()
             e.stopPropagation()
             setShowPermissionModal(true)
             return false
         }
+
+        if (isLocked) {
+            e.preventDefault()
+            e.stopPropagation()
+
+            // Critical check: if user can't see billing, don't redirect to subscription page (avoids 403)
+            if (!checkPermission('billing')) {
+                setShowPermissionModal(true)
+                return false
+            }
+
+            router.get(route('tenant.subscription.index', { tenant: currentTenant.slug }))
+            return false
+        }
+
         return true
     }
 
@@ -150,24 +201,7 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
                             const isLocked = isLockedItem(item.key)
                             const isActive = item.route !== '#' && route().current(item.route)
                             const hasChildren = item.children && item.children.length > 0
-
-                            if (isLocked) {
-                                return (
-                                    <SidebarMenuItem key={item.key}>
-                                        <SidebarMenuButton
-                                            asChild
-                                            disabled
-                                            className="opacity-70"
-                                        >
-                                            <Link href={route('tenant.subscription.index', { tenant: currentTenant.slug })}>
-                                                <item.icon className="text-slate-400" />
-                                                <span>{item.label}</span>
-                                                <Lock className="ml-auto h-3 w-3 text-slate-400" />
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )
-                            }
+                            const hasPermission = checkPermission(item.key)
 
                             return (
                                 <React.Fragment key={item.key}>
@@ -178,11 +212,17 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
                                                     <SidebarMenuButton
                                                         tooltip={item.label}
                                                         isActive={isActive}
-                                                        onClick={(e) => handleNavigation(e, item.key)}
+                                                        onClick={(e) => handleNavigation(e, item.key, isLocked)}
                                                     >
-                                                        <item.icon />
-                                                        <span>{item.label}</span>
-                                                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                                        <item.icon className={cn(!hasPermission && "text-red-500")} />
+                                                        <span className={cn(!hasPermission && "text-red-600 font-medium")}>{item.label}</span>
+                                                        {!hasPermission ? (
+                                                            <Lock className="ml-auto h-3.5 w-3.5 text-red-500 animate-pulse" />
+                                                        ) : isLocked ? (
+                                                            <Badge className="ml-auto h-5 px-1.5 text-[10px] font-bold bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">PRO</Badge>
+                                                        ) : (
+                                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                                        )}
                                                     </SidebarMenuButton>
                                                 </CollapsibleTrigger>
                                                 <CollapsibleContent>
@@ -190,8 +230,16 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
                                                         {item.children?.map((child) => (
                                                             <SidebarMenuSubItem key={child.label}>
                                                                 <SidebarMenuSubButton asChild>
-                                                                    <Link href={child.route === '#' ? '#' : route(child.route, { tenant: currentTenant.slug })}>
+                                                                    <Link
+                                                                        href={!hasPermission ? '#' : (isLocked ? route('tenant.subscription.index', { tenant: currentTenant.slug }) : (child.route === '#' ? '#' : route(child.route, { tenant: currentTenant.slug })))}
+                                                                        onClick={(e) => handleNavigation(e, item.key, isLocked)}
+                                                                    >
                                                                         <span>{child.label}</span>
+                                                                        {!hasPermission ? (
+                                                                            <Lock className="ml-auto h-3 w-3 text-red-500" />
+                                                                        ) : isLocked && (
+                                                                            <Badge className="ml-auto h-4 px-1 text-[9px] font-bold bg-amber-100 text-amber-700 border-amber-200">PRO</Badge>
+                                                                        )}
                                                                     </Link>
                                                                 </SidebarMenuSubButton>
                                                             </SidebarMenuSubItem>
@@ -206,11 +254,16 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
                                                 asChild
                                                 tooltip={item.label}
                                                 isActive={isActive}
-                                                onClick={(e) => handleNavigation(e, item.key)}
+                                                onClick={(e) => handleNavigation(e, item.key, isLocked)}
                                             >
-                                                <Link href={item.route === '#' ? '#' : route(item.route, { tenant: currentTenant.slug })}>
-                                                    <item.icon />
-                                                    <span>{item.label}</span>
+                                                <Link href={!hasPermission ? '#' : (isLocked ? route('tenant.subscription.index', { tenant: currentTenant.slug }) : (item.route === '#' ? '#' : route(item.route, { tenant: currentTenant.slug })))}>
+                                                    <item.icon className={cn(!hasPermission && "text-red-500")} />
+                                                    <span className={cn(!hasPermission && "text-red-600 font-medium")}>{item.label}</span>
+                                                    {!hasPermission ? (
+                                                        <Lock className="ml-auto h-3.5 w-3.5 text-red-500" />
+                                                    ) : isLocked && (
+                                                        <Badge className="ml-auto h-5 px-1.5 text-[10px] font-bold bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">PRO</Badge>
+                                                    )}
                                                 </Link>
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>
@@ -249,7 +302,7 @@ export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>
                                 <Button asChild className="w-full">
                                     <Link
                                         href={route('tenant.subscription.index', { tenant: currentTenant.slug })}
-                                        onClick={(e) => handleNavigation(e, 'subscription')}
+                                        onClick={(e) => handleNavigation(e, 'subscription', false)}
                                     >
                                         <Sparkles className="mr-2 h-4 w-4" />
                                         Ver planes

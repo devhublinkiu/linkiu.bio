@@ -10,14 +10,6 @@ const ablyClient = new Ably.Realtime({
     key: import.meta.env.VITE_ABLY_KEY,
 });
 
-ablyClient.connection.on('connected', () => {
-    console.log('[Ably] Connected to Ably');
-});
-
-ablyClient.connection.on('failed', (error) => {
-    console.error('[Ably] Connection failed:', error);
-});
-
 window.Ably = Ably;
 window.Echo = new Echo({
     broadcaster: 'ably',

@@ -21,6 +21,7 @@ import {
 import { FormEventHandler, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { PageProps } from '@/types';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 interface Props extends PageProps {
     status?: string;
@@ -40,6 +41,17 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
     const activeTenant = currentTenant || tenant;
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    const canEdit = currentUserRole?.is_owner || currentUserRole?.permissions?.includes('profile.edit') || currentUserRole?.permissions?.includes('*');
+
+    const handleProtectedAction = (action: () => void) => {
+        if (!canEdit) {
+            setShowPermissionModal(true);
+            return;
+        }
+        action();
+    };
 
     const { data, setData, patch, processing, errors } = useForm({
         name: user.name,
@@ -59,13 +71,24 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
 
     const submitProfile: FormEventHandler = (e) => {
         e.preventDefault();
-        patch(route('tenant.profile.update', { tenant: activeTenant.slug }));
+        handleProtectedAction(() => {
+            patch(route('tenant.profile.update', { tenant: activeTenant.slug }), {
+                onSuccess: () => toast.success('Perfil actualizado correctamente'),
+                onError: () => toast.error('Error al actualizar el perfil'),
+            });
+        });
     };
 
     const submitPassword: FormEventHandler = (e) => {
         e.preventDefault();
-        updatePassword(route('tenant.profile.password.update', { tenant: activeTenant.slug }), {
-            onSuccess: () => resetPassword(),
+        handleProtectedAction(() => {
+            updatePassword(route('tenant.profile.password.update', { tenant: activeTenant.slug }), {
+                onSuccess: () => {
+                    resetPassword();
+                    toast.success('Contraseña actualizada correctamente');
+                },
+                onError: () => toast.error('Error al actualizar la contraseña'),
+            });
         });
     };
 
@@ -98,6 +121,11 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
                 onChange={handleFileChange}
             />
 
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
+
             <div className="max-w-5xl mx-auto py-8 px-4">
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Left Column: Avatar Card */}
@@ -111,12 +139,13 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
                                             {user.name.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg cursor-pointer"
+                                    <Button
+                                        size="icon"
+                                        onClick={() => handleProtectedAction(() => fileInputRef.current?.click())}
+                                        className="absolute bottom-0 right-0 rounded-full shadow-lg cursor-pointer"
                                     >
                                         <Camera className="w-5 h-5" />
-                                    </button>
+                                    </Button>
                                 </div>
                                 <h3 className="mt-4 text-xl font-bold">{user.name}</h3>
                                 <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -129,7 +158,7 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
                                         </Badge>
                                     )}
                                     <Badge variant="outline">
-                                        Admin Principal
+                                        {roleLabel}
                                     </Badge>
                                 </div>
 
@@ -202,6 +231,7 @@ export default function Edit({ auth, status, tenant, currentUserRole, currentTen
                                                         value={data.email}
                                                         disabled
                                                     />
+                                                    <p className="text-[11px] text-muted-foreground">Tu correo es tu identificador único y no puede modificarse.</p>
                                                 </div>
                                             </div>
 

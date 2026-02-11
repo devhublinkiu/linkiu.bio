@@ -51,6 +51,7 @@ import { PageProps } from '@/types';
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 interface Slider {
     id: number;
@@ -78,6 +79,24 @@ export default function Index({ sliders }: Props) {
     const [editingSlider, setEditingSlider] = useState<Slider | null>(null);
     const [sliderToDelete, setSliderToDelete] = useState<Slider | null>(null);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    const { currentUserRole } = usePage<PageProps>().props;
+
+    const checkPermission = (permission: string) => {
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner ||
+            currentUserRole.permissions.includes('*') ||
+            currentUserRole.permissions.includes(permission);
+    };
+
+    const handleActionWithPermission = (permission: string, action: () => void) => {
+        if (checkPermission(permission)) {
+            action();
+        } else {
+            setShowPermissionModal(true);
+        }
+    };
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         name: '',
@@ -122,48 +141,36 @@ export default function Index({ sliders }: Props) {
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Transform Date objects to strings for backend if needed, or Inertia handles Date objects -> JSON string
-        // But usually PHP expects 'Y-m-d H:i:s'.
-        // Let's ensure they are sent as ISO strings or properly formatted.
-        // Actually, Inertia sends Date as ISO string automatically.
+        const permission = editingSlider ? 'sliders.update' : 'sliders.create';
 
-        const payload = {
-            ...data,
-            start_at: data.start_at ? format(data.start_at, "yyyy-MM-dd HH:mm:ss") : '',
-            end_at: data.end_at ? format(data.end_at, "yyyy-MM-dd HH:mm:ss") : '',
-        };
+        handleActionWithPermission(permission, () => {
+            const formData = {
+                ...data,
+                start_at: data.start_at ? format(data.start_at, "yyyy-MM-dd HH:mm:ss") : '',
+                end_at: data.end_at ? format(data.end_at, "yyyy-MM-dd HH:mm:ss") : '',
+            };
 
-        if (editingSlider) {
-            router.post(route('tenant.sliders.update', [currentTenant?.slug, editingSlider.id]), {
-                ...payload,
-                _method: 'put',
-            }, {
-                onSuccess: () => {
-                    toast.success('Slider actualizado');
-                    setIsSheetOpen(false);
-                },
-                onError: () => toast.error('Error al actualizar'),
-            });
-        } else {
-            post(route('tenant.sliders.store', currentTenant?.slug), {
-                // @ts-ignore
-                data: payload, // Override data using transform or manual post? 
-                // useForm 'post' sends 'data' state. We need to manually handle transformation or update state before.
-                // Better approach: update state strings (complex) or use router.post directly for create too to be consistent with payload transform.
-            });
-            // Re-implementation using router.post for consistency
-            router.post(route('tenant.sliders.store', currentTenant?.slug), payload, {
-                onSuccess: () => {
-                    toast.success('Slider creado');
-                    setIsSheetOpen(false);
-                },
-                onError: (err) => {
-                    // Update form errors from response
-                    // errors = err; - useForm handles this if we use its method, but we are bypassing.
-                    toast.error('Error al crear');
-                },
-            });
-        }
+            if (editingSlider) {
+                router.post(route('tenant.sliders.update', [currentTenant?.slug, editingSlider.id]), {
+                    ...formData,
+                    _method: 'put',
+                }, {
+                    onSuccess: () => {
+                        toast.success('Slider actualizado');
+                        setIsSheetOpen(false);
+                    },
+                    onError: () => toast.error('Error al actualizar'),
+                });
+            } else {
+                router.post(route('tenant.sliders.store', currentTenant?.slug), formData, {
+                    onSuccess: () => {
+                        toast.success('Slider creado');
+                        setIsSheetOpen(false);
+                    },
+                    onError: () => toast.error('Error al crear'),
+                });
+            }
+        });
     };
 
     // Fix: usage of router.post bypassing useForm loses error mapping to 'errors' object unless we handle it.
@@ -191,12 +198,14 @@ export default function Index({ sliders }: Props) {
     };
 
     const toggleActive = (slider: Slider) => {
-        router.put(route('tenant.sliders.update', [currentTenant?.slug, slider.id]), {
-            name: slider.name,
-            link_type: slider.link_type,
-            is_active: !slider.is_active
-        }, {
-            onSuccess: () => toast.success('Estado actualizado'),
+        handleActionWithPermission('sliders.update', () => {
+            router.put(route('tenant.sliders.update', [currentTenant?.slug, slider.id]), {
+                name: slider.name,
+                link_type: slider.link_type,
+                is_active: !slider.is_active
+            }, {
+                onSuccess: () => toast.success('Estado actualizado'),
+            });
         });
     };
 
@@ -204,12 +213,17 @@ export default function Index({ sliders }: Props) {
         <AdminLayout title="Sliders">
             <Head title="Sliders" />
 
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
+
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Sliders</h1>
                     <p className="text-sm text-muted-foreground">Gestiona los banners promocionales de tu tienda.</p>
                 </div>
-                <Button onClick={openCreate} className="gap-2">
+                <Button onClick={() => handleActionWithPermission('sliders.create', openCreate)} className="gap-2">
                     <Plus className="w-4 h-4" /> Nuevo Slider
                 </Button>
             </div>
@@ -277,14 +291,14 @@ export default function Index({ sliders }: Props) {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button size="icon" variant="ghost" onClick={() => openEdit(slider)}>
+                                            <Button size="icon" variant="ghost" onClick={() => handleActionWithPermission('sliders.update', () => openEdit(slider))}>
                                                 <Edit className="w-4 h-4" />
                                             </Button>
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
                                                 className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                onClick={() => setSliderToDelete(slider)}
+                                                onClick={() => handleActionWithPermission('sliders.delete', () => setSliderToDelete(slider))}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
@@ -312,37 +326,7 @@ export default function Index({ sliders }: Props) {
                         <SheetDescription>Configura la imagen y comportamiento del banner.</SheetDescription>
                     </SheetHeader>
 
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const payload = {
-                            ...data,
-                            start_at: data.start_at ? format(data.start_at, "yyyy-MM-dd HH:mm:ss") : '',
-                            end_at: data.end_at ? format(data.end_at, "yyyy-MM-dd HH:mm:ss") : '',
-                        };
-
-                        if (editingSlider) {
-                            // @ts-ignore
-                            router.post(route('tenant.sliders.update', [currentTenant?.slug, editingSlider.id]), {
-                                ...payload,
-                                _method: 'put',
-                            }, {
-                                onSuccess: () => {
-                                    toast.success('Slider actualizado');
-                                    setIsSheetOpen(false);
-                                },
-                                onError: () => toast.error('Error al actualizar'),
-                            });
-                        } else {
-                            // @ts-ignore
-                            router.post(route('tenant.sliders.store', currentTenant?.slug), payload, {
-                                onSuccess: () => {
-                                    toast.success('Slider creado');
-                                    setIsSheetOpen(false);
-                                },
-                                onError: () => toast.error('Error al crear'),
-                            });
-                        }
-                    }} className="space-y-6 mt-6">
+                    <form onSubmit={submit} className="space-y-6 mt-6">
                         {/* Name */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Nombre Administrativo</Label>

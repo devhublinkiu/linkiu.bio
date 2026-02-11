@@ -3,45 +3,41 @@
 **Aplica a:** Todas las verticales y SuperAdmin.
 
 ## Descripción General
-Este módulo centraliza la gestión de archivos multimedia (imágenes, documentos) del tenant o del superadmin.
-Su componente principal es el **Media Manager**, un modal que permite:
-1.  Ver la biblioteca de archivos existentes.
-2.  Subir nuevos archivos (drag & drop o selección).
-3.  Seleccionar un archivo para devolver su URL a un input o formulario.
+Este módulo centraliza la gestión de archivos multimedia del tenant. Es una biblioteca compartida donde todo el equipo puede ver y gestionar los activos del negocio (productos, banners, logos, fotos de perfil).
 
-## Componentes
+## Características Implementadas
 
-### 1. Backend
--   **Modelo**: `MediaFile` (o similar).
--   **Tabla**: `media_files`
-    -   `id`
-    -   `tenant_id` (nullable, null = superadmin o compartido globalmente si aplica)
-    -   `path` (ruta en storage)
-    -   `url` (url publica)
-    -   `disk` (s3, public, local)
-    -   `mime_type`
-    -   `size`
-    -   `alt_text` (opcional)
--   **Controller**: `MediaController` (API para listar, subir, eliminar).
+### 1. Visibilidad Unificada (Team View)
+A diferencia de un gestor de archivos tradicional, este módulo indexa automáticamente las subidas de otros módulos:
+- **Gastronomía**: Fotos de productos.
+- **Sliders**: Banners (Escritorio y Móvil).
+- **Configuración**: Logos y Favicons del sitio.
+- **Perfil**: Fotos de perfil de todos los miembros del equipo.
 
-### 2. Frontend (Shared Component)
--   **Componente**: `MediaManagerModal.tsx`
-    -   **Props**:
-        -   `open`: boolean
-        -   `onClose`: () => void
-        -   `onSelect`: (file: MediaFile) => void
-        -   `multiple`: boolean (futuro)
-    -   **Tabs**:
-        -   *Biblioteca*: Grid de imágenes con paginación/infinite scroll.
-        -   *Subir*: Zona de carga.
+### 2. Vista Plana (Flat View)
+Para facilitar la búsqueda y evitar que archivos queden ocultos en carpetas "del sistema", la vista raíz muestra **todos los archivos del tenant** en una lista única y cronológica (lo más reciente primero).
 
-### 3. Integración UI
--   **Input de Archivo**: Un componente `MediaInput` que reemplace los `input type="file"` tradicionales. Muestra la previsualización y un botón "Cambiar/Seleccionar" que abre el modal.
+### 3. Almacenamiento y Rendimiento
+- **Cloud Storage**: Todos los archivos se almacenan en **Amazon S3** para garantizar disponibilidad y escalabilidad.
+- **Optimización**: Las imágenes se procesan (webp) antes de subir para reducir peso sin perder calidad (vía `ProductController`).
 
-## Tareas Pendientes
-- [ ] Crear migración y modelo `MediaFile`.
-- [ ] Crear `MediaController` (Store, Index, Destroy).
-- [ ] Crear componente `MediaManagerModal` (UI + Lógica).
-- [ ] Crear componente `MediaInput` (Wrapper para usar en formularios).
-- [ ] Integrar en módulo "Mis Archivos" (Vista principal).
-- [ ] Integrar en formularios existentes (ej. Crear Plan - Cover).
+### 4. Seguridad y Persistencia
+- **Borrado Seguro**: El borrado lógico (SoftDelete) elimina el registro de la base de datos pero **mantiene el archivo físico en S3**. Solo un borrado permanente (Force Delete) elimina el activo de la nube.
+- **Trazabilidad**: Cada archivo registra quién lo subió (`uploaded_by`).
+
+## Arquitectura Técnica
+
+### Backend
+- **Modelo**: `MediaFile`
+- **Tabla**: `media_files`
+- **Controlador**: `Shared\MediaController` (Index, List, Store, Destroy).
+- **Consola**: `media:import` (Comando para sincronizar S3 con la DB y recuperar archivos huérfanos).
+
+### Frontend
+- **Componente**: `MediaManagerModal.tsx`
+- **Uso**: Se utiliza tanto como página independiente (`/admin/media`) como en modales de selección en otros formularios.
+
+## Permisos
+- `media.view`: Ver la biblioteca.
+- `media.upload`: Subir nuevos archivos.
+- `media.delete`: Eliminar archivos (restringido a archivos del propio tenant).

@@ -24,21 +24,32 @@ class CheckSubscriptionStatus
         $isAdminRoute = $request->is('*/admin*');
         $subscription = $tenant->latestSubscription;
 
+        // Trial logic: Check trial_ends_at field, or fallback to created_at + 48h for safety
+        $isWithinTrial = ($tenant->trial_ends_at && $tenant->trial_ends_at->isFuture()) ||
+            ($tenant->created_at && $tenant->created_at->addHours(48)->isFuture());
+
         // 1. ADMIN PANEL: Allow consistent access to prevent lockout
         if ($isAdminRoute) {
-            // Always allow invoices, settings, profile, logout
+            // Always allow invoices, settings, profile, logout, subscription
             if (
+                $request->is('*/admin/dashboard') || // Explicitly allow dashboard during trial
                 $request->is('*/admin/invoices*') ||
                 $request->is('*/admin/settings*') ||
                 $request->is('*/admin/profile*') ||
+                $request->is('*/admin/subscription*') ||
                 $request->is('*/admin/logout')
             ) {
                 return $next($request);
             }
 
+            // If within 48h grace period (new registration), allow full access to admin
+            if ($isWithinTrial) {
+                return $next($request);
+            }
+
             if (!$subscription) {
                 return redirect()->route('tenant.invoices.index', ['tenant' => $tenant->slug])
-                    ->withErrors(['error' => 'No tienes una suscripción activa.']);
+                    ->withErrors(['error' => 'No tienes una suscripción activa o tu periodo de prueba ha expirado.']);
             }
 
             // Status Check for Admin - Warn but Allow
@@ -52,21 +63,22 @@ class CheckSubscriptionStatus
                     session()->flash('warning', "Tu suscripción ha vencido. Por favor realiza el pago para reactivar tu tienda pública.");
                 }
 
-                // Allow access to admin panel despite status (Option A)
+                // Allow access to admin panel despite status
                 return $next($request);
             }
 
             return $next($request);
         }
 
-        // 2. PUBLIC STORE (User Decision: Block if unpaid)
-        if (!$subscription || !in_array($subscription->status, ['active', 'trialing'])) {
-            // Render friendly "Unavailable" page
-            return \Inertia\Inertia::render('Tenant/Public/Unavailable')
-                ->toResponse($request)
-                ->setStatusCode(403);
+        // 2. PUBLIC STORE
+        // Allow if active subscription OR within trial period
+        if (($subscription && in_array($subscription->status, ['active', 'trialing'])) || $isWithinTrial) {
+            return $next($request);
         }
 
-        return $next($request);
+        // Otherwise block
+        return \Inertia\Inertia::render('Tenant/Public/Unavailable')
+            ->toResponse($request)
+            ->setStatusCode(403);
     }
 }

@@ -14,13 +14,16 @@ class Invoice extends Model
         'due_date',
         'paid_at',
         'proof_of_payment_path',
-        'admin_notes'
+        'admin_notes',
+        'payment_method',
+        'payment_intent_data',
     ];
 
     protected $casts = [
         'due_date' => 'date',
         'paid_at' => 'datetime',
         'amount' => 'decimal:2',
+        'payment_intent_data' => 'array',
     ];
 
     public function tenant()

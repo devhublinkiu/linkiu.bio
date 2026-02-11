@@ -2,19 +2,24 @@ import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Store, ShoppingBag, Users, Zap } from 'lucide-react';
+import TrialUrgencyBanner from '@/Components/Tenant/Admin/Dashboard/TrialUrgencyBanner';
+import CustomSlugBanner from '@/Components/Tenant/Admin/Dashboard/CustomSlugBanner';
 
-export default function Dashboard() {
-    const { auth, tenant } = usePage<any>().props;
-    const currentTenant = auth?.currentTenant || tenant;
+export default function Dashboard({ plans }: { plans?: any[] }) {
+    const { auth, currentTenant } = usePage<any>().props;
 
     return (
         <AdminLayout title="Panel de Control">
             <Head title={`Dashboard - ${currentTenant?.name || 'Cargando...'}`} />
 
             <div className="space-y-6">
+                {/* Status & Urgency Banners */}
+                <TrialUrgencyBanner tenant={currentTenant} />
+                <CustomSlugBanner tenant={currentTenant} plans={plans} />
+
                 {/* Welcome Section */}
                 <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-bold tracking-tight">¡Hola, {auth?.user?.name?.split(' ')[0]}! 👋</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">¡Hola, {auth?.user?.name?.split(' ')[0] || 'Usuario'}! 👋</h2>
                     <p className="text-slate-500">Bienvenido al centro de control de <span className="font-semibold text-slate-900">{currentTenant?.name || 'tu tienda'}</span>.</p>
                 </div>
 

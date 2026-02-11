@@ -1,0 +1,39 @@
+
+// Helper components to render children with hooks inside the Combobox provider context
+function ComboboxAnchorWrapper({ selectedCities, setSelectedCities }: { selectedCities: City[], setSelectedCities: (c: City[]) => void }) {
+    const anchor = useComboboxAnchor();
+    
+    return (
+        <>
+            <ComboboxTrigger className="w-full">
+                <ComboboxChips ref={anchor}>
+                    {selectedCities.map(city => (
+                        <ComboboxChip key={city.id}>
+                            {city.name}
+                        </ComboboxChip>
+                    ))}
+                    <ComboboxChipsInput 
+                        placeholder={selectedCities.length > 0 ? "" : "Seleccionar ciudades..."} 
+                        className="min-w-[120px]" 
+                    />
+                </ComboboxChips>
+            </ComboboxTrigger>
+            <ComboboxContentWrapperAnchor anchor={anchor} />
+        </>
+    );
+}
+
+// Separate component to break the circular dependency of anchor needing to be passed to siblings
+// Actually, Base UI structure typically is:
+// <Combobox>
+//   <AnchorComponent /> 
+//   <ContentComponent anchor={refFromAnchorComponent} />
+// </Combobox>
+// But since the hook useComboboxAnchor() needs to be inside the component using it, or passed down.
+// In the user's example:
+// export function ComboboxMultiple() {
+//   const anchor = useComboboxAnchor() 
+//   return ( <Combobox> <ComboboxChips ref={anchor} ... /> <ComboboxContent anchor={anchor} ... /> </Combobox> )
+// }
+// Wait, useComboboxAnchor() is likely just a useRef. It doesn't need to be inside Combobox provider.
+// It just creates a ref that is attached to one element and passed to another.

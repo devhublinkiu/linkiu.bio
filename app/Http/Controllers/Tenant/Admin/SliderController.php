@@ -7,6 +7,7 @@ use App\Models\Slider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Gate;
 
 class SliderController extends Controller
 {
@@ -15,9 +16,9 @@ class SliderController extends Controller
      */
     public function index()
     {
-        $sliders = Slider::where('tenant_id', app('currentTenant')->id)
-            ->orderBy('sort_order')
-            ->get();
+        Gate::authorize('sliders.view');
+
+        $sliders = Slider::orderBy('sort_order')->get();
 
         return Inertia::render('Tenant/Admin/Sliders/Index', [
             'sliders' => $sliders
@@ -27,8 +28,10 @@ class SliderController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, $tenant)
+    public function store(Request $request)
     {
+        Gate::authorize('sliders.create');
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'image_path' => 'required|image|max:2048', // 2MB max
@@ -43,8 +46,6 @@ class SliderController extends Controller
             'is_active' => 'boolean'
         ]);
 
-        $validated['tenant_id'] = app('currentTenant')->id;
-
         // Handle Image Uploads
         if ($request->hasFile('image_path')) {
             $validated['image_path'] = $request->file('image_path')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
@@ -54,7 +55,13 @@ class SliderController extends Controller
             $validated['image_path_desktop'] = $request->file('image_path_desktop')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
         }
 
-        Slider::create($validated);
+        $slider = Slider::create($validated);
+
+        // Register in Media Library
+        if ($slider->image_path)
+            $this->registerMedia($slider->image_path);
+        if ($slider->image_path_desktop)
+            $this->registerMedia($slider->image_path_desktop);
 
         return redirect()->back()->with('success', 'Slider creado correctamente.');
     }
@@ -64,9 +71,7 @@ class SliderController extends Controller
      */
     public function update(Request $request, $tenant, Slider $slider)
     {
-        // Ensure tenant ownership
-        if ($slider->tenant_id !== app('currentTenant')->id)
-            abort(403);
+        Gate::authorize('sliders.update');
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -97,6 +102,12 @@ class SliderController extends Controller
 
         $slider->update($validated);
 
+        // Register in Media Library (if new ones were uploaded)
+        if ($request->hasFile('image_path'))
+            $this->registerMedia($slider->image_path);
+        if ($request->hasFile('image_path_desktop'))
+            $this->registerMedia($slider->image_path_desktop);
+
         return redirect()->back()->with('success', 'Slider actualizado.');
     }
 
@@ -105,8 +116,7 @@ class SliderController extends Controller
      */
     public function destroy($tenant, Slider $slider)
     {
-        if ($slider->tenant_id !== app('currentTenant')->id)
-            abort(403);
+        Gate::authorize('sliders.delete');
 
         if ($slider->image_path)
             Storage::disk('s3')->delete($slider->image_path);
@@ -123,11 +133,6 @@ class SliderController extends Controller
      */
     public function click(Slider $slider)
     {
-        // Validation handled by route model binding (implicit 404 if not found)
-        // Ensure it belongs to current tenant route scope if applicable
-        if ($slider->tenant_id !== app('currentTenant')->id)
-            abort(404);
-
         $slider->increment('clicks_count');
 
         if ($slider->link_type === 'external' && $slider->external_url) {
@@ -135,23 +140,41 @@ class SliderController extends Controller
         }
 
         if ($slider->link_type === 'internal' && $slider->linkable) {
-            // Assuming linkable models (Product/Category) have a 'route()' method or similar, 
-            // otherwise construct URL based on type.
-            // For now, redirect to home or implement dynamic routing.
-            // This needs frontend coordination, or simple logic here.
-
-            // Example redirection logic:
             if (method_exists($slider->linkable, 'getUrl')) {
                 return redirect($slider->linkable->getUrl());
             }
-            // Fallback for known types
-            /*
-            if ($slider->linkable_type === 'App\Models\Product') {
-                return redirect()->route('tenant.product', ['slug' => $slider->linkable->slug]);
-            }
-            */
         }
 
         return redirect()->route('tenant.home', ['tenant' => app('currentTenant')->slug]);
+    }
+
+    /**
+     * Internal helper to register media in the global library.
+     */
+    private function registerMedia($path, $folder = 'sliders')
+    {
+        if (!$path)
+            return;
+
+        $disk = Storage::disk('s3');
+        if (!$disk->exists($path))
+            return;
+
+        \App\Models\MediaFile::firstOrCreate(
+        ['path' => $path],
+        [
+            'tenant_id' => app('currentTenant')->id,
+            'name' => basename($path),
+            'disk' => 's3',
+            'mime_type' => $disk->mimeType($path),
+            'size' => $disk->size($path),
+            'extension' => pathinfo($path, PATHINFO_EXTENSION),
+            'type' => 'image',
+            'folder' => $folder,
+            'uploaded_by' => auth()->id(),
+            'url' => $disk->url($path),
+            'is_public' => true,
+        ]
+        );
     }
 }
