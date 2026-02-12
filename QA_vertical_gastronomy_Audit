@@ -1,0 +1,31 @@
+
+### Plantilla Estándar de Auditoría (Linkiu v2) ###
+
+Esta plantilla contiene los criterios de calidad técnicos para auditar cualquier módulo. Al auditar, copia esta lista y marca los cumplimientos. Los puntos están redactados para ser interpretados sistemáticamente por una Skill de IA.
+
+---
+
+### 1. Checklist de Calidad Técnica Estándar
+
+- [ ] **Estructura y Nomenclatura:** Validar que Controladores, Modelos y Vistas sigan las rutas `Tenant/Admin/[Vertical]`. Comprobar que los namespaces coincidan con la estructura de carpetas y los nombres usen PascalCase.
+- [ ] **Limpieza y Organización:** Confirmar ausencia de archivos temporales o lógica ajena al módulo. Verificar que el directorio sea autocontenido.
+- [ ] **Documentación de Módulo:** Verificar existencia de `modulos/[vertical]/[Modulo].md` con especificación técnica y linkeo actualizado en el `MASTER_MAP.md`.
+- [ ] **Arquitectura de Lógica:** Evaluar el uso de Traits compartidos para evitar duplicidad. Validar que la lógica de negocio pesada (cálculos, validaciones complejas) resida en el servidor.
+- [ ] **UX/UI Premium:** Validar estados de carga (skeletons/spinners), micro-interacciones en botones y consistencia visual con el sistema de diseño.
+- [ ] **Optimización de Queries (Performance):** Detectar patrones N+1. Validar uso de `with()` y `select()` para optimizar la hidratación de modelos.
+- [ ] **Estados Vacíos Visuales:** Confirmar que cada listado tenga un componente de "Empty State" con ilustración y descripción amigable, no solo texto plano.
+- [ ] **Confirmación de Acciones Críticas:** Validar implementación de `AlertDialog` en botones de eliminación o cambios irreversibles.
+- [ ] **Sistema de Notificaciones:** Confirmar disparadores de éxito/error mediante `Sonner` con mensajes claros y descriptivos.
+- [ ] **Responsividad Adaptativa:** Probar visualización en móviles y tablets. Verificar que elementos densos (tablas/kanban) tengan manejo de desbordamiento adecuado.
+- [ ] **Integración en Sidebar:** Validar ruta en `AdminSidebar.tsx`, visibilidad de ítem y resaltado de estado activo.
+- [ ] **Paginación y Carga de Datos:** Validar uso de `paginate()` en el backend para listados extensos.
+- [ ] **Blindaje de Seguridad (Gates):** Verificar `Gate::authorize()` o middleware `can:` en cada entrada del controlador. Validar protección contra escalada de privilegios.
+- [ ] **UX de Permisos:** Validar candado **rojo** y `PermissionDeniedModal` para usuarios sin acceso.
+- [ ] **Nivel de Plan (Upselling UX):** Validar badge **PRO** (ámbar) para módulos fuera del plan contratado.
+- [ ] **Contexto Multisede (Locations):** Verificar que la data se filtre por el `location_id` del usuario staff o contexto de la sede activa.
+
+---
+
+### 🔍 Módulo Auditado: [Nombre del Módulo]
+
+*(Aquí se documentarán los hallazgos específicos del módulo usando la estructura anterior)*

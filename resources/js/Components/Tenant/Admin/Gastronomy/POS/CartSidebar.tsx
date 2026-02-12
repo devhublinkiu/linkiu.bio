@@ -35,6 +35,7 @@ interface CartSidebarProps {
     canPay: boolean; // Permission check
     selectedTable: Table | null;
     onAddProducts: () => void;
+    onFreeTable?: () => void;
     taxSettings?: TaxSettings;
 }
 
@@ -51,6 +52,7 @@ export default function CartSidebar({
     canPay,
     selectedTable,
     onAddProducts,
+    onFreeTable,
     taxSettings
 }: CartSidebarProps) {
 
@@ -108,9 +110,21 @@ export default function CartSidebar({
                     </h2>
                     <p className="text-xs text-indigo-400 font-medium">Orden en curso</p>
                 </div>
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500" onClick={onClearCart}>
-                    <Trash2 className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                    {selectedTable.status === 'occupied' && onFreeTable && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-[10px] font-bold text-red-500 hover:bg-red-50 hover:text-red-600 h-8 px-2 border border-red-100 uppercase"
+                            onClick={onFreeTable}
+                        >
+                            Liberar
+                        </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500" onClick={onClearCart}>
+                        <Trash2 className="w-5 h-5" />
+                    </Button>
+                </div>
             </div>
 
             {/* Customer Selector */}
@@ -136,7 +150,7 @@ export default function CartSidebar({
                     {selectedCustomer ? (
                         <CreditCard className="w-4 h-4 text-indigo-300" />
                     ) : (
-                        <Badge variant="secondary" className="opacity-50">GUEST</Badge>
+                        <Badge variant="secondary" className="opacity-50">INVITADO</Badge>
                     )}
                 </Button>
             </div>

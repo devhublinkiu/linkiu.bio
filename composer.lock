@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "38366bde60b02aa058ef4505cb45b594",
+    "content-hash": "788693bd6f759cae85e566e1b6216269",
     "packages": [
         {
             "name": "ably/ably-php",
@@ -269,6 +269,56 @@
                 }
             ],
             "time": "2026-01-30T14:03:11+00:00"
+        },
+        {
+            "name": "bunnycdn/storage",
+            "version": "3.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/BunnyWay/BunnyCDN.PHP.Storage.git",
+                "reference": "a7709849f6779b85d2871a43a12fcd452b970c25"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/BunnyWay/BunnyCDN.PHP.Storage/zipball/a7709849f6779b85d2871a43a12fcd452b970c25",
+                "reference": "a7709849f6779b85d2871a43a12fcd452b970c25",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.8",
+                "php": "^7.4||^8.0",
+                "psr/http-message": "^2.0",
+                "symfony/polyfill-php80": "^1.29"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Bunny\\Storage\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Dejan Grofelnik Pelzel",
+                    "email": "dejan@bunnycdn.com"
+                }
+            ],
+            "description": "PHP library to interact with the BunnyCDN Storage API.",
+            "homepage": "https://bunny.net/storage/",
+            "keywords": [
+                "Bunny.net",
+                "bunnyCDN",
+                "media",
+                "storage"
+            ],
+            "support": {
+                "issues": "https://github.com/BunnyWay/BunnyCDN.PHP.Storage/issues",
+                "source": "https://github.com/BunnyWay/BunnyCDN.PHP.Storage/tree/3.4.0"
+            },
+            "time": "2024-07-29T08:21:54+00:00"
         },
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -3202,6 +3252,64 @@
                 }
             ],
             "time": "2025-12-27T19:41:33+00:00"
+        },
+        {
+            "name": "platformcommunity/flysystem-bunnycdn",
+            "version": "v3.3.10",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PlatformCommunity/flysystem-bunnycdn.git",
+                "reference": "97f34d0ee658dd3737852b554a1a2290a6b9114a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PlatformCommunity/flysystem-bunnycdn/zipball/97f34d0ee658dd3737852b554a1a2290a6b9114a",
+                "reference": "97f34d0ee658dd3737852b554a1a2290a6b9114a",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^7.4",
+                "league/flysystem": "^3.16",
+                "league/mime-type-detection": "^1.11"
+            },
+            "require-dev": {
+                "fzaninotto/faker": "^1.5",
+                "laravel/pint": "^0.2.3",
+                "league/flysystem-adapter-test-utilities": "^3",
+                "league/flysystem-memory": "^3.0",
+                "league/flysystem-path-prefixing": "^3.3",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "PlatformCommunity\\Flysystem\\BunnyCDN\\": "src/",
+                    "PlatformCommunity\\Flysystem\\BunnyCDN\\Tests\\": "tests/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alex",
+                    "email": "alex@platformapp.io"
+                }
+            ],
+            "description": "Flysystem adapter for BunnyCDN",
+            "support": {
+                "issues": "https://github.com/PlatformCommunity/flysystem-bunnycdn/issues",
+                "source": "https://github.com/PlatformCommunity/flysystem-bunnycdn/tree/v3.3.10"
+            },
+            "time": "2026-02-04T14:29:44+00:00"
         },
         {
             "name": "psr/clock",

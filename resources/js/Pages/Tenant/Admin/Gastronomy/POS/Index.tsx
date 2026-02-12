@@ -17,8 +17,9 @@ import CustomerSelectorModal from '@/Components/Tenant/Admin/Gastronomy/POS/Cust
 import CartSidebar from '@/Components/Tenant/Admin/Gastronomy/POS/CartSidebar';
 import ProductCatalogDrawer from '@/Components/Tenant/Admin/Gastronomy/POS/ProductCatalogDrawer';
 
-import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone } from '@/types/pos';
-import { Toaster, toast } from 'sonner';
+import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone, Location } from '@/types/pos';
+import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
 interface Props {
     tenant: any;
@@ -27,6 +28,8 @@ interface Props {
     reservations?: Reservation[];
     active_tables?: any[]; // Legacy prop just in case, active orders come inside zones
     taxSettings: TaxSettings;
+    locations: Location[];
+    currentLocationId: number;
     currentUserRole?: {
         label: string;
         is_owner: boolean;
@@ -34,7 +37,7 @@ interface Props {
     };
 }
 
-export default function POSIndex({ tenant, categories, zones = [], taxSettings, currentUserRole, reservations = [] }: Props) {
+export default function POSIndex({ tenant, categories, zones = [], taxSettings, currentUserRole, reservations = [], locations = [], currentLocationId }: Props) {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedTable, setSelectedTable] = useState<Table | null>(null);
     const [activeZoneId, setActiveZoneId] = useState<string>(zones.length > 0 ? String(zones[0].id) : 'all');
@@ -42,6 +45,12 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
     const [showCheckout, setShowCheckout] = useState(false);
     const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
     const [showProductDrawer, setShowProductDrawer] = useState(false);
+
+    // Multisede state
+    const [locationId, setLocationId] = useState(currentLocationId);
+    const [confirmCloseCartOpen, setConfirmCloseCartOpen] = useState(false);
+    const [confirmFreeTableOpen, setConfirmFreeTableOpen] = useState(false);
+    const [pendingTable, setPendingTable] = useState<Table | null>(null);
 
     // Waiter Mode Logic
     const isWaiter = currentUserRole?.label === 'waiter' || currentUserRole?.permissions.includes('pos.waiter_mode');
@@ -120,11 +129,9 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
         // Warn if switching tables with unsaved cart
         if (selectedTable && selectedTable.id !== table.id && cart.length > 0) {
-            if (!confirm("Tienes productos en el carrito sin guardar. ¿Cambiar de mesa y limpiar carrito?")) {
-                return;
-            }
-            setCart([]);
-            setSelectedCustomer(null);
+            setPendingTable(table);
+            setConfirmCloseCartOpen(true);
+            return;
         } else if (selectedTable?.id !== table.id) {
             // Clean slate when switching
             setCart([]);
@@ -252,7 +259,8 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             return;
         }
 
-        router.post(route('tenant.pos.store'), {
+        router.post(route('tenant.pos.store', { tenant: tenant.slug }), {
+            location_id: locationId,
             items: cart.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
@@ -265,6 +273,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             customer_id: selectedCustomer?.id || null,
             customer_name: selectedCustomer?.name || `Mesa ${selectedTable.name}`,
             customer_phone: selectedCustomer?.phone || null,
+            send_to_kitchen: true,
         }, {
             onSuccess: () => {
                 toast.success('Pedido enviado a cocina');
@@ -275,23 +284,47 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
         });
     };
 
+    const handleFreeTable = () => {
+        if (!selectedTable) return;
+        setConfirmFreeTableOpen(true);
+    };
+
+    const confirmFreeTableAction = () => {
+        if (!selectedTable) return;
+
+        router.post(route('tenant.admin.pos.free-table', {
+            tenant: tenant.slug,
+            table: selectedTable.id
+        }), {}, {
+            onSuccess: () => {
+                toast.success("Mesa liberada correctamente");
+                setSelectedTable(null);
+                setCart([]);
+                setConfirmFreeTableOpen(false);
+            }
+        });
+    };
+
+    const handleLocationChange = (val: string) => {
+        router.visit(route('tenant.pos.index', { tenant: tenant.slug, location_id: val }));
+    };
+
     return (
         <POSLayout title="POS | Mesas" user={currentUserRole} tenant={tenant}>
             <Head title="Punto de Venta" />
-            <Toaster position="top-right" />
 
             <div className="w-full flex h-[calc(100vh-64px)] overflow-hidden">
 
                 {/* LEFT: Zone Map Area */}
                 <div className="flex-1 flex flex-col bg-slate-100 min-w-0">
 
-                    {/* Zone Tabs */}
-                    <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-10 shrink-0">
+                    {/* Zone Tabs & Location Selector */}
+                    <div className="bg-white border-b px-6 py-4 flex justify-between items-center z-10 shrink-0">
                         <div className="flex space-x-2 overflow-x-auto">
                             <button
                                 onClick={() => setActiveZoneId('all')}
                                 className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeZoneId === 'all'
-                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    ? 'bg-slate-900 text-white'
                                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                     }`}
                             >
@@ -302,7 +335,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                     key={zone.id}
                                     onClick={() => setActiveZoneId(String(zone.id))}
                                     className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeZoneId === String(zone.id)
-                                        ? 'bg-indigo-600 text-white shadow-md'
+                                        ? 'bg-slate-900 text-white'
                                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                         }`}
                                 >
@@ -311,13 +344,25 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                             ))}
                         </div>
 
+                        <div className="hidden md:flex items-center gap-2">
+                            <Select value={String(locationId)} onValueChange={handleLocationChange}>
+                                <SelectTrigger className="w-[200px] h-9 bg-slate-50 border-slate-200">
+                                    <SelectValue placeholder="Seleccionar Sede" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {locations.map(loc => (
+                                        <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     {/* Banner Modo Check-in */}
                     {currentReservationCheckingIn && (
-                        <div className="bg-indigo-600 text-white px-6 py-3 flex items-center justify-between shadow-md z-20 animate-in fade-in slide-in-from-top duration-300">
+                        <div className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between z-20 animate-in fade-in slide-in-from-top duration-300">
                             <div className="flex items-center gap-3 font-bold">
-                                <Armchair className="w-5 h-5" />
+                                <Armchair className="w-5 h-5 text-indigo-400" />
                                 <span>MODO CHECK-IN: Selecciona mesa para {currentReservationCheckingIn.customer_name} ({currentReservationCheckingIn.party_size} pax)</span>
                             </div>
                             <Button
@@ -355,19 +400,19 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                         }
 
                                         if (displayStatus === 'occupied') {
-                                            statusColor = "bg-red-50 border-red-200 ring-1 ring-red-100";
+                                            statusColor = "bg-red-50/30 border-red-200";
                                             statusBadge = "bg-red-100 text-red-600";
                                             icon = <Clock className="w-8 h-8 text-red-400" />;
                                         } else if (displayStatus === 'reserved') {
-                                            statusColor = "bg-amber-50 border-amber-200 ring-1 ring-amber-100";
+                                            statusColor = "bg-amber-50/30 border-amber-200";
                                             statusBadge = "bg-amber-100 text-amber-600";
                                             icon = <CheckCircle className="w-8 h-8 text-amber-400" />;
                                         } else if (displayStatus === 'available') {
-                                            statusColor = "bg-green-50 border-green-200 ring-1 ring-green-100 hover:shadow-lg cursor-pointer";
-                                            statusBadge = "bg-green-100 text-green-600";
-                                            icon = <Armchair className="w-8 h-8 text-green-400" />;
+                                            statusColor = "bg-white border-slate-200 hover:bg-slate-50";
+                                            statusBadge = "bg-slate-100 text-slate-500";
+                                            icon = <Armchair className="w-8 h-8 text-slate-300" />;
                                         } else if (displayStatus === 'maintenance') {
-                                            statusColor = "bg-slate-200 border-slate-300 opacity-60";
+                                            statusColor = "bg-slate-100 border-slate-200 opacity-50";
                                             icon = <Construction className="w-8 h-8 text-slate-400" />;
                                         }
 
@@ -378,9 +423,9 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                                 key={table.id}
                                                 onClick={() => handleTableClick(table)}
                                                 className={`
-                                                    relative h-40 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer shadow-sm
+                                                    relative h-40 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer
                                                     ${statusColor}
-                                                    ${isSelected ? 'ring-4 ring-indigo-500 border-indigo-600 transform scale-105 shadow-xl z-10' : 'hover:scale-105 active:scale-95'}
+                                                    ${isSelected ? 'border-2 border-slate-900 bg-white ring-2 ring-slate-900/10' : 'hover:border-slate-400'}
                                                 `}
                                             >
                                                 {/* Header Status */}
@@ -436,7 +481,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
 
                 {/* RIGHT: Cart Sidebar */}
-                <div className="hidden lg:flex w-[400px] border-l border-slate-200 shrink-0 bg-white z-20 h-full shadow-2xl">
+                <div className="hidden lg:flex w-[400px] border-l border-slate-200 shrink-0 bg-white z-20 h-full">
                     <CartSidebar
                         cart={cart}
                         cartTotal={cartTotal}
@@ -456,6 +501,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                             }
                             setShowProductDrawer(true);
                         }}
+                        onFreeTable={handleFreeTable}
                         taxSettings={taxSettings}
                     />
                 </div>
@@ -483,6 +529,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                             setIsMobileCartOpen(false);
                             setShowProductDrawer(true);
                         }}
+                        onFreeTable={handleFreeTable}
                         taxSettings={taxSettings}
                     />
                 </SheetContent>
@@ -501,7 +548,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 <Button
                     onClick={() => setIsMobileCartOpen(true)}
                     size="lg"
-                    className="rounded-full w-14 h-14 shadow-xl bg-indigo-600 hover:bg-indigo-700 text-white relative"
+                    className="rounded-full w-14 h-14 shadow-lg bg-slate-900 hover:bg-slate-800 text-white relative"
                 >
                     <ShoppingCart className="w-6 h-6" />
                     {cart.length > 0 && (
@@ -528,6 +575,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 tenant={tenant}
                 table={selectedTable}
                 isWaiter={isWaiter}
+                locationId={locationId}
             />
 
             <VariantSelectorModal
@@ -586,9 +634,56 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                         }}>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmCheckIn}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className="bg-slate-900 text-white hover:bg-slate-800"
                         >
                             Sí, Check-in
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Clear Cart Confirmation */}
+            <AlertDialog open={confirmCloseCartOpen} onOpenChange={setConfirmCloseCartOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Cambiar de mesa?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tienes productos en el carrito. Al cambiar de mesa, el carrito actual se vaciará.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setConfirmCloseCartOpen(false)}>Mantener mesa actual</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setCart([]);
+                                setSelectedCustomer(null);
+                                setSelectedTable(pendingTable);
+                                setConfirmCloseCartOpen(false);
+                            }}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                        >
+                            Vaciar y Cambiar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            {/* Free Table Confirmation */}
+            <AlertDialog open={confirmFreeTableOpen} onOpenChange={setConfirmFreeTableOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-600">¿Liberar Mesa Manualmente?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción cambiará el estado de la mesa <strong className="text-slate-900">{selectedTable?.name}</strong> a <span className="text-green-600 font-bold">Disponible</span> sin procesar un pago.
+                            Úsala solo en casos excepcionales (error de sistema o cliente que se retiró sin consumir).
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Volver</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmFreeTableAction}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                        >
+                            Sí, Liberar Mesa
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

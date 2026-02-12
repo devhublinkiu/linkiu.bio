@@ -18,6 +18,7 @@ trait ProcessesGastronomyOrders
     protected function getOrderValidationRules(): array
     {
         return [
+            'location_id' => 'required|exists:locations,id',
             'service_type' => 'required|string|in:dine_in,takeout,delivery',
             'table_id' => 'nullable|exists:tables,id',
             'customer_id' => 'nullable|integer|exists:gastronomy_customers,id',
@@ -27,13 +28,14 @@ trait ProcessesGastronomyOrders
             'delivery_cost' => 'nullable|numeric',
             'payment_method' => 'nullable|string|in:cash,transfer,card',
             'payment_reference' => 'nullable|string|max:255',
-            'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
             'cash_amount' => 'nullable|numeric',
             'cash_change' => 'nullable|numeric',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.variant_options' => 'nullable|array',
+            'send_to_kitchen' => 'nullable|boolean',
         ];
     }
 
@@ -51,7 +53,8 @@ trait ProcessesGastronomyOrders
             // Handle file upload
             $paymentProofPath = null;
             if ($request->hasFile('payment_proof')) {
-                $paymentProofPath = $request->file('payment_proof')->store('payment_proofs', 'public');
+                // Linkiu v2: Siempre usar disco 'bunny'
+                $paymentProofPath = $request->file('payment_proof')->store('payment_proofs', 'bunny');
             }
 
             // Calculations logic
@@ -132,13 +135,14 @@ trait ProcessesGastronomyOrders
             $finalTotal = $orderTotal + $deliveryCost;
 
             $cashChange = 0;
-            if ($validated['payment_method'] === 'cash' && isset($validated['cash_amount'])) {
+            if (isset($validated['payment_method']) && $validated['payment_method'] === 'cash' && isset($validated['cash_amount'])) {
                 $cashChange = $validated['cash_amount'] - $finalTotal;
             }
 
-            // Create Order
+            // Create Order v2 (Location Support)
             $order = Order::create([
                 'tenant_id' => $tenant->id,
+                'location_id' => $validated['location_id'],
                 'status' => $initialStatus,
                 'service_type' => $validated['service_type'],
                 'table_id' => $validated['service_type'] === 'dine_in' ? $validated['table_id'] : null,
@@ -158,9 +162,10 @@ trait ProcessesGastronomyOrders
                 'created_by' => auth()->id(),
             ]);
 
-            // Table Status
+            // Table Status v2 (Pago Diferido Fix)
             if ($validated['service_type'] === 'dine_in' && $validated['table_id']) {
-                if ($validated['payment_method']) {
+                // Si hay método de pago, la mesa se libera. Si no, se queda ocupada.
+                if (isset($validated['payment_method']) && $validated['payment_method']) {
                     Table::where('id', $validated['table_id'])->update(['status' => 'available']);
                 }
                 else {
@@ -182,8 +187,10 @@ trait ProcessesGastronomyOrders
                 'notes' => "Pedido creado desde $source por " . (auth()->user()->name ?? 'Usuario'),
             ]);
 
-            // Events
-            if ($initialStatus === 'confirmed') {
+            // Events v2 (Kitchen Toggle Fix)
+            $sendToKitchen = filter_var($validated['send_to_kitchen'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            if ($initialStatus === 'confirmed' || $sendToKitchen) {
                 \App\Events\OrderSentToKitchen::dispatch($order);
             }
             else {
@@ -197,7 +204,6 @@ trait ProcessesGastronomyOrders
                     $adminUser->notify(new \App\Notifications\NewOrderNotification($order));
                 }
                 catch (\Exception $e) {
-                    // Silently fail if notification fails to not block order creation
                     \Illuminate\Support\Facades\Log::error("Failed to notify admin for order #{$order->id}: " . $e->getMessage());
                 }
             }

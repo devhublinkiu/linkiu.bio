@@ -16,6 +16,7 @@ class Order extends Model
 
     protected $fillable = [
         'tenant_id',
+        'location_id',
         'status',
         'service_type',
         'table_id',
@@ -67,7 +68,7 @@ class Order extends Model
 
     public function getPaymentProofUrlAttribute()
     {
-        return $this->payment_proof ? asset('storage/' . $this->payment_proof) : null;
+        return $this->payment_proof ?\Illuminate\Support\Facades\Storage::disk('bunny')->url($this->payment_proof) : null;
     }
 
     public function items()
@@ -83,5 +84,10 @@ class Order extends Model
     public function table()
     {
         return $this->belongsTo(Table::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(\App\Models\Location::class);
     }
 }

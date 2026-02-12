@@ -4,11 +4,16 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Filesystem\FilesystemAdapter;
+use League\Flysystem\Filesystem;
+use PlatformCommunity\Flysystem\BunnyCDN\BunnyCDNAdapter;
+use PlatformCommunity\Flysystem\BunnyCDN\BunnyCDNClient;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Register any application services
      */
     public function register(): void
     {
@@ -20,6 +25,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Storage::extend('bunnycdn', function ($app, $config) {
+            $client = new BunnyCDNClient(
+                $config['storage_zone'],
+                $config['api_key'],
+                $config['region']
+            );
+
+            return new FilesystemAdapter(
+                new Filesystem(new BunnyCDNAdapter($client, $config['url'])),
+                new BunnyCDNAdapter($client, $config['url']),
+                $config
+            );
+        });
+
         Vite::prefetch(concurrency: 3);
 
         \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {

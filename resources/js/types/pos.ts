@@ -85,3 +85,12 @@ export interface TaxSettings {
     tax_rate: number;
     price_includes_tax: boolean;
 }
+
+export interface Location {
+    id: number;
+    name: string;
+    address?: string;
+    phone?: string;
+    is_main: boolean;
+    is_active: boolean;
+}

@@ -10,28 +10,43 @@ use Inertia\Inertia;
 
 class TableController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $tenant = app('currentTenant');
 
+        $locations = \App\Models\Location::where('tenant_id', $tenant->id)->get();
+
+        $locationId = $request->input('location_id');
+        if (!$locationId && $locations->count() > 0) {
+            $mainLocation = $locations->where('is_main', true)->first() ?: $locations->first();
+            $locationId = $mainLocation->id;
+        }
+
         $zones = Zone::where('tenant_id', $tenant->id)
-            ->with('tables')
+            ->where('location_id', $locationId)
+            ->with(['tables' => function ($q) {
+            $q->orderBy('name', 'asc');
+        }])
             ->orderBy('name', 'asc')
             ->get();
 
         return Inertia::render('Tenant/Admin/Gastronomy/Tables/Index', [
-            'zones' => $zones
+            'zones' => $zones,
+            'locations' => $locations,
+            'currentLocationId' => (int)$locationId,
         ]);
     }
 
     public function storeZone(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100'
+            'name' => 'required|string|max:100',
+            'location_id' => 'required|exists:locations,id'
         ]);
 
         Zone::create([
             'tenant_id' => app('currentTenant')->id,
+            'location_id' => $validated['location_id'],
             'name' => $validated['name']
         ]);
 
@@ -41,7 +56,8 @@ class TableController extends Controller
     public function updateZone(Request $request, $tenant, Zone $zone)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100'
+            'name' => 'required|string|max:100',
+            'location_id' => 'required|exists:locations,id'
         ]);
 
         $zone->update($validated);
@@ -59,9 +75,10 @@ class TableController extends Controller
     {
         $validated = $request->validate([
             'zone_id' => 'required|exists:zones,id',
+            'location_id' => 'required|exists:locations,id',
             'name' => 'required|string|max:100',
             'capacity' => 'nullable|integer|min:1',
-            'status' => 'required|in:active,maintenance,inactive'
+            'status' => 'required|in:available,occupied,reserved,maintenance'
         ]);
 
         Table::create($validated + ['tenant_id' => app('currentTenant')->id]);
@@ -73,9 +90,10 @@ class TableController extends Controller
     {
         $validated = $request->validate([
             'zone_id' => 'required|exists:zones,id',
+            'location_id' => 'required|exists:locations,id',
             'name' => 'required|string|max:100',
             'capacity' => 'nullable|integer|min:1',
-            'status' => 'required|in:active,maintenance,inactive'
+            'status' => 'required|in:available,occupied,reserved,maintenance'
         ]);
 
         $table->update($validated);
@@ -93,6 +111,7 @@ class TableController extends Controller
     {
         $validated = $request->validate([
             'zone_id' => 'required|exists:zones,id',
+            'location_id' => 'required|exists:locations,id',
             'prefix' => 'nullable|string|max:50',
             'start_number' => 'required|integer|min:1',
             'count' => 'required|integer|min:1|max:50',
@@ -106,10 +125,11 @@ class TableController extends Controller
             $number = $validated['start_number'] + $i;
             Table::create([
                 'tenant_id' => $tenantId,
+                'location_id' => $validated['location_id'],
                 'zone_id' => $validated['zone_id'],
                 'name' => $prefix . $number,
                 'capacity' => $validated['capacity'],
-                'status' => 'active'
+                'status' => 'available'
             ]);
         }
 
@@ -131,10 +151,10 @@ class TableController extends Controller
 
         $zones = Zone::where('tenant_id', $tenant->id)
             ->with([
-                'tables' => function ($query) {
-                    $query->where('status', 'active');
-                }
-            ])
+            'tables' => function ($query) {
+            $query->where('status', 'available');
+        }
+        ])
             ->orderBy('name', 'asc')
             ->get();
 

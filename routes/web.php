@@ -293,6 +293,7 @@ Route::prefix('{tenant}')->group(function () {
 
                         // Punto de Venta (POS)
                         Route::get('/pos', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'index'])->name('tenant.admin.pos');
+                        Route::post('/pos/tables/{table}/free', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'freeTable'])->name('tenant.admin.pos.free-table');
                         Route::get('/pos/customers', [\App\Http\Controllers\Tenant\Gastronomy\CustomerController::class , 'index'])->name('tenant.admin.pos.customers.index');
                         Route::post('/pos/customers', [\App\Http\Controllers\Tenant\Gastronomy\CustomerController::class , 'store'])->name('tenant.admin.pos.customers.store');
 

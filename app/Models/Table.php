@@ -15,12 +15,18 @@ class Table extends Model
 
     protected $fillable = [
         'tenant_id',
+        'location_id',
         'zone_id',
         'name',
         'token',
         'capacity',
         'status'
     ];
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Location::class);
+    }
 
     /**
      * Auto-generate a unique token on creation

@@ -863,3 +863,66 @@ MÃ³dulo de gestiÃ³n de archivos centralizado. Se asegura que la polÃ­tica 
 ---
 
 ---
+
+---
+
+## 🔍 Módulo: Pedidos (Gastronomy Orders)
+
+### Documentación
+
+| Campo       | Valor               |
+|-------------|---------------------|
+| Verticales  | Gastronomía         |
+| Fecha       | 11/02/2026          |
+| Versión     | 1.0                 |
+
+### Checklist
+
+#### Archivos del módulo auditados:
+- `app/Http/Controllers/Tenant/Admin/Gastronomy/OrderController.php`
+- `app/Models/Tenant/Gastronomy/Order.php`
+- `app/Models/Tenant/Gastronomy/OrderItem.php`
+- `app/Traits/ProcessesGastronomyOrders.php`
+- `resources/js/Pages/Tenant/Admin/Gastronomy/Orders/Index.tsx`
+- `routes/web.php` (Líneas 300-305 admin, 216-219 público)
+
+---
+
+- [x] **Estructura de archivos:** ✅ Controlador, modelos, traits y vistas en carpetas correctas según convención.
+- [x] **Limpieza de carpetas:** ✅ Carpeta `Orders/` limpia.
+- [ ] **Registro en directorio de módulos:** ❌ No existe `modulos/gastronomia/Pedidos.md` o similar.
+- [x] **Revisión de lógica:** ⚠️ Implementado aislamiento de tenant y transacciones. Sin embargo, falta protección de Gates en el controlador.
+- [x] **Revisión de UX:** ⚠️ Tablero Kanban funcional con tiempo real. Se recomienda mejorar los estados vacíos de las columnas.
+- [x] **Rendimiento de queries:** ✅ Eager loading de `items`, `product` y `table` implementado.
+- [x] **Estados vacíos:** ⚠️ Básico ("Sin pedidos").
+- [x] **Confirmación de acciones destructivas:** ✅ AlertDialog en "Cancelar Pedido".
+- [x] **Notificaciones (Sonner):** ✅ Toasts de éxito y error presentes. Notificación real-time con sonido.
+- [x] **Responsividad:** ✅ Layout responsivo con scroll horizontal en Kanban.
+- [x] **Acceso desde sidebar:** ✅ Enlace presente en `AdminSidebar.tsx`.
+- [x] **Paginación:** ✅ Implementada en la vista de historial.
+- [ ] **Seguridad de rutas:** ❌ Falla. El `OrderController` no tiene `Gate::authorize()` en sus mÃ©todos.
+- [x] **Restricción de Permisos (Sidebar UX):** ✅ Candado rojo y modal integrados.
+- [x] **Restricción de Plan (Sidebar UX):** ✅ Badge PRO integrado.
+
+### Resumen de auditoría
+
+| Resultado | Cantidad |
+|-----------|----------|
+| ✅ Aprobado / Corregido | 11 |
+| ⚠️ Con observaciones | 3 |
+| ❌ Falla | 2 |
+
+### Recomendaciones
+
+| #  | Ítem del checklist | Hallazgo | Recomendación | Estado |
+|----|-------------------|----------|---------------|--------|
+| 1  | Seguridad de rutas | El `OrderController` no valida permisos vía Gates. | Agregar `Gate::authorize('orders.view')` y `Gate::authorize('orders.update')` en el controlador. | ⏳ Pendiente |
+| 2  | Registro en módulos | Sin documentación técnica en `modulos/`. | Crear `modulos/gastronomia/Pedidos.md`. | ⏳ Pendiente |
+| 3  | Estados vacíos | Los estados vacíos en el Kanban son texto simple. | Agregar un componente de "Empty State" más visual con ilustración y mensaje motivador. | ⏳ Pendiente |
+| 4 | Revisión de lógica | El controlador carga 50 pedidos activos forzados. | Podría ser un problema de rendimiento a largo plazo si hay demasiados pedidos "Ready" no entregados. | ⚠️ Nota |
+
+### Correcciones realizadas
+
+| #  | Recomendación aplicada | Archivos modificados | Fecha |
+|----|----------------------|---------------------|-------|
+| 1  |                      |                     |       |

@@ -47,7 +47,13 @@ interface Table {
     name: string;
     token: string;
     capacity: number | null;
-    status: 'active' | 'maintenance' | 'inactive';
+    status: 'available' | 'occupied' | 'reserved' | 'maintenance' | 'active' | 'inactive'; // Added temporary legacy types for safety
+}
+
+interface Location {
+    id: number;
+    name: string;
+    is_main: boolean;
 }
 
 interface Zone {
@@ -58,9 +64,11 @@ interface Zone {
 
 interface Props {
     zones: Zone[];
+    locations: Location[];
+    currentLocationId: number;
 }
 
-export default function Index({ zones }: Props) {
+export default function Index({ zones, locations, currentLocationId }: Props) {
     const { currentTenant } = usePage<PageProps>().props;
     const [isZoneSheetOpen, setIsZoneSheetOpen] = useState(false);
     const [isTableSheetOpen, setIsTableSheetOpen] = useState(false);
@@ -72,24 +80,28 @@ export default function Index({ zones }: Props) {
     // Zone Form
     const zoneForm = useForm({
         name: '',
+        location_id: currentLocationId.toString(),
     });
 
     // Table Form
     const tableForm = useForm<{
         zone_id: string;
+        location_id: string;
         name: string;
         capacity: string;
-        status: 'active' | 'maintenance' | 'inactive';
+        status: 'available' | 'occupied' | 'reserved' | 'maintenance';
     }>({
         zone_id: '',
+        location_id: currentLocationId.toString(),
         name: '',
         capacity: '',
-        status: 'active',
+        status: 'available',
     });
 
     // Bulk Form
     const bulkForm = useForm({
         zone_id: '',
+        location_id: currentLocationId.toString(),
         prefix: 'Mesa ',
         start_number: 1,
         count: 10,
@@ -102,7 +114,8 @@ export default function Index({ zones }: Props) {
             zoneForm.setData('name', zone.name);
         } else {
             setEditingZone(null);
-            zoneForm.reset();
+            zoneForm.reset('name');
+            zoneForm.setData('location_id', currentLocationId.toString());
         }
         setIsZoneSheetOpen(true);
     };
@@ -114,11 +127,13 @@ export default function Index({ zones }: Props) {
                 zone_id: table.zone_id.toString(),
                 name: table.name,
                 capacity: table.capacity?.toString() || '',
-                status: table.status,
+                status: (table.status === 'active' ? 'available' : (table.status === 'inactive' ? 'maintenance' : table.status)) as any,
+                location_id: currentLocationId.toString(),
             });
         } else {
             setEditingTable(null);
-            tableForm.reset();
+            tableForm.reset('name', 'capacity', 'status');
+            tableForm.setData('location_id', currentLocationId.toString());
             if (zoneId) tableForm.setData('zone_id', zoneId.toString());
         }
         setIsTableSheetOpen(true);
@@ -196,9 +211,16 @@ export default function Index({ zones }: Props) {
 
     const getStatusBadge = (status: Table['status']) => {
         switch (status) {
-            case 'active': return <Badge className="bg-green-500">Activa</Badge>;
-            case 'maintenance': return <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Mantenimiento</Badge>;
-            case 'inactive': return <Badge variant="secondary">Inactiva</Badge>;
+            case 'available':
+            case 'active': // Legacy
+                return <Badge className="bg-emerald-500">Disponible</Badge>;
+            case 'occupied':
+                return <Badge className="bg-amber-500">Ocupada</Badge>;
+            case 'reserved':
+                return <Badge className="bg-indigo-500">Reservada</Badge>;
+            case 'maintenance':
+            case 'inactive': // Legacy
+                return <Badge variant="outline" className="text-slate-400 border-slate-200 bg-slate-50">Mantenimiento</Badge>;
         }
     };
 
@@ -212,6 +234,24 @@ export default function Index({ zones }: Props) {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Mesas y Zonas</h1>
                         <p className="text-sm text-muted-foreground">Organiza tus espacios y genera QRs para pedidos en mesa.</p>
+
+                        {/* Location Selector */}
+                        <div className="mt-4 flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sede:</span>
+                            <Select
+                                value={currentLocationId.toString()}
+                                onValueChange={(val) => router.get(route('tenant.admin.tables.index', [currentTenant?.slug]), { location_id: val }, { preserveState: true })}
+                            >
+                                <SelectTrigger className="w-[200px] h-8 text-xs bg-white">
+                                    <SelectValue placeholder="Seleccionar Sede" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {locations.map(loc => (
+                                        <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={() => router.get(route('tenant.admin.tables.print', [currentTenant?.slug]))}>
@@ -352,6 +392,23 @@ export default function Index({ zones }: Props) {
                                 required
                             />
                         </div>
+
+                        <div className="space-y-2">
+                            <Label>Sede</Label>
+                            <Select
+                                value={zoneForm.data.location_id}
+                                onValueChange={v => zoneForm.setData('location_id', v)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {locations.map(loc => (
+                                        <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <SheetFooter>
                             <Button type="submit" disabled={zoneForm.processing} className="w-full">
                                 {zoneForm.processing ? 'Guardando...' : editingZone ? 'Actualizar' : 'Crear Zona'}
@@ -417,9 +474,27 @@ export default function Index({ zones }: Props) {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="active">Activa</SelectItem>
+                                    <SelectItem value="available">Disponible</SelectItem>
+                                    <SelectItem value="occupied">Ocupada</SelectItem>
+                                    <SelectItem value="reserved">Reservada</SelectItem>
                                     <SelectItem value="maintenance">Mantenimiento</SelectItem>
-                                    <SelectItem value="inactive">Inactiva</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Sede</Label>
+                            <Select
+                                value={tableForm.data.location_id}
+                                onValueChange={v => tableForm.setData('location_id', v)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {locations.map(loc => (
+                                        <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

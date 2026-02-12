@@ -4,7 +4,7 @@ import { Button } from "@/Components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
-import { CreditCard, Banknote, Smartphone, CheckCircle } from 'lucide-react';
+import { CreditCard, Banknote, Smartphone, CheckCircle, Utensils, Clock } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -23,15 +23,17 @@ interface CheckoutDialogProps {
     tenant: any;
     table?: Table | null; // Made table prop more specific
     isWaiter?: boolean;
+    locationId: number;
 }
 
-export default function CheckoutDialog({ open, onOpenChange, total, items, onSuccess, customer, tenant, table, isWaiter = false }: CheckoutDialogProps) {
+export default function CheckoutDialog({ open, onOpenChange, total, items, onSuccess, customer, tenant, table, isWaiter = false, locationId }: CheckoutDialogProps) {
     const [method, setMethod] = useState<'cash' | 'card' | 'transfer'>('cash');
     const [cashAmount, setCashAmount] = useState<string>('');
     const [transferRef, setTransferRef] = useState('');
     const [magicToken, setMagicToken] = useState<string>('');
     const [uploadedProof, setUploadedProof] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [sendToKitchen, setSendToKitchen] = useState(true);
 
     // Safety check for tenant
     if (!tenant) {
@@ -59,7 +61,7 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
 
         try {
             // @ts-ignore
-            if (window.Echo) {
+            if (window.Echo && window.Echo.connector) {
                 // @ts-ignore
                 channel = window.Echo.private(`pos.${tenant.id}.magic.${magicToken}`)
                     .listen('.proof.uploaded', (e: any) => {
@@ -69,7 +71,7 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
                         toast.success('¡Comprobante recibido!');
                     });
             } else {
-                console.warn('Echo not initialized');
+                console.warn('Echo or Echo connector not initialized');
             }
         } catch (error) {
             console.error('Echo subscription error:', error);
@@ -85,40 +87,40 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
     const change = method === 'cash' && cashAmount ? parseFloat(cashAmount) - total : 0;
     const isValid = method !== 'cash' || (parseFloat(cashAmount) >= total);
 
-    const handleConfirm = () => {
-        if (!isValid) return;
+    const handleConfirm = (payNow: boolean = true) => {
+        if (payNow && !isValid) return;
 
         setIsProcessing(true);
 
-        router.post(route('tenant.pos.store'), {
+        router.post(route('tenant.pos.store', { tenant: tenant.slug }), {
+            location_id: locationId,
             items: items.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
                 variant_options: item.variant_options
             })),
-            payment_method: method,
+            payment_method: payNow ? method : null,
             total,
-            service_type: 'takeout', // Default for POS Quick Order
-            cash_given: method === 'cash' ? parseFloat(cashAmount) : null,
-            cash_change: method === 'cash' ? change : null,
-            payment_reference: method === 'transfer' ? transferRef : null,
+            service_type: table ? 'dine_in' : 'takeout',
+            cash_given: payNow && method === 'cash' ? parseFloat(cashAmount) : null,
+            cash_change: payNow && method === 'cash' ? change : null,
+            payment_reference: payNow && method === 'transfer' ? transferRef : null,
             customer_id: customer ? customer.id : null,
-            customer_name: customer ? customer.name : 'Mostrador',
+            customer_name: customer ? customer.name : (table ? `Mesa ${table.name}` : 'Mostrador'),
             customer_phone: customer ? customer.phone : null,
             table_id: table ? table.id : null,
+            send_to_kitchen: sendToKitchen,
         }, {
             onSuccess: () => {
                 setIsProcessing(false);
                 onOpenChange(false);
                 onSuccess();
-                toast.success('¡Pedido creado exitosamente!');
-                // Automatically reset for next order handled by parent or page reload?
-                // Parent acts on onSuccess to clear cart.
+                toast.success(payNow ? '¡Pedido cobrado exitosamente!' : '¡Pedido guardado y mesa ocupada!');
             },
             onError: (errors) => {
                 setIsProcessing(false);
                 console.error(errors);
-                toast.error('Error al crear el pedido. Verifica los datos.');
+                toast.error('Error al procesar el pedido.');
             }
         });
     };
@@ -131,9 +133,28 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
                 </DialogHeader>
 
                 <div className="py-4">
+                    {/* Kitchen Toggle (v2) */}
+                    <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 mb-6">
+                        <div className="flex items-center gap-2">
+                            <Utensils className="w-5 h-5 text-indigo-600" />
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-900">Enviar a Cocina</span>
+                                <span className="text-[10px] text-slate-500">¿Emitir comanda al KDS?</span>
+                            </div>
+                        </div>
+                        <Button
+                            variant={sendToKitchen ? "default" : "outline"}
+                            size="sm"
+                            className={`h-8 px-3 ${sendToKitchen ? 'bg-indigo-600' : ''}`}
+                            onClick={() => setSendToKitchen(!sendToKitchen)}
+                        >
+                            {sendToKitchen ? 'SÍ' : 'NO'}
+                        </Button>
+                    </div>
+
                     <div className="text-center mb-6">
                         <span className="text-slate-500 text-sm">Total a Pagar</span>
-                        <div className="text-5xl font-black text-indigo-600 mt-1">
+                        <div className="text-5xl font-black text-slate-900 mt-1">
                             ${total.toLocaleString()}
                         </div>
                     </div>
@@ -186,8 +207,8 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
 
                         <TabsContent value="card">
                             <div className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center gap-2">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                                    <CreditCard className="w-6 h-6 text-indigo-600" />
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200">
+                                    <CreditCard className="w-6 h-6 text-slate-900" />
                                 </div>
                                 <p className="text-sm text-slate-600 font-medium">Procesar pago en datáfono por <span className="font-bold text-slate-900">${total.toLocaleString()}</span></p>
                             </div>
@@ -207,7 +228,7 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
                                         <a href={uploadedProof} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 underline">
                                             Ver Comprobante
                                         </a>
-                                        <img src={uploadedProof} alt="Proof" className="w-16 h-16 object-cover rounded border" />
+                                        <img src={uploadedProof} alt="Comprobante" className="w-16 h-16 object-cover rounded border" />
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center gap-2">
@@ -238,18 +259,31 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
                     </Tabs>
                 </div>
 
-                <DialogFooter className="sm:justify-between gap-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                    <div className="flex-1 flex gap-2">
+                        <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancelar</Button>
+                        {table && (
+                            <Button
+                                variant="secondary"
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-900"
+                                onClick={() => handleConfirm(false)}
+                                disabled={isProcessing}
+                            >
+                                <Clock className="w-4 h-4 mr-2" />
+                                Guardar
+                            </Button>
+                        )}
+                    </div>
                     <Button
                         size="lg"
-                        className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-                        onClick={handleConfirm}
+                        className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-bold"
+                        onClick={() => handleConfirm(true)}
                         disabled={!isValid || isProcessing}
                     >
                         {isProcessing ? 'Procesando...' : (
                             <>
                                 <CheckCircle className="w-5 h-5 mr-2" />
-                                {isWaiter ? 'Enviar Pedido (Pre-cuenta)' : 'Confirmar Pago'}
+                                {isWaiter ? 'Enviar (Precaución)' : 'Confirmar Pago'}
                             </>
                         )}
                     </Button>
