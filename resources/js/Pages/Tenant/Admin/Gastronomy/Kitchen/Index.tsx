@@ -25,140 +25,18 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { Tenant } from '@/types/pos';
 
-interface OrderItem {
-    id: number;
-    product_name: string;
-    quantity: number;
-    variant_options?: any[];
-}
-
-interface Order {
-    id: number;
-    ticket_number: string;
-    status: string;
-    service_type: string;
-    customer_name: string;
-    table?: { name: string };
-    creator?: { name: string };
-    created_at: string;
-    items: OrderItem[];
-}
+import { KitchenOrder, KitchenOrderCard } from './Components/KitchenOrderCard';
 
 interface Props extends PageProps {
-    orders: Order[];
-    tenant: any;
+    orders: KitchenOrder[];
+    tenant: Tenant;
+    currentLocationId: number | null;
 }
 
-const KitchenOrderCard = ({ order, onReady }: { order: Order; onReady: (id: number) => void }) => {
-    const [elapsedMinutes, setElapsedMinutes] = useState(0);
-
-    useEffect(() => {
-        const calculate = () => {
-            const start = new Date(order.created_at).getTime();
-            const now = new Date().getTime();
-            setElapsedMinutes(Math.floor((now - start) / 60000));
-        };
-
-        calculate();
-        const interval = setInterval(calculate, 30000); // Update every 30s
-        return () => clearInterval(interval);
-    }, [order.created_at]);
-
-    const getUrgencyColor = () => {
-        if (elapsedMinutes >= 20) return 'border-red-500 bg-red-50/50';
-        if (elapsedMinutes >= 10) return 'border-amber-500 bg-amber-50/50';
-        return 'border-slate-200 bg-white';
-    };
-
-    const getTimeBadgeColor = () => {
-        if (elapsedMinutes >= 20) return 'bg-red-500 text-white animate-pulse';
-        if (elapsedMinutes >= 10) return 'bg-amber-500 text-white';
-        return 'bg-slate-100 text-slate-700';
-    };
-
-    return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, x: 100 }}
-            className="h-full"
-        >
-            <Card className={cn(
-                "flex flex-col h-full border-t-4 transition-all duration-300 shadow-sm",
-                getUrgencyColor()
-            )}>
-                <CardHeader className="p-3 pb-2 space-y-1">
-                    <div className="flex justify-between items-start">
-                        <span className="text-2xl font-black text-slate-900 leading-none">
-                            {order.ticket_number}
-                        </span>
-                        <Badge className={getTimeBadgeColor()}>
-                            <Clock className="w-3 h-3 mr-1" />
-                            {elapsedMinutes} min
-                        </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                        {order.service_type === 'dine_in' ? (
-                            <div className="flex items-center bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                                <TableIcon className="w-3 h-3 mr-1" />
-                                {order.table?.name || 'Mesa'}
-                            </div>
-                        ) : (
-                            <div className="flex items-center bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                                <Users className="w-3 h-3 mr-1" />
-                                {order.service_type === 'delivery' ? 'Domicilio' : 'Para llevar'}
-                            </div>
-                        )}
-                        <span className="truncate max-w-[100px]">{order.customer_name}</span>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="p-3 pt-0 flex-1 overflow-hidden">
-                    <ScrollArea className="h-full pr-2">
-                        <div className="space-y-3 pt-2">
-                            {order.items.map((item, idx) => (
-                                <div key={idx} className="flex gap-3 border-b border-slate-100 pb-2 last:border-0">
-                                    <span className="text-xl font-bold text-blue-600 bg-blue-50 w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0">
-                                        {item.quantity}
-                                    </span>
-                                    <div className="flex flex-col">
-                                        <span className="text-lg font-semibold text-slate-800 leading-tight">
-                                            {item.product_name}
-                                        </span>
-                                        {item.variant_options && item.variant_options.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                {item.variant_options.map((opt: any, oIdx: number) => (
-                                                    <span key={oIdx} className="text-[10px] bg-slate-100 text-slate-600 px-1 rounded">
-                                                        {opt.value || opt.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-
-                <CardFooter className="p-3 pt-2 bg-slate-50/50">
-                    <Button
-                        onClick={() => onReady(order.id)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-lg shadow-sm"
-                    >
-                        <CheckCircle2 className="w-5 h-5 mr-2" />
-                        DESPACHAR
-                    </Button>
-                </CardFooter>
-            </Card>
-        </motion.div>
-    );
-};
-
-export default function KitchenIndex({ orders: initialOrders, tenant }: Props) {
-    const [orders, setOrders] = useState<Order[]>(initialOrders);
+export default function KitchenIndex({ orders: initialOrders, tenant, currentLocationId }: Props) {
+    const [orders, setOrders] = useState<KitchenOrder[]>(initialOrders);
     const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
@@ -172,7 +50,9 @@ export default function KitchenIndex({ orders: initialOrders, tenant }: Props) {
 
     const handleMarkAsReady = async (id: number) => {
         try {
-            const response = await axios.post(route('tenant.admin.kitchen.ready', { tenant: tenant.slug, order: id }));
+            const response = await axios.post(route('tenant.admin.kitchen.ready', { tenant: tenant.slug, order: id }), {
+                status: 'ready'
+            });
             if (response.data.success) {
                 setOrders(prev => prev.filter(o => o.id !== id));
                 toast.success('Pedido despachado');
@@ -184,38 +64,45 @@ export default function KitchenIndex({ orders: initialOrders, tenant }: Props) {
 
     useEffect(() => {
         if (typeof window !== 'undefined' && window.Echo && tenant.id) {
-            console.log('Listening for kitchen events on channel: ', `tenant.${tenant.id}.kitchen`);
+            const channelName = currentLocationId
+                ? `tenant.${tenant.id}.location.${currentLocationId}.kitchen`
+                : `tenant.${tenant.id}.kitchen`;
+
+            console.log('Listening for kitchen events on channel: ', channelName);
 
             try {
-                window.Echo.channel(`tenant.${tenant.id}.kitchen`)
-                    .listen('.order.sent', (data: any) => {
+                window.Echo.channel(channelName)
+                    .listen('.order.sent', (data: KitchenOrder) => {
                         console.log('New order received in kitchen:', data);
                         setOrders(prev => {
-                            // Avoid duplicates
-                            if (prev.find(o => o.id === data.id)) return prev;
+                            const index = prev.findIndex(o => o.id === data.id);
+                            if (index !== -1) {
+                                // Update existing order with new items/data
+                                const updatedOrders = [...prev];
+                                updatedOrders[index] = data;
+                                return updatedOrders;
+                            }
                             return [...prev, data];
                         });
                         playNotification();
                         toast.info(`Nuevo pedido: ${data.ticket_number}`, {
-                            description: `Mesa: ${data.table_name || 'N/A'}`,
+                            description: `Servicio: ${data.service_type}`,
                             icon: <Bell className="w-4 h-4 text-blue-500" />
                         });
                     });
             } catch (error) {
                 console.error("Error subscribing to Echo channel:", error);
             }
-        }
 
-        return () => {
-            if (typeof window !== 'undefined' && window.Echo && tenant.id) {
+            return () => {
                 try {
-                    window.Echo.leave(`tenant.${tenant.id}.kitchen`);
+                    window.Echo.leave(channelName);
                 } catch (error) {
                     console.error("Error leaving Echo channel:", error);
                 }
-            }
-        };
-    }, [tenant.id]);
+            };
+        }
+    }, [tenant.id, currentLocationId]);
 
     return (
         <AdminLayout

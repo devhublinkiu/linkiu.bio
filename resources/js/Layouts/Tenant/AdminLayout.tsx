@@ -6,6 +6,7 @@ import AdminSidebar from '@/Components/Tenant/Admin/AdminSidebar';
 import AdminNavbar from '@/Components/Tenant/Admin/AdminNavbar';
 import AdminFooter from '@/Components/Tenant/Admin/AdminFooter';
 import { SidebarProvider, SidebarInset } from '@/Components/ui/sidebar';
+import { Toaster } from '@/Components/ui/sonner';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -109,6 +110,7 @@ export default function AdminLayout({
                     {!hideFooter && <AdminFooter />}
                 </div>
             </SidebarInset>
+            <Toaster position="bottom-center" />
         </SidebarProvider>
     );
 }

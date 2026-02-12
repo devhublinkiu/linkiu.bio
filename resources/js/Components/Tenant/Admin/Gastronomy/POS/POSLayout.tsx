@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, User } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/Components/ui/sonner';
 
 export default function POSLayout({ children, title, tenant, user }: PropsWithChildren<{ title: string; tenant: any; user?: any }>) {
     return (

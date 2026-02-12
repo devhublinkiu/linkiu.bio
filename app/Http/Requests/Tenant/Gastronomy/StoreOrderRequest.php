@@ -33,7 +33,7 @@ class StoreOrderRequest extends FormRequest
             'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120',
             'cash_amount' => 'nullable|numeric|min:0',
             'cash_change' => 'nullable|numeric|min:0',
-            'items' => 'required|array|min:1',
+            'items' => 'nullable|array',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.variant_options' => 'nullable|array',
@@ -52,7 +52,6 @@ class StoreOrderRequest extends FormRequest
             'service_type.required' => 'El tipo de servicio es obligatorio.',
             'table_id.required_if' => 'La mesa es obligatoria para pedidos de salón.',
             'customer_name.required' => 'El nombre del cliente es obligatorio.',
-            'items.required' => 'Debes agregar al menos un producto al pedido.',
             'payment_proof.mimes' => 'El comprobante debe ser una imagen (jpg, png, webp).',
         ];
     }

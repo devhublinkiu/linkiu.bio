@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Tenant\Admin\Gastronomy;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Gastronomy\Order;
+use App\Models\Tenant\Gastronomy\OrderItem;
 use App\Models\Tenant\Gastronomy\OrderStatusHistory;
+use App\Http\Requests\Tenant\Admin\Gastronomy\UpdateKitchenOrderStatusRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -12,64 +14,70 @@ use Illuminate\Support\Facades\Gate;
 
 class KitchenController extends Controller
 {
-    /**
-     * Display the Kitchen Display System (KDS).
-     */
-    public function index()
+    public function index(Request $request, $tenant)
     {
         Gate::authorize('kitchen.view');
-
-        $tenant = app('currentTenant');
+        $tenantModel = app('currentTenant');
+        $user = auth()->user();
+        
+        // Correct way to get location_id from pivot
+        $pivot = $user->tenants->find($tenantModel->id)?->pivot;
+        $locationId = $request->input('location_id') ?? ($pivot ? $pivot->location_id : null);
 
         // Fetch orders ready for kitchen or already being prepared
         // Sorted by oldest first (FIFO)
         $orders = Order::with(['items.product', 'table', 'creator'])
-            ->where('tenant_id', $tenant->id)
+            ->where('tenant_id', $tenantModel->id)
             ->whereIn('status', ['confirmed', 'preparing'])
             ->orderBy('created_at', 'asc')
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
             ->get();
 
         return Inertia::render('Tenant/Admin/Gastronomy/Kitchen/Index', [
             'orders' => $orders,
-            'tenant' => $tenant,
+            'tenant' => $tenantModel,
+            'currentLocationId' => $locationId ? (int)$locationId : null,
         ]);
     }
 
-    /**
-     * Get active kitchen orders (JSON for polling/updates).
-     */
-    public function getOrders()
+    public function getOrders(Request $request, $tenant)
     {
         Gate::authorize('kitchen.view');
-
-        $tenant = app('currentTenant');
+        $tenantModel = app('currentTenant');
+        $user = auth()->user();
+        
+        $pivot = $user->tenants->find($tenantModel->id)?->pivot;
+        $locationId = $request->input('location_id') ?? ($pivot ? $pivot->location_id : null);
 
         $orders = Order::with(['items.product', 'table', 'creator'])
-            ->where('tenant_id', $tenant->id)
+            ->where('tenant_id', $tenantModel->id)
             ->whereIn('status', ['confirmed', 'preparing'])
             ->orderBy('created_at', 'asc')
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
             ->get();
 
         return response()->json($orders);
     }
 
     /**
-     * Mark an order as ready.
+     * Actualiza el estado de un pedido desde el monitor de cocina.
+     * Utiliza validación estricta mediante FormRequest.
      */
-    public function markAsReady(Request $request, $orderId)
+    public function markAsReady(UpdateKitchenOrderStatusRequest $request, $tenant, $orderId)
     {
-        Gate::authorize('kitchen.update');
-
-        $tenant = app('currentTenant');
-        $order = Order::where('id', $orderId)->where('tenant_id', $tenant->id)->firstOrFail();
+        $tenantModel = app('currentTenant');
+        
+        $order = Order::where('id', $orderId)
+            ->where('tenant_id', $tenantModel->id)
+            ->firstOrFail();
 
         try {
             DB::beginTransaction();
 
-            $oldStatus = $order->status;
-            $newStatus = 'ready';
+            $newStatus = $request->input('status', 'ready');
 
-            if ($oldStatus !== $newStatus) {
+            if ($order->status !== $newStatus) {
+                $oldStatus = $order->status;
                 $order->update(['status' => $newStatus]);
 
                 OrderStatusHistory::create([
@@ -77,21 +85,21 @@ class KitchenController extends Controller
                     'user_id' => auth()->id(),
                     'from_status' => $oldStatus,
                     'to_status' => $newStatus,
-                    'notes' => 'Completado en cocina',
+                    'notes' => 'Actualizado desde monitor de cocina',
                 ]);
 
-                // Dispatch event (Real-time update for waiters and admin)
-                \App\Events\OrderStatusUpdated::dispatch($order, 'El pedido está listo para ser servido.');
+                // Dispatch event for real-time customer updates
+                \App\Events\OrderStatusUpdated::dispatch($order, 'Tu pedido ha sido actualizado en cocina.');
             }
 
             DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Pedido marcado como listo']);
-
-        }
-        catch (\Exception $e) {
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el estado del pedido: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

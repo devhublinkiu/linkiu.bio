@@ -17,12 +17,12 @@ import CustomerSelectorModal from '@/Components/Tenant/Admin/Gastronomy/POS/Cust
 import CartSidebar from '@/Components/Tenant/Admin/Gastronomy/POS/CartSidebar';
 import ProductCatalogDrawer from '@/Components/Tenant/Admin/Gastronomy/POS/ProductCatalogDrawer';
 
-import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone, Location } from '@/types/pos';
+import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone, Location, Tenant, VariantOption } from '@/types/pos';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
 interface Props {
-    tenant: any;
+    tenant: Tenant;
     categories: Category[];
     zones: Zone[];
     reservations?: Reservation[];
@@ -65,16 +65,34 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
     // Reservation Check-in State
     const [currentReservationCheckingIn, setCurrentReservationCheckingIn] = useState<Reservation | null>(null);
     const [checkInConfirmOpen, setCheckInConfirmOpen] = useState(false);
-    const [pendingCheckInTable, setPendingCheckInTable] = useState<any>(null); // Table from selection
+    const [pendingCheckInTable, setPendingCheckInTable] = useState<Table | null>(null); // Table from selection
     const [pendingCheckInReservation, setPendingCheckInReservation] = useState<Reservation | null>(null);
 
     // Permission Check
     const canPay = currentUserRole?.is_owner || currentUserRole?.permissions.includes('pos.process_payment') || false;
 
-    // Computed Cart Total
-    const cartTotal = useMemo(() => {
-        return cart.reduce((total, item) => total + item.total, 0);
-    }, [cart]);
+    // Computed Totals
+    const { cartSubtotal, cartTaxAmount, cartGrandTotal } = useMemo(() => {
+        const rate = taxSettings?.tax_rate || 0;
+        const includesTax = taxSettings?.price_includes_tax || false;
+        const baseTotal = cart.reduce((total, item) => total + item.total, 0);
+
+        if (includesTax) {
+            const sub = baseTotal / (1 + rate / 100);
+            return {
+                cartSubtotal: sub,
+                cartTaxAmount: baseTotal - sub,
+                cartGrandTotal: baseTotal
+            };
+        } else {
+            const tax = baseTotal * (rate / 100);
+            return {
+                cartSubtotal: baseTotal,
+                cartTaxAmount: tax,
+                cartGrandTotal: baseTotal + tax
+            };
+        }
+    }, [cart, taxSettings]);
 
     useEffect(() => {
         // Real-time listener for orders could go here
@@ -106,6 +124,13 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
         return () => clearInterval(interval);
     }, [reservations]);
+
+    // --- Helpers ---
+    const handleCheckInConfirmation = (table: Table, reservation: Reservation) => {
+        setPendingCheckInTable(table);
+        setPendingCheckInReservation(reservation);
+        setCheckInConfirmOpen(true);
+    };
 
     // --- Table Selection Logic ---
 
@@ -140,22 +165,45 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
         setSelectedTable(table);
 
-        // Load active order if exists (Mock logic for now, backend integration needed for full persistence)
-        if (table.active_order) {
-            // In a real app, you'd fetch the order items via API here
-            // For now we assume if there's an active order we might just show state.
-            // But let's just allow starting a new order/adding to it
-            if (table.active_order.customer_name) {
-                // Simulate loading customer
-                // setSelectedCustomer({ name: table.active_order.customer_name, id: 0 });
+        // Load active order if exists
+        if (table.active_order && table.active_order.items) {
+            const includesTax = taxSettings?.price_includes_tax || false;
+            const rate = taxSettings?.tax_rate || 0;
+
+            const existingItems = table.active_order.items.map((item: any) => {
+                const itemTotal = parseFloat(item.total);
+                const itemPrice = parseFloat(item.price);
+
+                // If the system is Tax Exclusive (includesTax=false), 
+                // but the DB stores totals with taxes, we must strip them 
+                // to keep the cart consistent (where item.total is subtotal)
+                const normalizedTotal = (!includesTax) ? itemTotal / (1 + rate / 100) : itemTotal;
+                const normalizedPrice = (!includesTax) ? itemPrice / (1 + rate / 100) : itemPrice;
+
+                return {
+                    id: `sent-${item.id}`,
+                    product_id: item.product_id,
+                    name: item.product_name,
+                    price: normalizedPrice,
+                    quantity: item.quantity,
+                    total: normalizedTotal,
+                    variant_options: typeof item.variant_options === 'string' ? JSON.parse(item.variant_options) : item.variant_options,
+                    is_sent: true
+                };
+            });
+            setCart(existingItems);
+
+            if (table.active_order.customer_id) {
+                // We'd need the full customer object usually, but for now we can mock enough for the UI
+                setSelectedCustomer({
+                    id: table.active_order.customer_id,
+                    name: table.active_order.customer_name,
+                    phone: table.active_order.customer_phone || ''
+                } as any);
+            } else {
+                setSelectedCustomer(null);
             }
         }
-    };
-
-    const handleCheckInConfirmation = (table: Table, reservation: Reservation) => {
-        setPendingCheckInTable(table);
-        setPendingCheckInReservation(reservation);
-        setCheckInConfirmOpen(true);
     };
 
     const confirmCheckIn = () => {
@@ -253,7 +301,13 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
     // Send to Kitchen
     const handleSendToKitchen = () => {
-        if (cart.length === 0) return;
+        const newItems = cart.filter(item => !item.is_sent);
+
+        if (newItems.length === 0) {
+            toast.error("No hay productos nuevos para enviar a cocina");
+            return;
+        }
+
         if (!selectedTable) {
             toast.error("Selecciona una mesa primero");
             return;
@@ -261,24 +315,24 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
         router.post(route('tenant.pos.store', { tenant: tenant.slug }), {
             location_id: locationId,
-            items: cart.map(item => ({
+            items: newItems.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
                 variant_options: item.variant_options
             })),
-            total: cartTotal,
+            total: newItems.reduce((acc, item) => acc + item.total, 0),
             service_type: 'dine_in',
             table_id: selectedTable.id,
             payment_method: null,
             customer_id: selectedCustomer?.id || null,
-            customer_name: selectedCustomer?.name || `Mesa ${selectedTable.name}`,
+            customer_name: selectedCustomer?.name || (selectedTable.name.toLowerCase().startsWith('mesa') ? selectedTable.name : `Mesa ${selectedTable.name}`),
             customer_phone: selectedCustomer?.phone || null,
             send_to_kitchen: true,
         }, {
             onSuccess: () => {
                 toast.success('Pedido enviado a cocina');
-                setCart([]);
                 setIsMobileCartOpen(false);
+                // The cart will be refreshed via the Inertia response (re-running index and loading table again)
             },
             onError: () => toast.error('Error al enviar pedido')
         });
@@ -484,7 +538,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 <div className="hidden lg:flex w-[400px] border-l border-slate-200 shrink-0 bg-white z-20 h-full">
                     <CartSidebar
                         cart={cart}
-                        cartTotal={cartTotal}
+                        cartTotal={cartSubtotal}
                         selectedCustomer={selectedCustomer}
                         selectedTable={selectedTable}
                         onUpdateQuantity={updateQuantity}
@@ -512,7 +566,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 <SheetContent side="right" className="p-0 w-full sm:w-[400px]">
                     <CartSidebar
                         cart={cart}
-                        cartTotal={cartTotal}
+                        cartTotal={cartSubtotal}
                         selectedCustomer={selectedCustomer}
                         selectedTable={selectedTable}
                         onUpdateQuantity={updateQuantity}
@@ -563,7 +617,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             <CheckoutDialog
                 open={showCheckout}
                 onOpenChange={setShowCheckout}
-                total={cartTotal}
+                total={cartGrandTotal}
                 items={cart}
                 onSuccess={() => {
                     setCart([]);

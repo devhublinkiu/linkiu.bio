@@ -62,7 +62,7 @@ export default function PublicLayout(props: PublicLayoutProps) {
     return (
         <CartProvider>
             <LayoutContent {...props} />
-            <Toaster position="top-center" richColors />
+            <Toaster position="top-center" />
         </CartProvider>
     );
 }

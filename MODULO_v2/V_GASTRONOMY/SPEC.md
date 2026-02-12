@@ -46,11 +46,20 @@ graph TD
     %% Gestión de Reservas
     Admin[Admin Panel] -->|No-show| Res_Cancel[Liberar Mesa Automáticamente]
     Res_Cancel -->|Update| Table
+
+    %% Kitchen Flow (KDS)
+    Kitchen_Event -->|Ably Broadcast| KitchenUI[Monitor de Cocina Index.tsx]
+    KitchenUI -->|FIFO Logic| KitchenAction{Despachar}
+    KitchenAction -->|API Call| KitchenCtrl[KitchenController@markAsReady]
+    KitchenCtrl -->|DB Update| DB
+    KitchenCtrl -->|Broadcast| StatusUpdate[OrderStatusUpdated Event]
+    StatusUpdate -->|Socket| WaiterApp((Aviso Mesero / POS))
+    StatusUpdate -->|Socket| PublicStatus((Estado Cliente))
 ```
 
 ## Reglas de Oro del Módulo
 
-1.  **Aislamiento**: Todo `ORDER`, `TABLE` y `ZONE` debe filtrar por `location_id` y `tenant_id`.
+1.  **Aislamiento**: Todo `ORDER`, `TABLE` y `ZONE` debe filtrar por `location_id` y `tenant_id`. **IMPORTANTE**: El monitor de cocina debe aplicar este filtro estrictamente.
 2.  **Persistencia**: Uso obligatorio de `DB::beginTransaction()` en el Trait para garantizar que no haya pedidos sin items.
 3.  **CDN**: Los comprobantes se sirven únicamente desde el disco `bunny`.
 4.  **UX**: Toda acción destructiva o cambio de estado masivo requiere `AlertDialog`.
@@ -60,3 +69,4 @@ graph TD
 - **Modelo**: [Order.php](file:///f:/linkiu.bio/app/Models/Tenant/Gastronomy/Order.php)
 - **Trait Lógica**: [ProcessesGastronomyOrders.php](file:///f:/linkiu.bio/app/Traits/ProcessesGastronomyOrders.php)
 - **Frontend POS**: [Index.tsx](file:///f:/linkiu.bio/resources/js/Pages/Tenant/Admin/Gastronomy/POS/Index.tsx)
+- **Monitor Cocina (KDS)**: [KitchenController.php](file:///f:/linkiu.bio/app/Http/Controllers/Tenant/Admin/Gastronomy/KitchenController.php) y [Monitor Index.tsx](file:///f:/linkiu.bio/resources/js/Pages/Tenant/Admin/Gastronomy/Kitchen/Index.tsx)

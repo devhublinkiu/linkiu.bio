@@ -4,30 +4,7 @@ import { Button } from '@/Components/ui/button';
 import { Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface VariantOption {
-    id: number;
-    name: string;
-    price_adjustment: string;
-    is_available: boolean;
-}
-
-interface VariantGroup {
-    id: number;
-    name: string;
-    type: 'radio' | 'checkbox';
-    min_selection: number;
-    max_selection: number;
-    is_required: boolean;
-    options: VariantOption[];
-}
-
-interface Product {
-    id: number;
-    name: string;
-    price: number;
-    image_url?: string;
-    variant_groups?: VariantGroup[];
-}
+import { VariantOption, VariantGroup, Product } from '@/types/pos';
 
 interface VariantSelectorModalProps {
     product: Product | null;

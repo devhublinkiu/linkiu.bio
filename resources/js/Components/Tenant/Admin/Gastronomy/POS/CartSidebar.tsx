@@ -14,6 +14,7 @@ interface CartItem {
     image_url?: string;
     total: number;
     variant_options?: any[];
+    is_sent?: boolean;
 }
 
 interface Customer {
@@ -177,23 +178,30 @@ export default function CartSidebar({
                                         <div className="font-bold text-sm text-slate-800 truncate pr-2">{item.name}</div>
                                         <div className="font-bold text-sm text-slate-900">${item.total.toLocaleString()}</div>
                                     </div>
-                                    <div className="text-xs text-slate-400 min-h-[16px]">
-                                        {/* Unit Price */}
-                                        ${item.price.toLocaleString()} c/u
-                                        {/* Variants display could go here if variant_options is structured */}
+                                    <div className="text-xs text-slate-400 min-h-[16px] flex items-center justify-between">
+                                        <span>${item.price.toLocaleString()} c/u</span>
+                                        {item.is_sent && (
+                                            <Badge variant="outline" className="text-[9px] h-4 bg-orange-50 text-orange-600 border-orange-200">
+                                                En Cocina
+                                            </Badge>
+                                        )}
                                     </div>
 
                                     <div className="flex items-center justify-between mt-2">
                                         {/* Qty Controls */}
-                                        <div className="flex items-center gap-3 bg-slate-50 rounded-full px-1 border border-slate-200">
-                                            <button onClick={() => item.quantity > 1 ? onUpdateQuantity(item.id, -1) : onRemoveFromCart(item.id)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-500">
-                                                <Minus className="w-3 h-3" />
-                                            </button>
-                                            <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-indigo-600">
-                                                <Plus className="w-3 h-3" />
-                                            </button>
-                                        </div>
+                                        {!item.is_sent ? (
+                                            <div className="flex items-center gap-3 bg-slate-50 rounded-full px-1 border border-slate-200">
+                                                <button onClick={() => item.quantity > 1 ? onUpdateQuantity(item.id, -1) : onRemoveFromCart(item.id)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-500">
+                                                    <Minus className="w-3 h-3" />
+                                                </button>
+                                                <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                                                <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-indigo-600">
+                                                    <Plus className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs font-bold text-slate-400">Cantidad: {item.quantity}</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>

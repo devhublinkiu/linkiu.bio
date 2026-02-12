@@ -11,17 +11,17 @@ import { QRCodeSVG } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEffect } from 'react';
 
-import { Table } from '@/types/pos';
+import { Table, Tenant, CartItem, Customer } from '@/types/pos';
 
 interface CheckoutDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     total: number;
-    items: any[];
+    items: CartItem[];
     onSuccess: () => void;
-    customer: any;
-    tenant: any;
-    table?: Table | null; // Made table prop more specific
+    customer: Customer | null;
+    tenant: Tenant;
+    table?: Table | null;
     isWaiter?: boolean;
     locationId: number;
 }
@@ -94,15 +94,17 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
 
         router.post(route('tenant.pos.store', { tenant: tenant.slug }), {
             location_id: locationId,
-            items: items.map(item => ({
+            items: items.filter(item => !item.is_sent).map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
                 variant_options: item.variant_options
             })),
             payment_method: payNow ? method : null,
-            total,
+            // If paying now, we pay the full 'total' prop (which is everything in the cart)
+            // If just sending to kitchen, we send the total of new items (recalculated on backend anyway)
+            total: payNow ? total : items.filter(item => !item.is_sent).reduce((acc, item) => acc + item.total, 0),
             service_type: table ? 'dine_in' : 'takeout',
-            cash_given: payNow && method === 'cash' ? parseFloat(cashAmount) : null,
+            cash_amount: payNow && method === 'cash' ? parseFloat(cashAmount) : null,
             cash_change: payNow && method === 'cash' ? change : null,
             payment_reference: payNow && method === 'transfer' ? transferRef : null,
             customer_id: customer ? customer.id : null,
