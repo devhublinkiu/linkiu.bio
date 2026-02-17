@@ -123,7 +123,7 @@ export function FeaturesSection() {
     return (
         <section id="funciones" className="relative z-10 py-4">
             <div className="px-6 mb-12 text-center">
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-6xl">
+                <h2 className="text-6xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-6xl">
                     Funciones
                 </h2>
                 <p className="mt-2 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">

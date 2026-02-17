@@ -6,8 +6,8 @@ import { FeaturesSection } from '@/Components/Landing/FeaturesSection';
 import { HowItWorksSection } from '@/Components/Landing/HowItWorksSection';
 import { cn } from '@/lib/utils';
 
-/** URL de la escena Spline */
-const SPLINE_SCENE_URL = 'https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode';
+/** Escena Spline local (sin logo, desde public) */
+const SPLINE_SCENE_URL = '/scene-clean.splinecode';
 
 export default function Welcome({
     auth,
@@ -67,10 +67,10 @@ export default function Welcome({
                                 )}
                             />
                             <div className="relative z-10">
-                            <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white md:text-7xl max-w-4xl mx-auto">
+                            <h1 className="text-6xl justify-start text-left md:text-center font-bold tracking-tight text-slate-900 dark:text-white md:text-7xl max-w-4xl mx-auto">
                                 Tu negocio, un solo enlace
                             </h1>
-                            <p className="mt-6 text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
+                            <p className="mt-6 text-lg justify-start text-left md:text-center sm:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
                                 La herramienta digital que concentra tu negocio en un solo enlace: catálogo, pedidos, reservas, contacto y más. Adaptada a tu tipo de negocio.
                             </p>
                             <div className="relative w-full max-w-6xl mx-auto h-[550px] overflow-hidden rounded-lg -mt-10">
