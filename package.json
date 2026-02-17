@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "NODE_OPTIONS=--max-old-space-size=8192 tsc && NODE_OPTIONS=--max-old-space-size=8192 vite build && NODE_OPTIONS=--max-old-space-size=8192 vite build --ssr",
+        "build:if-missing": "node scripts/ensure-build.cjs",
         "dev": "vite"
     },
     "devDependencies": {
