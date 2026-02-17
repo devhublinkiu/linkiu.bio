@@ -23,10 +23,10 @@
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
   ],
   "resources/js/Components/Landing/FeaturesSection.tsx": [
-    "/build/assets/Welcome-AdiY2LGO.js"
+    "/build/assets/Welcome-3D3BDUyG.js"
   ],
   "resources/js/Components/Landing/HowItWorksSection.tsx": [
-    "/build/assets/Welcome-AdiY2LGO.js"
+    "/build/assets/Welcome-3D3BDUyG.js"
   ],
   "resources/js/Components/NavLink.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -190,7 +190,7 @@
     "/build/assets/badge-C_PGNHO8.js"
   ],
   "resources/js/Components/ui/bento-grid.tsx": [
-    "/build/assets/Welcome-AdiY2LGO.js"
+    "/build/assets/Welcome-3D3BDUyG.js"
   ],
   "resources/js/Components/ui/breadcrumb.tsx": [
     "/build/assets/dropdown-menu-B2I3vWlQ.js"
@@ -217,7 +217,7 @@
     "/build/assets/dialog-QdU9y0pO.js"
   ],
   "resources/js/Components/ui/dot-pattern.tsx": [
-    "/build/assets/Welcome-AdiY2LGO.js"
+    "/build/assets/Welcome-3D3BDUyG.js"
   ],
   "resources/js/Components/ui/drawer.tsx": [
     "/build/assets/dropdown-menu-B2I3vWlQ.js"
@@ -636,7 +636,7 @@
     "/build/assets/Unavailable-im_RuW28.js"
   ],
   "resources/js/Pages/Welcome.tsx": [
-    "/build/assets/Welcome-AdiY2LGO.js"
+    "/build/assets/Welcome-3D3BDUyG.js"
   ],
   "resources/js/hooks/use-mobile.tsx": [
     "/build/assets/dropdown-menu-B2I3vWlQ.js"
