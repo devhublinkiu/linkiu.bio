@@ -74,28 +74,31 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                 title: "Contenido",
                 url: "#",
                 icon: LayoutGrid,
-                isActive: url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/support') || url.startsWith('/superlinkiu/media'),
+                isActive: url.startsWith('/superlinkiu/categories') || url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/support/requests') || url.startsWith('/superlinkiu/media'),
                 items: [
+                    {
+                        title: "Categorías de negocio",
+                        url: "/superlinkiu/categories",
+                    },
                     {
                         title: "Categorías e Iconos",
                         url: "/superlinkiu/category-icons",
                     },
                     {
-                        title: "Solicitudes",
+                        title: "Solicitudes de iconos",
                         url: "/superlinkiu/support/requests",
                     },
                     {
                         title: "Mis archivos",
                         url: "/superlinkiu/media",
                     },
-
                 ],
             },
             {
                 title: "Atención",
                 url: "#",
                 icon: LifeBuoy,
-                isActive: url.startsWith('/superlinkiu/support') || url.startsWith('/superlinkiu/reportes-tiendas'),
+                isActive: (url.startsWith('/superlinkiu/support') && !url.startsWith('/superlinkiu/support/requests')) || url.startsWith('/superlinkiu/reportes-tiendas'),
                 items: [
                     {
                         title: "Tickets de Soporte",
@@ -111,8 +114,12 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                 title: "Configuración",
                 url: "#",
                 icon: Settings2,
-                isActive: url.startsWith('/superlinkiu/roles'),
+                isActive: url.startsWith('/superlinkiu/roles') || url.startsWith('/superlinkiu/settings'),
                 items: [
+                    {
+                        title: "Ajustes generales",
+                        url: "/superlinkiu/settings",
+                    },
                     {
                         title: "Roles y Permisos",
                         url: "/superlinkiu/roles",
