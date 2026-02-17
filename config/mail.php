@@ -14,7 +14,8 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    // Si hay API key de Resend, usar driver "resend" (API) en lugar de SMTP para evitar timeout en puerto 465.
+    'default' => env('RESEND_API_KEY') ? 'resend' : env('MAIL_MAILER', 'log'),
 
     /*
     |--------------------------------------------------------------------------
