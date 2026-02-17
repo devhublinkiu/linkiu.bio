@@ -40,7 +40,7 @@ import {
 } from "@/Components/ui/table";
 import { Switch } from "@/Components/ui/switch";
 import { Card, CardContent } from '@/Components/ui/card';
-import { Plus, Edit, Trash2, Search, HelpCircle, Bug, Headphones } from "lucide-react";
+import { Plus, Edit, Trash2, HelpCircle, FolderTree, Loader2 } from "lucide-react";
 import { Badge } from '@/Components/ui/badge';
 import { ScrollArea } from '@/Components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
@@ -55,6 +55,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/Components/ui/empty';
+
+interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
 
 interface CategoryIcon {
     id: number;
@@ -72,9 +80,10 @@ interface Category {
     is_active: boolean;
     products_count?: number;
     children_count?: number;
+    all_products_count?: number;
     icon?: CategoryIcon;
     parent?: Category;
-    children?: Category[]; // If nested
+    children?: Category[];
 }
 
 interface IconRequest {
@@ -87,26 +96,46 @@ interface IconRequest {
 interface Props {
     categories: {
         data: Category[];
-        links: any[]; // Pagination
+        links: PaginationLink[];
     };
     availableIcons: CategoryIcon[];
     myRequests: {
         data: IconRequest[];
-        links: any[];
+        links: PaginationLink[];
     };
-    parents: Category[];
+    parents: { id: number; name: string }[];
 }
 
 export default function Index({ categories, availableIcons, myRequests, parents }: Props) {
-    // Helper to handle both Paginator and Array (backwards compatibility)
-    const requestsList = (myRequests as any).data || myRequests;
-    const requestsLinks = (myRequests as any).links || [];
-    const { currentTenant } = usePage<PageProps>().props;
+    const requestsList = myRequests.data ?? [];
+    const requestsLinks = myRequests.links ?? [];
+    const { currentTenant, currentUserRole } = usePage<PageProps>().props;
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isRequestIconOpen, setIsRequestIconOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [iconSearch, setIconSearch] = useState('');
     const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+
+    const hasPermission = (permission: string) => {
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner === true
+            || currentUserRole.permissions?.includes('*') === true
+            || currentUserRole.permissions?.includes(permission) === true;
+    };
+
+    const handleProtectedAction = (e: React.MouseEvent | null, permission: string, callback: () => void) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (!hasPermission(permission)) {
+            setShowPermissionModal(true);
+        } else {
+            callback();
+        }
+    };
 
     // Create/Edit Form
     const { data, setData, post, put, processing, errors, reset, clearErrors, transform } = useForm({
@@ -149,11 +178,17 @@ export default function Index({ categories, availableIcons, myRequests, parents 
 
         if (editingCategory) {
             put(route('tenant.categories.update', [currentTenant?.slug, editingCategory.id]), {
-                onSuccess: () => setIsCreateOpen(false),
+                onSuccess: () => {
+                    toast.success('Categoría actualizada correctamente');
+                    setIsCreateOpen(false);
+                },
             });
         } else {
             post(route('tenant.categories.store', currentTenant?.slug), {
-                onSuccess: () => setIsCreateOpen(false),
+                onSuccess: () => {
+                    toast.success('Categoría creada correctamente');
+                    setIsCreateOpen(false);
+                },
             });
         }
     };
@@ -190,7 +225,10 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                     <h1 className="text-2xl font-bold tracking-tight">Categorías</h1>
                     <p className="text-sm text-muted-foreground">Organiza tus productos en categorías.</p>
                 </div>
-                <Button onClick={openCreate} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                <Button
+                    onClick={(e) => handleProtectedAction(e, 'categories.create', openCreate)}
+                    className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                >
                     <Plus /> Nueva Categoría
                 </Button>
             </div>
@@ -240,26 +278,37 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                                 <Badge variant="secondary">{category.products_count || 0}</Badge>
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Switch
-                                                    className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                                    checked={category.is_active}
-                                                    onCheckedChange={() => {
-                                                        router.patch(route('tenant.categories.toggle-active', [currentTenant?.slug, category.id]), {}, {
-                                                            preserveScroll: true,
-                                                        });
-                                                    }}
-                                                />
+                                                {togglingId === category.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin mx-auto text-muted-foreground" />
+                                                ) : (
+                                                    <Switch
+                                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                                        checked={category.is_active}
+                                                        onCheckedChange={() => handleProtectedAction(null, 'categories.update', () => {
+                                                            setTogglingId(category.id);
+                                                            router.patch(route('tenant.categories.toggle-active', [currentTenant?.slug, category.id]), {}, {
+                                                                preserveScroll: true,
+                                                                onFinish: () => setTogglingId(null),
+                                                            });
+                                                        })}
+                                                    />
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    <Button size="icon" variant="ghost" className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => openEdit(category)}>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="cursor-pointer ring-0 hover:ring-0 focus:ring-0"
+                                                        onClick={(e) => handleProtectedAction(e, 'categories.update', () => openEdit(category))}
+                                                    >
                                                         <Edit />
                                                     </Button>
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
                                                         className="cursor-pointer ring-0 hover:ring-0 focus:ring-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={() => setCategoryToDelete(category)}
+                                                        onClick={(e) => handleProtectedAction(e, 'categories.delete', () => setCategoryToDelete(category))}
                                                     >
                                                         <Trash2 />
                                                     </Button>
@@ -267,17 +316,34 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {categories.data.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                                                No tienes categorías creadas.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
                     </Card>
+                    {categories.data.length === 0 && (
+                        <Empty className="border-2 border-dashed rounded-xl bg-white py-12">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <FolderTree className="size-8 text-muted-foreground" />
+                                </EmptyMedia>
+                                <EmptyTitle>No tienes categorías creadas</EmptyTitle>
+                                <EmptyDescription>
+                                    Crea categorías para organizar tus productos en la carta digital y el POS.
+                                </EmptyDescription>
+                            </EmptyHeader>
+                            <Button
+                                className="mt-4 cursor-pointer"
+                                onClick={(e) => handleProtectedAction(e, 'categories.create', openCreate)}
+                            >
+                                <Plus className="w-4 h-4 mr-2" /> Nueva Categoría
+                            </Button>
+                        </Empty>
+                    )}
+                    {categories.data.length > 0 && categories.links && categories.links.length > 1 && (
+                        <div className="flex justify-center pt-4">
+                            <Pagination links={categories.links} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Sidebar: Icon Requests Status */}
@@ -311,7 +377,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                             <Button
                                 variant="outline"
                                 className="w-full mt-4 cursor-pointer ring-0 hover:ring-0 focus:ring-0"
-                                onClick={() => setIsRequestIconOpen(true)}
+                                onClick={(e) => handleProtectedAction(e, 'categories.create', () => setIsRequestIconOpen(true))}
                             >
                                 Solicitar Icono Nuevo
                             </Button>
@@ -400,7 +466,10 @@ export default function Index({ categories, availableIcons, myRequests, parents 
 
                         <div className="flex justify-end gap-2 pt-4">
                             <Button type="button" variant="outline" className="cursor-pointer ring-0 hover:ring-0 focus:ring-0" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-                            <Button type="submit" disabled={processing} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">{editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}</Button>
+                            <Button type="submit" disabled={processing} className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">
+                            {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            {editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}
+                        </Button>
                         </div>
                     </form>
                 </SheetContent>
@@ -454,12 +523,12 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar Categoría?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {(categoryToDelete?.products_count || 0) > 0 || (categoryToDelete?.children_count || 0) > 0 ? (
+                            {(categoryToDelete?.all_products_count ?? categoryToDelete?.products_count ?? 0) > 0 || (categoryToDelete?.children_count || 0) > 0 ? (
                                 <div className="space-y-3">
                                     <p className="text-red-500 font-bold">No se puede eliminar esta categoría.</p>
                                     <ul className="list-disc list-inside space-y-1">
-                                        {(categoryToDelete?.products_count || 0) > 0 && (
-                                            <li>Tiene <span className="font-bold">{categoryToDelete?.products_count}</span> productos asociados.</li>
+                                        {((categoryToDelete?.all_products_count ?? categoryToDelete?.products_count) || 0) > 0 && (
+                                            <li>Tiene <span className="font-bold">{categoryToDelete?.all_products_count ?? categoryToDelete?.products_count}</span> productos asociados.</li>
                                         )}
                                         {(categoryToDelete?.children_count || 0) > 0 && (
                                             <li>Tiene <span className="font-bold">{categoryToDelete?.children_count}</span> subcategorías asociadas.</li>
@@ -474,7 +543,7 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel className="cursor-pointer ring-0 hover:ring-0 focus:ring-0">Cerrar</AlertDialogCancel>
-                        {(!categoryToDelete?.products_count || categoryToDelete.products_count === 0) && (!categoryToDelete?.children_count || categoryToDelete.children_count === 0) && (
+                        {((categoryToDelete?.all_products_count ?? categoryToDelete?.products_count) || 0) === 0 && (!categoryToDelete?.children_count || categoryToDelete.children_count === 0) && (
                             <AlertDialogAction
                                 onClick={() => categoryToDelete && handleDelete(categoryToDelete.id)}
                                 variant="destructive"
@@ -487,6 +556,10 @@ export default function Index({ categories, availableIcons, myRequests, parents 
                 </AlertDialogContent>
             </AlertDialog>
 
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
         </AdminLayout>
     );
 }

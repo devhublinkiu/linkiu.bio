@@ -20,12 +20,17 @@ class OrderItem extends Model
         'price',
         'total',
         'variant_options',
+        'notes',
+        'status',
+        'cancelled_by',
+        'cancelled_at',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'total' => 'decimal:2',
         'variant_options' => 'array',
+        'cancelled_at' => 'datetime',
     ];
 
     public function order()

@@ -1,24 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import POSLayout from '@/Components/Tenant/Admin/Gastronomy/POS/POSLayout';
-import { ShoppingCart, LogOut, CheckCircle, Clock, Construction, Armchair, Plus, Search, ChefHat } from 'lucide-react';
+import { ShoppingCart, CheckCircle, Clock, Construction, Armchair, Plus, Search, ChefHat, Package, Loader2, Image, CreditCard, Receipt, BadgeCheck, X } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { ScrollArea } from '@/Components/ui/scroll-area';
 import { Badge } from '@/Components/ui/badge';
-import { Card } from '@/Components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/Components/ui/alert-dialog';
 import { Sheet, SheetContent } from "@/Components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/Components/ui/dialog";
 
 import CheckoutDialog from '@/Components/Tenant/Admin/Gastronomy/POS/CheckoutDialog';
+import { type CheckoutResult } from '@/Components/Tenant/Admin/Gastronomy/POS/CheckoutDialog';
 import VariantSelectorModal from '@/Components/Tenant/Admin/Gastronomy/POS/VariantSelectorModal';
 import CustomerSelectorModal from '@/Components/Tenant/Admin/Gastronomy/POS/CustomerSelectorModal';
 import CartSidebar from '@/Components/Tenant/Admin/Gastronomy/POS/CartSidebar';
 import ProductCatalogDrawer from '@/Components/Tenant/Admin/Gastronomy/POS/ProductCatalogDrawer';
+import ReceiptModal, { type ReceiptData } from '@/Components/Tenant/Admin/Gastronomy/POS/ReceiptModal';
 
-import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone, Location, Tenant, VariantOption } from '@/types/pos';
+import { Category, Product, CartItem, Reservation, Customer, TaxSettings, Table, Zone, Location, Tenant, UserRole, OrderItemData, VariantOption } from '@/types/pos';
+import { formatCurrency, calculateTax } from '@/utils/currency';
 import { toast } from 'sonner';
+import axios from 'axios';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
 interface Props {
@@ -26,77 +29,227 @@ interface Props {
     categories: Category[];
     zones: Zone[];
     reservations?: Reservation[];
-    active_tables?: any[]; // Legacy prop just in case, active orders come inside zones
     taxSettings: TaxSettings;
     locations: Location[];
     currentLocationId: number;
-    currentUserRole?: {
-        label: string;
-        is_owner: boolean;
-        permissions: string[];
-    };
+    currentUserRole?: UserRole;
 }
 
 export default function POSIndex({ tenant, categories, zones = [], taxSettings, currentUserRole, reservations = [], locations = [], currentLocationId }: Props) {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-    const [activeZoneId, setActiveZoneId] = useState<string>(zones.length > 0 ? String(zones[0].id) : 'all');
+    const [activeZoneId, setActiveZoneId] = useState<string>('all');
 
     const [showCheckout, setShowCheckout] = useState(false);
     const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
     const [showProductDrawer, setShowProductDrawer] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     // Multisede state
     const [locationId, setLocationId] = useState(currentLocationId);
     const [confirmCloseCartOpen, setConfirmCloseCartOpen] = useState(false);
+    const [confirmClearCartOpen, setConfirmClearCartOpen] = useState(false);
     const [confirmFreeTableOpen, setConfirmFreeTableOpen] = useState(false);
     const [pendingTable, setPendingTable] = useState<Table | null>(null);
 
-    // Waiter Mode Logic
-    const isWaiter = currentUserRole?.label === 'waiter' || currentUserRole?.permissions.includes('pos.waiter_mode');
+    // Búsqueda rápida de mesas
+    const [tableSearch, setTableSearch] = useState('');
 
-    // Default to 'all' zone if waiter to show tables immediately
-    useEffect(() => {
-        if (isWaiter && zones.length > 0) {
-            // Keep activeZoneId logic, but maybe ensure we default to a view that makes sense
-        }
-    }, [isWaiter]);
+    // Receipt modal
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+
+    // Takeout mode (pedido rápido sin mesa)
+    const [isTakeoutMode, setIsTakeoutMode] = useState(false);
+
+    // Verificación de pago del mesero
+    const [showVerifyPayment, setShowVerifyPayment] = useState(false);
+    const [verifyingTable, setVerifyingTable] = useState<Table | null>(null);
+    const [isVerifying, setIsVerifying] = useState(false);
+
+    // Búsqueda rápida de productos inline
+    const [quickProductSearch, setQuickProductSearch] = useState('');
+
+    // Skeleton loader
+    const [isPageLoaded, setIsPageLoaded] = useState(false);
+
+    // Waiter Mode Logic
+    const isWaiter = currentUserRole?.label === 'waiter' || currentUserRole?.permissions?.includes('pos.waiter_mode') || false;
 
     // Reservation Check-in State
     const [currentReservationCheckingIn, setCurrentReservationCheckingIn] = useState<Reservation | null>(null);
     const [checkInConfirmOpen, setCheckInConfirmOpen] = useState(false);
-    const [pendingCheckInTable, setPendingCheckInTable] = useState<Table | null>(null); // Table from selection
+    const [pendingCheckInTable, setPendingCheckInTable] = useState<Table | null>(null);
     const [pendingCheckInReservation, setPendingCheckInReservation] = useState<Reservation | null>(null);
 
     // Permission Check
-    const canPay = currentUserRole?.is_owner || currentUserRole?.permissions.includes('pos.process_payment') || false;
+    const canPay = currentUserRole?.is_owner || currentUserRole?.permissions?.includes('pos.process_payment') || false;
 
-    // Computed Totals
+    // Computed Totals (centralizado con utility)
     const { cartSubtotal, cartTaxAmount, cartGrandTotal } = useMemo(() => {
-        const rate = taxSettings?.tax_rate || 0;
-        const includesTax = taxSettings?.price_includes_tax || false;
         const baseTotal = cart.reduce((total, item) => total + item.total, 0);
-
-        if (includesTax) {
-            const sub = baseTotal / (1 + rate / 100);
-            return {
-                cartSubtotal: sub,
-                cartTaxAmount: baseTotal - sub,
-                cartGrandTotal: baseTotal
-            };
-        } else {
-            const tax = baseTotal * (rate / 100);
-            return {
-                cartSubtotal: baseTotal,
-                cartTaxAmount: tax,
-                cartGrandTotal: baseTotal + tax
-            };
-        }
+        const { subtotal, taxAmount, grandTotal } = calculateTax(
+            baseTotal,
+            taxSettings?.tax_rate || 0,
+            taxSettings?.price_includes_tax || false
+        );
+        return { cartSubtotal: subtotal, cartTaxAmount: taxAmount, cartGrandTotal: grandTotal };
     }, [cart, taxSettings]);
 
+    // Simular carga inicial con skeleton
     useEffect(() => {
-        // Real-time listener for orders could go here
+        const timer = setTimeout(() => setIsPageLoaded(true), 300);
+        return () => clearTimeout(timer);
+    }, []);
 
+    // Productos filtrados inline para búsqueda rápida
+    const allProducts = useMemo(() => {
+        const products: Product[] = [];
+        categories.forEach(cat => {
+            if (cat.products) {
+                products.push(...cat.products);
+            }
+        });
+        return products;
+    }, [categories]);
+
+    const filteredInlineProducts = useMemo(() => {
+        if (!quickProductSearch || quickProductSearch.length < 2) return [];
+        const q = quickProductSearch.toLowerCase();
+        return allProducts.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+    }, [quickProductSearch, allProducts]);
+
+    // Estado para tracking de órdenes "ready" vía Echo o polling
+    const [readyOrderIds, setReadyOrderIds] = useState<Set<number>>(new Set());
+    const [echoConnected, setEchoConnected] = useState(false);
+
+    // Estado para órdenes cobradas por mesero (notificación en tiempo real)
+    const [waiterCollectedIds, setWaiterCollectedIds] = useState<Set<number>>(new Set());
+
+    // Helper de audio para notificación audible (pedido listo en cocina)
+    const playNotificationSound = () => {
+        try {
+            const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+            const ctx = new AudioCtx();
+            // Sonido tipo "ding-dong-ding" igual al de cocina
+            const notes = [830, 1046, 1318];
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.18);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.18 + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + i * 0.18);
+                osc.stop(ctx.currentTime + i * 0.18 + 0.3);
+            });
+        } catch { /* Audio not available */ }
+    };
+
+    // Recopilar IDs de órdenes activas en las mesas
+    const activeOrderIds = useMemo(() => {
+        const ids: number[] = [];
+        zones.forEach(zone => {
+            zone.tables.forEach(table => {
+                if (table.active_order?.id) {
+                    ids.push(table.active_order.id);
+                }
+            });
+        });
+        return ids;
+    }, [zones]);
+
+    // Real-time via Echo: escuchar cambios de estado de órdenes activas
+    useEffect(() => {
+        interface EchoChannel {
+            listen: (event: string, cb: (e: { id: number; status: string; comment?: string }) => void) => EchoChannel;
+            stopListening: (event: string) => void;
+        }
+
+        const echoInstance = (window as unknown as Record<string, unknown>).Echo as {
+            connector?: unknown;
+            channel: (ch: string) => EchoChannel;
+        } | undefined;
+
+        if (!echoInstance?.connector || !tenant.id || activeOrderIds.length === 0) {
+            setEchoConnected(false);
+            return;
+        }
+
+        setEchoConnected(true);
+        const channels: EchoChannel[] = [];
+
+        activeOrderIds.forEach(orderId => {
+            const channel = echoInstance.channel(`tenant.${tenant.id}.orders.${orderId}`)
+                .listen('.order.status.updated', (e: { id: number; status: string; comment?: string }) => {
+                    if (e.comment === 'waiter_collected') {
+                        setWaiterCollectedIds(prev => new Set(prev).add(e.id));
+                        playNotificationSound();
+                        toast.success(`Mesero registró cobro del Pedido #${e.id}`, {
+                            id: `waiter-collected-${e.id}`,
+                            duration: 20000,
+                            description: 'Toca la mesa para verificar el pago',
+                            style: { background: '#ecfdf5', border: '2px solid #059669', fontWeight: 'bold' },
+                        });
+                        router.reload({ only: ['zones'] });
+                    } else if (e.status === 'ready') {
+                        setReadyOrderIds(prev => new Set(prev).add(e.id));
+                        playNotificationSound();
+                        toast.success(`Pedido #${e.id} LISTO en cocina`, {
+                            id: `ready-${e.id}`,
+                            duration: 15000,
+                            description: 'Toca la mesa para ver el pedido',
+                            style: { background: '#ecfdf5', border: '2px solid #10b981', fontWeight: 'bold' },
+                        });
+                    } else if (e.status === 'preparing') {
+                        toast.info(`Pedido #${e.id} en preparación`, { id: `preparing-${e.id}`, duration: 5000 });
+                    }
+                });
+            channels.push(channel);
+        });
+
+        return () => {
+            channels.forEach(ch => ch.stopListening('.order.status.updated'));
+        };
+    }, [tenant.id, activeOrderIds]);
+
+    // Polling fallback: si Echo no está conectado, consultar estado de órdenes cada 20s
+    useEffect(() => {
+        if (echoConnected || activeOrderIds.length === 0 || !tenant.slug) return;
+
+        const poll = async () => {
+            try {
+                const res = await fetch(`/${tenant.slug}/admin/gastronomy/kitchen/orders?status=ready`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!res.ok) return;
+                const orders: { id: number; status: string }[] = await res.json();
+
+                orders.forEach(order => {
+                    if (order.status === 'ready' && activeOrderIds.includes(order.id) && !readyOrderIds.has(order.id)) {
+                        setReadyOrderIds(prev => new Set(prev).add(order.id));
+                        playNotificationSound();
+                        toast.success(`Pedido #${order.id} LISTO en cocina`, {
+                            id: `ready-${order.id}`,
+                            duration: 15000,
+                            description: 'Toca la mesa para ver el pedido',
+                            style: { background: '#ecfdf5', border: '2px solid #10b981', fontWeight: 'bold' },
+                        });
+                    }
+                });
+            } catch { /* Network error, retry next interval */ }
+        };
+
+        const interval = setInterval(poll, 20000);
+        // Primera consulta inmediata
+        poll();
+
+        return () => clearInterval(interval);
+    }, [echoConnected, activeOrderIds, tenant.slug, readyOrderIds]);
+
+    useEffect(() => {
         // Check for expired reservations every minute
         const interval = setInterval(() => {
             if (!reservations) return;
@@ -134,7 +287,82 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
 
     // --- Table Selection Logic ---
 
+    /**
+     * Carga items de una orden activa de la mesa al carrito local.
+     */
+    const loadActiveOrderItems = (table: Table) => {
+        if (table.active_order && table.active_order.items) {
+            const includesTax = taxSettings?.price_includes_tax || false;
+            const rate = taxSettings?.tax_rate || 0;
+
+            const existingItems: CartItem[] = table.active_order.items.map((item: OrderItemData) => {
+                const itemTotal = parseFloat(String(item.total));
+                const itemPrice = parseFloat(String(item.price));
+
+                const normalizedTotal = (!includesTax) ? itemTotal / (1 + rate / 100) : itemTotal;
+                const normalizedPrice = (!includesTax) ? itemPrice / (1 + rate / 100) : itemPrice;
+
+                return {
+                    id: `sent-${item.id}`,
+                    product_id: item.product_id,
+                    name: item.product_name,
+                    price: normalizedPrice,
+                    quantity: item.quantity,
+                    total: normalizedTotal,
+                    variant_options: typeof item.variant_options === 'string' ? JSON.parse(item.variant_options) : item.variant_options,
+                    notes: item.notes as string | undefined,
+                    is_sent: true,
+                };
+            });
+            setCart(existingItems);
+
+            if (table.active_order.customer_id) {
+                setSelectedCustomer({
+                    id: table.active_order.customer_id,
+                    name: table.active_order.customer_name,
+                    phone: table.active_order.customer_phone || undefined,
+                });
+            } else {
+                setSelectedCustomer(null);
+            }
+        } else {
+            setCart([]);
+            setSelectedCustomer(null);
+        }
+    };
+
+    // Verificar pago del mesero
+    const handleVerifyPayment = async () => {
+        if (!verifyingTable?.active_order?.id) return;
+        setIsVerifying(true);
+        try {
+            await axios.post(
+                route('tenant.admin.pos.verify-payment', { tenant: tenant.slug, order: verifyingTable.active_order.id })
+            );
+            toast.success('Pago verificado y orden completada. Mesa liberada.');
+            setShowVerifyPayment(false);
+            setVerifyingTable(null);
+            router.reload();
+        } catch {
+            toast.error('Error al verificar el pago');
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
     const handleTableClick = (table: Table) => {
+        // Desactivar modo takeout si se selecciona una mesa
+        if (isTakeoutMode) {
+            setIsTakeoutMode(false);
+        }
+
+        // 0. Si la mesa tiene pago cobrado por mesero, abrir modal de verificación
+        if (table.active_order?.waiter_collected) {
+            setVerifyingTable(table);
+            setShowVerifyPayment(true);
+            return;
+        }
+
         // 1. If logic for check-in triggered from widget
         if (currentReservationCheckingIn) {
             handleCheckInConfirmation(table, currentReservationCheckingIn);
@@ -150,60 +378,23 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             }
         }
 
-        // 3. Normal Selection
+        // 3. Re-clicking the same table → refresh items from active order
+        if (selectedTable?.id === table.id) {
+            loadActiveOrderItems(table);
+            return;
+        }
 
-        // Warn if switching tables with unsaved cart
-        if (selectedTable && selectedTable.id !== table.id && cart.length > 0) {
+        // 4. Switching to a different table: only warn if there are UNSENT items
+        const hasUnsentItems = cart.some(item => !item.is_sent);
+        if (selectedTable && hasUnsentItems) {
             setPendingTable(table);
             setConfirmCloseCartOpen(true);
             return;
-        } else if (selectedTable?.id !== table.id) {
-            // Clean slate when switching
-            setCart([]);
-            setSelectedCustomer(null);
         }
 
+        // 5. Select the new table and load its order
         setSelectedTable(table);
-
-        // Load active order if exists
-        if (table.active_order && table.active_order.items) {
-            const includesTax = taxSettings?.price_includes_tax || false;
-            const rate = taxSettings?.tax_rate || 0;
-
-            const existingItems = table.active_order.items.map((item: any) => {
-                const itemTotal = parseFloat(item.total);
-                const itemPrice = parseFloat(item.price);
-
-                // If the system is Tax Exclusive (includesTax=false), 
-                // but the DB stores totals with taxes, we must strip them 
-                // to keep the cart consistent (where item.total is subtotal)
-                const normalizedTotal = (!includesTax) ? itemTotal / (1 + rate / 100) : itemTotal;
-                const normalizedPrice = (!includesTax) ? itemPrice / (1 + rate / 100) : itemPrice;
-
-                return {
-                    id: `sent-${item.id}`,
-                    product_id: item.product_id,
-                    name: item.product_name,
-                    price: normalizedPrice,
-                    quantity: item.quantity,
-                    total: normalizedTotal,
-                    variant_options: typeof item.variant_options === 'string' ? JSON.parse(item.variant_options) : item.variant_options,
-                    is_sent: true
-                };
-            });
-            setCart(existingItems);
-
-            if (table.active_order.customer_id) {
-                // We'd need the full customer object usually, but for now we can mock enough for the UI
-                setSelectedCustomer({
-                    id: table.active_order.customer_id,
-                    name: table.active_order.customer_name,
-                    phone: table.active_order.customer_phone || ''
-                } as any);
-            } else {
-                setSelectedCustomer(null);
-            }
-        }
+        loadActiveOrderItems(table);
     };
 
     const confirmCheckIn = () => {
@@ -252,22 +443,39 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
     const [showCustomerModal, setShowCustomerModal] = useState(false);
 
     const handleProductSelect = (product: Product) => {
-        if (product.variant_groups && product.variant_groups.length > 0) {
-            setSelectedProduct(product);
-            setShowVariantModal(true);
-        } else {
-            addToCart(product);
-        }
+        // Siempre abrir el modal para permitir notas (ej: "sin cebolla")
+        setSelectedProduct(product);
+        setShowVariantModal(true);
     };
 
-    const addToCart = (product: Product, variantOptions: any = null, finalPrice: number | null = null, quantity: number = 1) => {
-        // Ensure price is a number
+    const addToCart = (product: Product, variantOptions: Record<number, number[]> | null = null, finalPrice: number | null = null, quantity: number = 1, notes?: string) => {
         const basePrice = parseFloat(String(product.price));
-        // Use finalPrice (unit price of variant) if provided, otherwise base price
         const unitPrice = finalPrice !== null ? finalPrice : basePrice;
-
-        // Generate a deterministic ID based on product + options
         const itemId = `item-${Date.now()}-${Math.random()}`;
+
+        // Convertir Record<groupId, optionId[]> a VariantOption[] para el carrito
+        let formattedVariants: VariantOption[] | undefined;
+        if (variantOptions && product.variant_groups) {
+            const result: VariantOption[] = [];
+            for (const [groupId, optionIds] of Object.entries(variantOptions)) {
+                const group = product.variant_groups?.find(g => g.id === Number(groupId));
+                if (!group) continue;
+                for (const optId of optionIds) {
+                    const opt = group.options.find(o => o.id === optId);
+                    if (opt) {
+                        result.push({
+                            id: opt.id,
+                            name: opt.name,
+                            price_adjustment: opt.price_adjustment,
+                            group_name: group.name,
+                            option_name: opt.name,
+                            price: Number(opt.price_adjustment),
+                        });
+                    }
+                }
+            }
+            formattedVariants = result.length > 0 ? result : undefined;
+        }
 
         const newItem: CartItem = {
             id: itemId,
@@ -277,7 +485,8 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             quantity: quantity,
             image_url: product.image_url,
             total: unitPrice * quantity,
-            variant_options: variantOptions
+            variant_options: formattedVariants,
+            notes,
         };
 
         setCart(prev => [...prev, newItem]);
@@ -313,14 +522,16 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             return;
         }
 
+        setIsProcessing(true);
+
         router.post(route('tenant.pos.store', { tenant: tenant.slug }), {
             location_id: locationId,
             items: newItems.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
-                variant_options: item.variant_options
+                variant_options: item.variant_options,
+                notes: item.notes || null,
             })),
-            total: newItems.reduce((acc, item) => acc + item.total, 0),
             service_type: 'dine_in',
             table_id: selectedTable.id,
             payment_method: null,
@@ -330,11 +541,66 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             send_to_kitchen: true,
         }, {
             onSuccess: () => {
+                setIsProcessing(false);
                 toast.success('Pedido enviado a cocina');
+                // Limpiar selección para permitir cambiar de mesa libremente
+                setCart([]);
+                setSelectedTable(null);
+                setSelectedCustomer(null);
                 setIsMobileCartOpen(false);
-                // The cart will be refreshed via the Inertia response (re-running index and loading table again)
             },
-            onError: () => toast.error('Error al enviar pedido')
+            onError: () => {
+                setIsProcessing(false);
+                toast.error('Error al enviar pedido');
+            }
+        });
+    };
+
+    // Cancelar item enviado a cocina
+    const [confirmCancelItemId, setConfirmCancelItemId] = useState<string | null>(null);
+
+    const handleCancelSentItem = (itemId: string) => {
+        setConfirmCancelItemId(itemId);
+    };
+
+    const confirmCancelSentItem = () => {
+        if (!confirmCancelItemId) return;
+
+        // Extraer el DB id del formato 'sent-{id}'
+        const dbId = confirmCancelItemId.replace('sent-', '');
+        if (!dbId || dbId === confirmCancelItemId) {
+            // No es un item enviado, simplemente remover del cart
+            setCart(prev => prev.filter(i => i.id !== confirmCancelItemId));
+            setConfirmCancelItemId(null);
+            return;
+        }
+
+        setIsProcessing(true);
+        fetch(route('tenant.admin.pos.cancel-item', { tenant: tenant.slug, item: dbId }), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json',
+            },
+        })
+        .then(res => res.json())
+        .then(data => {
+            setIsProcessing(false);
+            if (data.success) {
+                // Remover item del carrito local
+                setCart(prev => prev.filter(i => i.id !== confirmCancelItemId));
+                toast.success(data.message || 'Item anulado');
+                setConfirmCancelItemId(null);
+            } else {
+                toast.error(data.message || 'Error al anular item');
+                setConfirmCancelItemId(null);
+            }
+        })
+        .catch(() => {
+            setIsProcessing(false);
+            toast.error('Error de red al anular item');
+            setConfirmCancelItemId(null);
         });
     };
 
@@ -360,7 +626,45 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
     };
 
     const handleLocationChange = (val: string) => {
-        router.visit(route('tenant.pos.index', { tenant: tenant.slug, location_id: val }));
+        router.visit(route('tenant.admin.pos', { tenant: tenant.slug, location_id: val }));
+    };
+
+    // Vaciar carrito con confirmación
+    const handleClearCart = () => {
+        if (cart.length === 0) return;
+        const hasUnsent = cart.some(item => !item.is_sent);
+        if (hasUnsent) {
+            setConfirmClearCartOpen(true);
+        } else {
+            // Solo hay items enviados, limpiar directamente
+            setCart([]);
+        }
+    };
+
+    const confirmClearCartAction = () => {
+        setCart(prev => prev.filter(item => item.is_sent));
+        setConfirmClearCartOpen(false);
+    };
+
+    // Timer tick para actualizar tiempos de mesas ocupadas cada 30s
+    const [timerTick, setTimerTick] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => setTimerTick(t => t + 1), 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Calcular tiempo transcurrido para mesas ocupadas
+    const getElapsedTime = (createdAt: string): string => {
+        // timerTick forces re-calculation
+        void timerTick;
+        const start = new Date(createdAt);
+        const now = new Date();
+        const diffMs = now.getTime() - start.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 60) return `${diffMins}min`;
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        return `${hours}h ${mins}m`;
     };
 
     return (
@@ -373,11 +677,11 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 <div className="flex-1 flex flex-col bg-slate-100 min-w-0">
 
                     {/* Zone Tabs & Location Selector */}
-                    <div className="bg-white border-b px-6 py-4 flex justify-between items-center z-10 shrink-0">
-                        <div className="flex space-x-2 overflow-x-auto">
+                    <div className="bg-white border-b px-4 md:px-6 py-3 flex flex-col md:flex-row md:justify-between md:items-center gap-3 z-10 shrink-0">
+                        <div className="flex items-center gap-2 overflow-x-auto">
                             <button
                                 onClick={() => setActiveZoneId('all')}
-                                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeZoneId === 'all'
+                                className={`px-4 py-2 rounded-full text-sm font-bold transition-all shrink-0 ${activeZoneId === 'all'
                                     ? 'bg-slate-900 text-white'
                                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                     }`}
@@ -388,7 +692,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                 <button
                                     key={zone.id}
                                     onClick={() => setActiveZoneId(String(zone.id))}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${activeZoneId === String(zone.id)
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all shrink-0 ${activeZoneId === String(zone.id)
                                         ? 'bg-slate-900 text-white'
                                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                         }`}
@@ -396,11 +700,77 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                     {zone.name}
                                 </button>
                             ))}
+
+                            {/* Separador visual */}
+                            <div className="w-px h-6 bg-slate-200 mx-1 shrink-0" />
+
+                            {/* Botón Pedido Rápido (Takeout) */}
+                            <button
+                                onClick={() => {
+                                    setIsTakeoutMode(true);
+                                    setSelectedTable(null);
+                                    setCart([]);
+                                    setSelectedCustomer(null);
+                                    setShowProductDrawer(true);
+                                }}
+                                className="px-4 py-2 rounded-full text-sm font-bold transition-all shrink-0 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center gap-1.5"
+                            >
+                                <Package className="w-4 h-4" />
+                                Pedido Rápido
+                            </button>
                         </div>
 
-                        <div className="hidden md:flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                            {/* Búsqueda rápida de productos inline */}
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
+                                <Input
+                                    placeholder="Buscar producto..."
+                                    value={quickProductSearch}
+                                    onChange={(e) => setQuickProductSearch(e.target.value)}
+                                    className="pl-8 h-9 w-[160px] md:w-[200px] bg-indigo-50/50 border-indigo-200 text-sm focus:ring-indigo-300"
+                                />
+                                {/* Dropdown resultados */}
+                                {filteredInlineProducts.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 z-50 overflow-hidden max-h-64">
+                                        {filteredInlineProducts.map(product => (
+                                            <button
+                                                key={product.id}
+                                                className="w-full px-3 py-2.5 flex items-center gap-3 hover:bg-indigo-50 transition-colors text-left"
+                                                onClick={() => {
+                                                    handleProductSelect(product);
+                                                    setQuickProductSearch('');
+                                                }}
+                                            >
+                                                {product.image_url ? (
+                                                    <img src={product.image_url} className="w-8 h-8 rounded object-cover shrink-0" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded bg-slate-100 shrink-0" />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-medium text-slate-800 truncate">{product.name}</div>
+                                                    <div className="text-xs text-slate-400">{formatCurrency(product.price)}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Búsqueda rápida de mesas */}
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <Input
+                                    placeholder="Buscar mesa..."
+                                    value={tableSearch}
+                                    onChange={(e) => setTableSearch(e.target.value)}
+                                    className="pl-8 h-9 w-[120px] md:w-[150px] bg-slate-50 border-slate-200 text-sm"
+                                />
+                            </div>
+
+                            {/* Selector de Sede (visible en móvil y desktop) */}
                             <Select value={String(locationId)} onValueChange={handleLocationChange}>
-                                <SelectTrigger className="w-[200px] h-9 bg-slate-50 border-slate-200">
+                                <SelectTrigger className="w-[160px] md:w-[200px] h-9 bg-slate-50 border-slate-200">
                                     <SelectValue placeholder="Seleccionar Sede" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -430,98 +800,159 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                         </div>
                     )}
 
+                    {/* Banner Modo Takeout */}
+                    {isTakeoutMode && (
+                        <div className="bg-indigo-600 text-white px-6 py-3 flex items-center justify-between z-20 animate-in fade-in slide-in-from-top duration-300">
+                            <div className="flex items-center gap-3 font-bold">
+                                <Package className="w-5 h-5" />
+                                <span>PEDIDO RÁPIDO — Takeout / Delivery (sin mesa)</span>
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 text-xs bg-white/20 hover:bg-white/30 text-white border-0"
+                                onClick={() => {
+                                    setIsTakeoutMode(false);
+                                    setCart([]);
+                                    setSelectedCustomer(null);
+                                }}
+                            >
+                                Cancelar
+                            </Button>
+                        </div>
+                    )}
+
                     {/* Table Grid */}
                     <ScrollArea className="flex-1 p-6">
+                        {!isPageLoaded ? (
+                            /* Skeleton Loader */
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-20">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                    <div key={i} className="h-40 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex flex-col items-center justify-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-200" />
+                                        <div className="w-16 h-4 rounded bg-slate-200" />
+                                        <div className="w-10 h-3 rounded bg-slate-200" />
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
                         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-20">
                             {zones
                                 .filter(z => activeZoneId === 'all' || String(z.id) === activeZoneId)
-                                .map(zone => (
-                                    zone.tables.map(table => {
-                                        // Check if reserved for today
-                                        const isReservedToday = reservations.some(r => r.table_id === table.id && ['confirmed', 'pending'].includes(r.status));
+                                .flatMap(zone =>
+                                    zone.tables
+                                        .filter(table => {
+                                            if (!tableSearch) return true;
+                                            return table.name.toLowerCase().includes(tableSearch.toLowerCase());
+                                        })
+                                        .map(table => {
+                                            // Check if reserved for today
+                                            const isReservedToday = reservations.some(r => r.table_id === table.id && ['confirmed', 'pending'].includes(r.status));
 
-                                        // Colors based on status
-                                        let statusColor = "bg-white border-slate-200";
-                                        let statusBadge = "bg-slate-100 text-slate-500";
-                                        let icon = <Armchair className="w-8 h-8 text-slate-300" />;
+                                            // Colors based on status
+                                            let statusColor = "bg-white border-slate-200";
+                                            let statusBadge = "bg-slate-100 text-slate-500";
+                                            let icon = <Armchair className="w-8 h-8 text-slate-300" />;
 
-                                        // Determine effective status for POS purposes
-                                        let displayStatus = table.status;
-                                        if (displayStatus === 'available' && isReservedToday) {
-                                            displayStatus = 'reserved';
-                                        } else if (displayStatus === 'reserved' && !isReservedToday) {
-                                            displayStatus = 'available'; // Reset to available if not reserved today
-                                        }
+                                            // Determine effective status for POS purposes
+                                            let displayStatus = table.status;
+                                            if (displayStatus === 'available' && isReservedToday) {
+                                                displayStatus = 'reserved';
+                                            } else if (displayStatus === 'reserved' && !isReservedToday) {
+                                                displayStatus = 'available';
+                                            }
 
-                                        if (displayStatus === 'occupied') {
-                                            statusColor = "bg-red-50/30 border-red-200";
-                                            statusBadge = "bg-red-100 text-red-600";
-                                            icon = <Clock className="w-8 h-8 text-red-400" />;
-                                        } else if (displayStatus === 'reserved') {
-                                            statusColor = "bg-amber-50/30 border-amber-200";
-                                            statusBadge = "bg-amber-100 text-amber-600";
-                                            icon = <CheckCircle className="w-8 h-8 text-amber-400" />;
-                                        } else if (displayStatus === 'available') {
-                                            statusColor = "bg-white border-slate-200 hover:bg-slate-50";
-                                            statusBadge = "bg-slate-100 text-slate-500";
-                                            icon = <Armchair className="w-8 h-8 text-slate-300" />;
-                                        } else if (displayStatus === 'maintenance') {
-                                            statusColor = "bg-slate-100 border-slate-200 opacity-50";
-                                            icon = <Construction className="w-8 h-8 text-slate-400" />;
-                                        }
+                                            // Verificar si la orden de esta mesa está "ready" vía Echo
+                                            const isOrderReady = table.active_order?.id ? readyOrderIds.has(table.active_order.id) : false;
+                                            const isWaiterCollected = table.active_order?.waiter_collected === true || (table.active_order?.id ? waiterCollectedIds.has(table.active_order.id) : false);
 
-                                        const isSelected = selectedTable?.id === table.id;
+                                            if (displayStatus === 'occupied' && isWaiterCollected) {
+                                                statusColor = "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-300/50";
+                                                statusBadge = "bg-emerald-500 text-white";
+                                                icon = <ShoppingCart className="w-8 h-8 text-emerald-500" />;
+                                            } else if (displayStatus === 'occupied' && isOrderReady) {
+                                                statusColor = "bg-green-50 border-green-300 ring-2 ring-green-300/30";
+                                                statusBadge = "bg-green-100 text-green-700";
+                                                icon = <CheckCircle className="w-8 h-8 text-green-500" />;
+                                            } else if (displayStatus === 'occupied') {
+                                                statusColor = "bg-red-50/30 border-red-200";
+                                                statusBadge = "bg-red-100 text-red-600";
+                                                icon = <Clock className="w-8 h-8 text-red-400" />;
+                                            } else if (displayStatus === 'reserved') {
+                                                statusColor = "bg-amber-50/30 border-amber-200";
+                                                statusBadge = "bg-amber-100 text-amber-600";
+                                                icon = <CheckCircle className="w-8 h-8 text-amber-400" />;
+                                            } else if (displayStatus === 'available') {
+                                                statusColor = "bg-white border-slate-200 hover:bg-slate-50";
+                                                statusBadge = "bg-slate-100 text-slate-500";
+                                                icon = <Armchair className="w-8 h-8 text-slate-300" />;
+                                            } else if (displayStatus === 'maintenance') {
+                                                statusColor = "bg-slate-100 border-slate-200 opacity-50";
+                                                icon = <Construction className="w-8 h-8 text-slate-400" />;
+                                            }
 
-                                        return (
-                                            <div
-                                                key={table.id}
-                                                onClick={() => handleTableClick(table)}
-                                                className={`
-                                                    relative h-40 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer
-                                                    ${statusColor}
-                                                    ${isSelected ? 'border-2 border-slate-900 bg-white ring-2 ring-slate-900/10' : 'hover:border-slate-400'}
-                                                `}
-                                            >
-                                                {/* Header Status */}
-                                                <div className={`absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusBadge}`}>
-                                                    {displayStatus === 'available' ? 'Libre' :
-                                                        displayStatus === 'occupied' ? 'Ocupada' :
-                                                            displayStatus === 'reserved' ? 'Reservada' : 'Mant.'}
-                                                </div>
+                                            const isSelected = selectedTable?.id === table.id;
 
-                                                {/* Active Order Info (if occupied) */}
-                                                {table.status === 'occupied' && table.active_order && (
-                                                    <div className="absolute top-3 left-3 flex flex-col items-start">
-                                                        <span className="text-[10px] bg-white/80 px-1.5 py-0.5 rounded text-slate-500 font-mono border border-slate-200 shadow-sm">
-                                                            Orden activa
-                                                        </span>
+                                            return (
+                                                <div
+                                                    key={table.id}
+                                                    onClick={() => handleTableClick(table)}
+                                                    className={`
+                                                        relative h-40 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all duration-200 cursor-pointer
+                                                        ${statusColor}
+                                                        ${isSelected ? 'border-2 border-slate-900 bg-white ring-2 ring-slate-900/10' : 'hover:border-slate-400'}
+                                                    `}
+                                                >
+                                                    {/* Header Status */}
+                                                    <div className={`absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusBadge}`}>
+                                                        {isWaiterCollected ? '💰 Cobrado' :
+                                                            isOrderReady ? 'Listo' :
+                                                                displayStatus === 'available' ? 'Libre' :
+                                                                    displayStatus === 'occupied' ? 'Ocupada' :
+                                                                        displayStatus === 'reserved' ? 'Reservada' : 'Mant.'}
                                                     </div>
-                                                )}
 
-                                                {icon}
-
-                                                <div className="text-xl font-black text-slate-700 font-mono">
-                                                    {table.name}
-                                                </div>
-
-                                                <div className="text-xs text-slate-400 font-medium">
-                                                    {table.capacity} Pax
-                                                </div>
-
-                                                {/* Occupied Details */}
-                                                {table.status === 'occupied' && (
-                                                    <div className="mt-1 text-center bg-white/50 w-full py-1 border-t border-red-100">
-                                                        <div className="text-sm font-bold text-slate-800">
-                                                            {table.active_order?.total ? `$${parseFloat(String(table.active_order.total)).toLocaleString()}` : '$0'}
+                                                    {/* Active Order Timer (if occupied) */}
+                                                    {table.status === 'occupied' && table.active_order && (
+                                                        <div className="absolute top-3 left-3 flex items-center gap-1">
+                                                            <Clock className="w-3 h-3 text-red-400" />
+                                                            <span className="text-[10px] bg-red-50 px-1.5 py-0.5 rounded text-red-600 font-mono font-bold border border-red-200">
+                                                                {getElapsedTime(table.active_order.created_at)}
+                                                            </span>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })
-                                ))}
+                                                    )}
 
-                            {/* Fallback Empty State */}
+                                                    {icon}
+
+                                                    <div className="text-xl font-black text-slate-700 font-mono">
+                                                        {table.name}
+                                                    </div>
+
+                                                    <div className="text-xs text-slate-400 font-medium">
+                                                        {table.capacity} Pax
+                                                    </div>
+
+                                                    {/* Occupied Details: Total / Waiter Collected */}
+                                                    {table.status === 'occupied' && table.active_order && isWaiterCollected && (
+                                                        <div className="absolute bottom-0 left-0 right-0 text-center bg-emerald-100 py-1.5 border-t border-emerald-300 rounded-b-xl">
+                                                            <div className="text-xs font-black text-emerald-800">
+                                                                VERIFICAR {formatCurrency(table.active_order.total)}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {table.status === 'occupied' && table.active_order && !isWaiterCollected && (
+                                                        <div className="absolute bottom-0 left-0 right-0 text-center bg-red-50/80 py-1.5 border-t border-red-200 rounded-b-xl">
+                                                            <div className="text-sm font-black text-red-700">
+                                                                {formatCurrency(table.active_order.total)}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                )}
+
+                            {/* Empty State: no zones */}
                             {zones.length === 0 && (
                                 <div className="col-span-full h-64 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50">
                                     <Construction className="w-12 h-12 mb-4 opacity-50" />
@@ -529,7 +960,23 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                                     <p className="text-sm">Configura zonas y mesas en el panel de administración.</p>
                                 </div>
                             )}
+
+                            {/* Empty State: zona sin mesas (o búsqueda sin resultados) */}
+                            {zones.length > 0 && zones
+                                .filter(z => activeZoneId === 'all' || String(z.id) === activeZoneId)
+                                .every(z => z.tables.filter(t => !tableSearch || t.name.toLowerCase().includes(tableSearch.toLowerCase())).length === 0) && (
+                                <div className="col-span-full h-48 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                                    <Search className="w-10 h-10 mb-3 opacity-30" />
+                                    <h3 className="text-base font-bold">
+                                        {tableSearch ? 'No se encontraron mesas' : 'Esta zona no tiene mesas'}
+                                    </h3>
+                                    <p className="text-sm mt-1">
+                                        {tableSearch ? `Sin resultados para "${tableSearch}"` : 'Agrega mesas desde el panel de administración.'}
+                                    </p>
+                                </div>
+                            )}
                         </div>
+                        )}
                     </ScrollArea>
                 </div>
 
@@ -543,13 +990,16 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                         selectedTable={selectedTable}
                         onUpdateQuantity={updateQuantity}
                         onRemoveFromCart={removeFromCart}
-                        onClearCart={() => setCart([])}
+                        onClearCart={handleClearCart}
                         onOpenCustomerModal={() => setShowCustomerModal(true)}
                         onShowCheckout={() => setShowCheckout(true)}
                         onSendToKitchen={handleSendToKitchen}
+                        onCancelSentItem={handleCancelSentItem}
                         canPay={canPay}
+                        isProcessing={isProcessing}
+                        isTakeoutMode={isTakeoutMode}
                         onAddProducts={() => {
-                            if (!selectedTable) {
+                            if (!selectedTable && !isTakeoutMode) {
                                 toast.error("Selecciona una mesa primero");
                                 return;
                             }
@@ -571,14 +1021,17 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                         selectedTable={selectedTable}
                         onUpdateQuantity={updateQuantity}
                         onRemoveFromCart={removeFromCart}
-                        onClearCart={() => setCart([])}
+                        onClearCart={handleClearCart}
                         onOpenCustomerModal={() => setShowCustomerModal(true)}
                         onShowCheckout={() => {
                             setShowCheckout(true);
                             setIsMobileCartOpen(false);
                         }}
                         onSendToKitchen={handleSendToKitchen}
+                        onCancelSentItem={handleCancelSentItem}
                         canPay={canPay}
+                        isProcessing={isProcessing}
+                        isTakeoutMode={isTakeoutMode}
                         onAddProducts={() => {
                             setIsMobileCartOpen(false);
                             setShowProductDrawer(true);
@@ -619,26 +1072,49 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                 onOpenChange={setShowCheckout}
                 total={cartGrandTotal}
                 items={cart}
-                onSuccess={() => {
+                onSuccess={(result?: CheckoutResult) => {
+                    // Si es pago exitoso y hay resultado, mostrar recibo
+                    if (result) {
+                        setReceiptData({
+                            orderId: result.orderId,
+                            items: [...cart],
+                            paymentMethod: result.paymentMethod,
+                            cashAmount: result.cashAmount,
+                            change: result.change,
+                            customer: selectedCustomer,
+                            table: selectedTable,
+                            tenant,
+                            taxSettings,
+                        });
+                        setShowReceipt(true);
+                    }
                     setCart([]);
                     setShowCheckout(false);
                     setSelectedCustomer(null);
-                    setSelectedTable(null);
+                    if (!isTakeoutMode) {
+                        setSelectedTable(null);
+                    }
+                    setIsTakeoutMode(false);
                 }}
                 customer={selectedCustomer}
                 tenant={tenant}
-                table={selectedTable}
+                table={isTakeoutMode ? null : selectedTable}
                 isWaiter={isWaiter}
                 locationId={locationId}
+            />
+
+            <ReceiptModal
+                open={showReceipt}
+                onOpenChange={setShowReceipt}
+                data={receiptData}
             />
 
             <VariantSelectorModal
                 open={showVariantModal}
                 onOpenChange={setShowVariantModal}
                 product={selectedProduct}
-                // FIXED: Arguments order mismatch. VariantSelectorModal passes (product, quantity, variants, totalPrice)
-                onAddToCart={(product, quantity, variants, totalPrice) => {
-                    addToCart(product, variants, totalPrice, quantity);
+                onAddToCart={(product: Product, quantity: number, variants: Record<number, number[]>, totalPrice: number, notes?: string) => {
+                    addToCart(product, variants, totalPrice, quantity, notes);
                     setShowVariantModal(false);
                 }}
             />
@@ -709,10 +1185,12 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                         <AlertDialogCancel onClick={() => setConfirmCloseCartOpen(false)}>Mantener mesa actual</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => {
-                                setCart([]);
-                                setSelectedCustomer(null);
-                                setSelectedTable(pendingTable);
                                 setConfirmCloseCartOpen(false);
+                                if (pendingTable) {
+                                    setSelectedTable(pendingTable);
+                                    loadActiveOrderItems(pendingTable);
+                                    setPendingTable(null);
+                                }
                             }}
                             className="bg-red-600 text-white hover:bg-red-700"
                         >
@@ -721,6 +1199,49 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            {/* Clear Cart Confirmation */}
+            <AlertDialog open={confirmClearCartOpen} onOpenChange={setConfirmClearCartOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Vaciar carrito?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Se eliminarán los productos que aún no han sido enviados a cocina. Los productos ya enviados se mantendrán.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmClearCartAction}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                        >
+                            Sí, Vaciar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Cancel Sent Item Confirmation */}
+            <AlertDialog open={!!confirmCancelItemId} onOpenChange={(open) => { if (!open) setConfirmCancelItemId(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-600">¿Anular este producto?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Este producto ya fue enviado a cocina. Al anularlo, se restará del total de la orden inmediatamente y cocina será notificada.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Volver</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmCancelSentItem}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? 'Anulando...' : 'Sí, Anular Item'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Free Table Confirmation */}
             <AlertDialog open={confirmFreeTableOpen} onOpenChange={setConfirmFreeTableOpen}>
                 <AlertDialogContent>
@@ -742,6 +1263,116 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Modal de Verificación de Pago del Mesero */}
+            <Dialog open={showVerifyPayment} onOpenChange={(open) => { if (!open) { setShowVerifyPayment(false); setVerifyingTable(null); } }}>
+                <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl">
+                    {verifyingTable?.active_order && (() => {
+                        const order = verifyingTable.active_order;
+                        const proofUrl = order.payment_proof_url || (order as unknown as { payment_proof?: string }).payment_proof;
+                        return (
+                            <>
+                                {/* Header */}
+                                <div className="bg-emerald-600 p-5 text-white">
+                                    <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2 text-white text-lg">
+                                            <BadgeCheck className="w-6 h-6" />
+                                            Verificar Pago — {verifyingTable.name}
+                                        </DialogTitle>
+                                        <DialogDescription className="text-emerald-100 mt-1">
+                                            El mesero registró el cobro de esta mesa. Revisa los detalles y verifica.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                </div>
+
+                                {/* Body */}
+                                <div className="p-5 space-y-4">
+                                    {/* Resumen del pedido */}
+                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Resumen del Pedido #{order.id}</h4>
+                                        {order.items && order.items.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {order.items.filter(i => (i as unknown as { status?: string }).status !== 'cancelled').map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between text-sm">
+                                                        <span className="text-slate-700">{item.quantity}x {item.product_name}</span>
+                                                        <span className="font-semibold text-slate-900">{formatCurrency(Number(item.total) || (Number(item.price) * item.quantity))}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-400">Items no disponibles en vista previa</p>
+                                        )}
+                                        <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between">
+                                            <span className="text-base font-black text-slate-900">TOTAL</span>
+                                            <span className="text-xl font-black text-emerald-700">{formatCurrency(order.total)}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Método de pago */}
+                                    <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                        <CreditCard className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                                        <div>
+                                            <p className="text-xs font-bold text-blue-600 uppercase">Método de Pago</p>
+                                            <p className="text-sm font-semibold text-slate-900 capitalize">
+                                                {{ cash: 'Efectivo', bank_transfer: 'Transferencia Bancaria', dataphone: 'Datáfono' }[order.payment_method || ''] || order.payment_method || 'No especificado'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Referencia */}
+                                    {order.payment_reference && (
+                                        <div className="flex items-center gap-3 bg-amber-50 rounded-xl p-4 border border-amber-200">
+                                            <Receipt className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                                            <div>
+                                                <p className="text-xs font-bold text-amber-600 uppercase">Referencia</p>
+                                                <p className="text-sm font-semibold text-slate-900 font-mono">{order.payment_reference}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Foto del comprobante */}
+                                    {proofUrl && (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <Image className="w-4 h-4 text-slate-500" />
+                                                <p className="text-xs font-bold text-slate-500 uppercase">Comprobante de Pago</p>
+                                            </div>
+                                            <a href={typeof proofUrl === 'string' ? proofUrl : '#'} target="_blank" rel="noopener noreferrer"
+                                                className="block rounded-xl overflow-hidden border-2 border-slate-200 hover:border-emerald-400 transition-colors">
+                                                <img
+                                                    src={typeof proofUrl === 'string' ? proofUrl : ''}
+                                                    alt="Comprobante de pago"
+                                                    className="w-full max-h-64 object-contain bg-slate-100"
+                                                />
+                                            </a>
+                                            <p className="text-[10px] text-slate-400 text-center">Toca la imagen para verla completa</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer con acciones */}
+                                <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-2">
+                                    <Button
+                                        onClick={handleVerifyPayment}
+                                        disabled={isVerifying}
+                                        className="w-full h-12 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg"
+                                    >
+                                        {isVerifying ? (
+                                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        ) : (
+                                            <BadgeCheck className="w-5 h-5 mr-2" />
+                                        )}
+                                        {isVerifying ? 'Verificando...' : 'VERIFICAR Y COMPLETAR PEDIDO'}
+                                    </Button>
+                                    <p className="text-[10px] text-center text-slate-400">
+                                        Se marcará la orden como completada y la mesa quedará libre
+                                    </p>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
         </POSLayout>
     );
 }

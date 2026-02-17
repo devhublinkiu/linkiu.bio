@@ -1,9 +1,10 @@
-import { useState, useMemo, useRef } from 'react';
-import { Sheet, SheetContent, SheetTrigger } from '@/Components/ui/sheet';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Sheet, SheetContent } from '@/Components/ui/sheet';
 import { Button } from '@/Components/ui/button';
 import { useCart } from '@/Contexts/CartContext';
 import { Minus, Plus, ShoppingBag, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatPrice } from '@/lib/utils';
 
 interface VariantOption {
     id: number;
@@ -51,6 +52,13 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
     const [selectedVariants, setSelectedVariants] = useState<Record<number, number[]>>({});
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+        if (isOpen) {
+            setQuantity(1);
+            setSelectedVariants({});
+        }
+    }, [isOpen, product.id]);
+
     const scroll = (direction: 'left' | 'right') => {
         if (scrollContainerRef.current) {
             const { current } = scrollContainerRef;
@@ -66,14 +74,6 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
     // (In a real implementation we might want to use useEffect for this)
 
     const basePrice = Number(product.price);
-
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            maximumFractionDigits: 0
-        }).format(price);
-    };
 
     // Calculate total price including variants
     const totalPrice = useMemo(() => {
@@ -95,32 +95,38 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
     }, [product, selectedVariants, quantity, basePrice]);
 
     const handleVariantChange = (groupId: number, optionId: number, type: 'radio' | 'checkbox') => {
+        const group = product.variant_groups?.find(g => g.id === groupId);
+        if (!group) return;
+
         setSelectedVariants(prev => {
             const currentSelected = prev[groupId] || [];
 
             if (type === 'radio') {
                 return { ...prev, [groupId]: [optionId] };
-            } else {
-                // Checkbox toggle
-                if (currentSelected.includes(optionId)) {
-                    return { ...prev, [groupId]: currentSelected.filter(id => id !== optionId) };
-                } else {
-                    return { ...prev, [groupId]: [...currentSelected, optionId] };
-                }
             }
+            if (currentSelected.includes(optionId)) {
+                return { ...prev, [groupId]: currentSelected.filter(id => id !== optionId) };
+            }
+            const newSelected = [...currentSelected, optionId];
+            if (group.max_selection > 0 && newSelected.length > group.max_selection) {
+                toast.error(`Máximo ${group.max_selection} opción(es) en ${group.name}`);
+                return prev;
+            }
+            return { ...prev, [groupId]: newSelected };
         });
     };
 
     const handleAddToCart = () => {
-        // Validation: Check required groups
         if (product.variant_groups) {
             for (const group of product.variant_groups) {
-                if (group.is_required) {
-                    const selected = selectedVariants[group.id] || [];
-                    if (selected.length < group.min_selection) {
-                        toast.error(`Debes seleccionar al menos ${group.min_selection} opción(es) en ${group.name}`);
-                        return;
-                    }
+                const selected = selectedVariants[group.id] || [];
+                if (group.is_required && selected.length < group.min_selection) {
+                    toast.error(`Debes seleccionar al menos ${group.min_selection} opción(es) en ${group.name}`);
+                    return;
+                }
+                if (group.max_selection > 0 && selected.length > group.max_selection) {
+                    toast.error(`Máximo ${group.max_selection} opción(es) en ${group.name}`);
+                    return;
                 }
             }
         }
@@ -144,13 +150,14 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
             });
         }
 
-        // Add to cart with simplified object (flattened variants for now, or full object if supported)
+        // Add to cart: pasar image_url explícitamente para que siempre llegue al carrito
         addToCart({
             ...product,
-            price: totalPrice / quantity, // Store unit price with modifiers
+            image_url: product.image_url ?? (product as { imageUrl?: string }).imageUrl,
+            price: totalPrice / quantity,
             quantity: quantity,
-            variant_selections: selectedVariants, // Store raw selections
-            variant_options: variantOptionsFormatted // Store formatted options for display/order
+            variant_selections: selectedVariants,
+            variant_options: variantOptionsFormatted
         });
 
         onClose();
@@ -202,13 +209,14 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
                                 </div>
                             )}
 
-                            {/* Gallery Images (Prefer URLs, fallback to raw paths if needed) */}
+                            {/* Gallery: solo URLs absolutas (Bunny); no usar /storage/ */}
                             {(product.gallery_urls || product.gallery)?.map((img, index) => {
-                                const src = img.startsWith('http') || img.startsWith('/') ? img : `/storage/${img}`;
+                                const isFullUrl = typeof img === 'string' && img.startsWith('http');
+                                if (!isFullUrl) return null;
                                 return (
                                     <div key={index} className="w-full h-full shrink-0 snap-center relative">
                                         <img
-                                            src={src}
+                                            src={img}
                                             alt={`${product.name} - ${index + 1}`}
                                             className="w-full h-full object-cover"
                                             draggable={false}
@@ -341,22 +349,26 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
                                     {group.options.map(option => {
                                         const isSelected = (selectedVariants[group.id] || []).includes(option.id);
                                         const priceAdj = Number(option.price_adjustment);
+                                        const unavailable = option.is_available === false;
 
                                         return (
                                             <label
                                                 key={option.id}
-                                                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isSelected
-                                                    ? 'border-slate-900 bg-slate-50'
-                                                    : 'border-slate-100 hover:border-slate-200'
-                                                    }`}
+                                                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                                    unavailable
+                                                        ? 'cursor-not-allowed opacity-60 bg-slate-50 border-slate-100'
+                                                        : isSelected
+                                                            ? 'border-slate-900 bg-slate-50 cursor-pointer'
+                                                            : 'border-slate-100 hover:border-slate-200 cursor-pointer'
+                                                }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-slate-900 border-slate-900' : 'border-slate-300'
-                                                        }`}>
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-slate-900 border-slate-900' : 'border-slate-300'}`}>
                                                         {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                                                     </div>
                                                     <span className={`font-medium ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
                                                         {option.name}
+                                                        {unavailable && <span className="text-slate-400 text-xs ml-1">(no disponible)</span>}
                                                     </span>
                                                 </div>
                                                 <input
@@ -364,9 +376,10 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
                                                     name={`group-${group.id}`}
                                                     className="hidden"
                                                     checked={isSelected}
-                                                    onChange={() => handleVariantChange(group.id, option.id, group.type)}
+                                                    disabled={unavailable}
+                                                    onChange={() => !unavailable && handleVariantChange(group.id, option.id, group.type)}
                                                 />
-                                                {priceAdj > 0 && (
+                                                {priceAdj > 0 && !unavailable && (
                                                     <span className="text-sm font-bold text-slate-900">
                                                         +{formatPrice(priceAdj)}
                                                     </span>

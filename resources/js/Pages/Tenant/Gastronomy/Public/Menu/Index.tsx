@@ -2,18 +2,14 @@ import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import Header from '@/Components/Tenant/Gastronomy/Public/Header';
-import { Search, X, Flame, Star, Percent, Leaf } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
-interface Product {
-    id: number;
+interface TenantProps {
+    slug: string;
     name: string;
-    short_description: string | null;
-    price: string;
-    original_price?: string | null;
-    image_url: string | null;
-    is_available: boolean;
-    is_featured?: boolean;
-    tags?: string[];
+    logo_url?: string;
+    store_description?: string;
+    brand_colors?: { bg_color?: string; name_color?: string; description_color?: string };
 }
 
 interface Category {
@@ -24,29 +20,19 @@ interface Category {
         icon_url: string;
         name: string;
     } | null;
-    products: Product[];
 }
 
 interface Props {
-    tenant: any;
+    tenant: TenantProps;
     categories: Category[];
 }
 
 export default function Index({ tenant, categories }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTag, setActiveTag] = useState('Todos');
 
-    const { bg_color, name_color } = tenant.brand_colors;
+    const brandColors = tenant.brand_colors ?? { bg_color: '#f8fafc', name_color: '#1e293b', description_color: '#64748b' };
+    const { bg_color, name_color } = brandColors;
 
-    const tags = [
-        { id: 'todos', label: 'Todos', icon: null },
-        { id: 'featured', label: 'Destacados', icon: Flame },
-        { id: 'offers', label: 'Ofertas', icon: Percent },
-        { id: 'veggie', label: 'Vegetariano', icon: Leaf },
-        { id: 'top', label: 'Populares', icon: Star },
-    ];
-
-    // On the index page, we might only want to filter categories if searching
     const filteredCategories = categories.filter(cat =>
         cat.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
@@ -62,6 +48,7 @@ export default function Index({ tenant, categories }: Props) {
                     description={tenant.store_description}
                     bgColor={bg_color}
                     textColor={name_color}
+                    descriptionColor={brandColors.description_color}
                 />
 
                 {/* 1. Category Grid (At the Top) */}
@@ -97,9 +84,8 @@ export default function Index({ tenant, categories }: Props) {
                     </div>
                 </div>
 
-                {/* 2. Sticky Search & Tags Bar - Keeping but empty content below for now per request */}
-                <div className="sticky top-0 z-[100] bg-white shadow-sm border-b border-slate-100 pb-0.5">
-                    {/* Search Bar */}
+                {/* 2. Sticky Search Bar */}
+                <div className="sticky top-0 z-[100] bg-white shadow-sm border-b border-slate-100">
                     <div className="px-4 pt-4 pb-4">
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -121,32 +107,6 @@ export default function Index({ tenant, categories }: Props) {
                                 </button>
                             )}
                         </div>
-                    </div>
-
-                    {/* Tags Filter - Maybe redundant here if no products below, but user said keep tags?
-                        Actually user said 'quitemos ese menu que esta debajo de los tags', implying tags stay.
-                    */}
-                    <div className="flex items-center gap-2 px-4 pb-4 overflow-x-auto no-scrollbar scroll-smooth">
-                        {tags.map((tag) => {
-                            const Icon = tag.icon;
-                            const isActive = activeTag === tag.label;
-                            return (
-                                <button
-                                    key={tag.id}
-                                    onClick={() => setActiveTag(tag.label)}
-                                    className={`
-                                        shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border
-                                        ${isActive
-                                            ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-105'
-                                            : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'
-                                        }
-                                    `}
-                                >
-                                    {Icon && <Icon className={`size-3.5 ${isActive ? 'fill-current' : ''}`} />}
-                                    {tag.label}
-                                </button>
-                            );
-                        })}
                     </div>
                 </div>
 

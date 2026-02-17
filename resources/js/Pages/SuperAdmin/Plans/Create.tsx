@@ -14,7 +14,7 @@ import { Plus, Trash2, ArrowLeft, Upload, Calculator } from 'lucide-react';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { FieldError } from '@/Components/ui/field';
 import { MediaInput } from '@/Components/Shared/MediaManager/MediaInput';
-import { VERTICAL_CONFIG, MODULE_LABELS } from '@/Config/menuConfig';
+import { VERTICAL_CONFIG, MODULE_LABELS, MODULE_HAS_LIMIT, LIMIT_FORM_KEY_TO_BACKEND } from '@/Config/menuConfig';
 
 interface Vertical {
     id: number;
@@ -54,13 +54,8 @@ export default function Create({ verticals }: Props) {
     // Module Configuration State
     const [moduleConfig, setModuleConfig] = useState<Record<string, boolean>>({});
 
-    // Import Config (We need to do this dynamically or just move imports up)
-    // Since imports must be top-level, I'll add them to the file top in a separate edit or assume users add them.
-    // Wait, I can't add imports in this localized edit if they are missing. I will add imports in a separate Edit.
-    // For now, I'll just use the state logic.
-
-    // BUT, I need VERTICAL_CONFIG. I'll assume I'll add the import in the next step.
-
+    // Limits Configuration State (numeric limits per module)
+    const [limitsConfig, setLimitsConfig] = useState<Record<string, string>>({});
 
 
     // Auto-generate slug from name
@@ -132,6 +127,10 @@ export default function Create({ verticals }: Props) {
         setModuleConfig(prev => ({ ...prev, [key]: enabled }));
     };
 
+    const handleLimitChange = (key: string, value: string) => {
+        setLimitsConfig(prev => ({ ...prev, [key]: value }));
+    };
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -185,26 +184,23 @@ export default function Create({ verticals }: Props) {
 
         const finalFeatures = [
             ...cleanFeatures,
-            moduleConfig // The object { pos: true, kitchen: false }
+            moduleConfig
         ];
 
-        // We need to act directly on `data` or pass it to `post`.
-        // `post` uses current `data`. We need to update `data` then post? 
-        // Or specificy data in transform. Inertia `transform` is global?
-        // `setData` is async? No. But we can just pass specific data? No, `post` sends `data`.
-        // We should use `transform` callback of `useForm` if available, or manually use `router.post`.
-        // `useForm` properties: `transform((data) => ({ ...data, features: ... }))`
-
-        // But `useForm` from inertia/react doesn't expose transform nicely in the destructured object in older versions?
-        // It does. `transform` method exists. 
-        // checking `const { ... } = useForm(...)`.
-
-        // Alternative: `router.post(route('plans.store'), { ...data, features: finalFeatures })`.
-        // Yes, importing router.
+        // Build limits object: map form keys to backend keys (e.g. digital_menu → products)
+        const finalLimits: Record<string, number> = {};
+        Object.entries(limitsConfig).forEach(([key, val]) => {
+            const num = parseInt(val);
+            if (!isNaN(num) && num > 0) {
+                const backendKey = LIMIT_FORM_KEY_TO_BACKEND[key] ?? key;
+                finalLimits[backendKey] = num;
+            }
+        });
 
         router.post(route('plans.store'), {
             ...data,
-            features: finalFeatures
+            features: finalFeatures,
+            limits: Object.keys(finalLimits).length > 0 ? finalLimits : null,
         });
     };
 
@@ -529,27 +525,40 @@ export default function Create({ verticals }: Props) {
                     <Card>
                         <CardHeader>
                             <CardTitle>Permisos de Módulos</CardTitle>
-                            <CardDescription>Define qué módulos del sidebar estarán activos para este plan.</CardDescription>
+                            <CardDescription>Define qué módulos del sidebar estarán activos para este plan y sus límites.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {Object.keys(moduleConfig).length > 0 ? (
                                     Object.entries(moduleConfig).map(([key, enabled]) => (
-                                        <div key={key} className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                                        <div key={key} className="flex items-center gap-3 border p-3 rounded-lg hover:bg-slate-50 transition-colors">
                                             <Checkbox
                                                 id={`mod-${key}`}
                                                 checked={enabled}
                                                 onCheckedChange={(c) => handleModuleToggle(key, c as boolean)}
                                             />
-                                            <Label htmlFor={`mod-${key}`} className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            <Label htmlFor={`mod-${key}`} className="cursor-pointer text-sm font-medium leading-none flex-1">
                                                 {MODULE_LABELS[key] || key}
                                             </Label>
+                                            {MODULE_HAS_LIMIT[key] && (
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    placeholder="∞"
+                                                    className="w-20 h-8 text-xs text-center"
+                                                    value={limitsConfig[key] || ''}
+                                                    onChange={(e) => handleLimitChange(key, e.target.value)}
+                                                    title={MODULE_HAS_LIMIT[key]}
+                                                    disabled={!enabled}
+                                                />
+                                            )}
                                         </div>
                                     ))
                                 ) : (
                                     <p className="text-sm text-gray-500 col-span-full">Selecciona una vertical para ver los módulos disponibles.</p>
                                 )}
                             </div>
+                            <p className="text-xs text-muted-foreground mt-3">Los campos numéricos definen el máximo permitido. Vacío = ilimitado.</p>
                         </CardContent>
                     </Card>
 

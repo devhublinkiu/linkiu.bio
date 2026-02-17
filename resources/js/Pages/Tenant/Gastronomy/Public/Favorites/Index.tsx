@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import ProductCard from '@/Components/Tenant/Gastronomy/Public/Menu/ProductCard';
 import ProductDetailDrawer from '@/Components/Tenant/Gastronomy/Public/ProductDetailDrawer';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Heart, Search, Loader2 } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 import axios from 'axios';
+
+interface TenantProps {
+    slug: string;
+    name: string;
+    logo_url?: string;
+    store_description?: string;
+    brand_colors?: { bg_color?: string; name_color?: string; description_color?: string };
+}
 
 interface Product {
     id: number;
@@ -20,17 +28,18 @@ interface Product {
 }
 
 interface Props {
-    tenant: any;
+    tenant: TenantProps;
 }
 
 export default function FavoritesIndex({ tenant }: Props) {
     const { favorites } = useFavorites();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedProduct, setSelectedProduct] = useState<any>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    const { bg_color, name_color } = tenant.brand_colors;
+    const brandColors = tenant.brand_colors ?? { bg_color: '#f8fafc', name_color: '#1e293b', description_color: '#64748b' };
+    const { bg_color, name_color } = brandColors;
 
     useEffect(() => {
         const fetchFavorites = async () => {
@@ -46,8 +55,8 @@ export default function FavoritesIndex({ tenant }: Props) {
                     ids: favorites
                 });
                 setProducts(response.data);
-            } catch (error) {
-                console.error('Error fetching favorites:', error);
+            } catch {
+                setProducts([]);
             } finally {
                 setLoading(false);
             }
@@ -72,6 +81,7 @@ export default function FavoritesIndex({ tenant }: Props) {
                     description={tenant.store_description}
                     bgColor={bg_color}
                     textColor={name_color}
+                    descriptionColor={brandColors.description_color}
                 />
 
                 {/* Header Section */}
@@ -127,7 +137,7 @@ export default function FavoritesIndex({ tenant }: Props) {
 
                 {selectedProduct && (
                     <ProductDetailDrawer
-                        product={selectedProduct}
+                        product={selectedProduct as unknown as React.ComponentProps<typeof ProductDetailDrawer>['product']}
                         isOpen={isDrawerOpen}
                         onClose={() => setIsDrawerOpen(false)}
                     />

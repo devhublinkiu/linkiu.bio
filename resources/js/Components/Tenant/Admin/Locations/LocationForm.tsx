@@ -22,11 +22,12 @@ import {
     Trash2,
     Info,
     MessageCircle,
-    Navigation,
     Calendar,
     Search,
-    Eye,
-    Copy
+    Loader2,
+    Copy,
+    Video,
+    Upload
 } from 'lucide-react';
 import { Separator } from '@/Components/ui/separator';
 
@@ -57,9 +58,11 @@ interface Location {
     address: string | null;
     latitude: number | null;
     longitude: number | null;
-    opening_hours: any | null;
-    social_networks: any | null;
+    opening_hours: Record<string, { open: string; close: string }[]> | null;
+    social_networks: { facebook?: string; instagram?: string; tiktok?: string } | null;
     is_active: boolean;
+    short_video_id?: string | null;
+    short_embed_url?: string | null;
 }
 
 interface Props {
@@ -160,6 +163,8 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
             tiktok: '',
         },
         is_active: location?.is_active ?? true,
+        short_video: null as File | null,
+        remove_short: false,
     });
 
     useEffect(() => {
@@ -215,10 +220,12 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
 
         if (location) {
             patch(route('tenant.locations.update', [currentTenant?.slug, location.id]), {
+                forceFormData: true,
                 onSuccess: () => {
                     toast.success('Sede actualizada');
                     onSuccess();
-                }
+                },
+                onError: () => toast.error('Revisa los errores en el formulario.'),
             });
         } else {
             post(route('tenant.locations.store', currentTenant?.slug), {
@@ -268,7 +275,7 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
             <ScrollArea className="flex-1">
                 <div className="p-6">
                     <Tabs defaultValue="general" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4 mb-8">
+                        <TabsList className={cn("grid w-full mb-8", location ? "grid-cols-5" : "grid-cols-4")}>
                             <TabsTrigger value="general" className="gap-2">
                                 <Info className="size-4" /> General
                             </TabsTrigger>
@@ -281,6 +288,11 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
                             <TabsTrigger value="hours" className="gap-2">
                                 <Clock className="size-4" /> Horarios
                             </TabsTrigger>
+                            {location && (
+                                <TabsTrigger value="short" className="gap-2">
+                                    <Video className="size-4" /> Short
+                                </TabsTrigger>
+                            )}
                         </TabsList>
 
                         {/* TAB: GENERAL */}
@@ -327,6 +339,9 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-bold">¿Es la sede principal?</Label>
                                         <p className="text-xs text-muted-foreground">Solo puede haber una sede principal.</p>
+                                        {data.is_main && location && (
+                                            <p className="text-xs text-amber-600 font-medium mt-1">La sede principal anterior dejará de serlo.</p>
+                                        )}
                                     </div>
                                     <Switch
                                         checked={data.is_main}
@@ -508,7 +523,7 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
                                         </div>
 
                                         <div className="space-y-2">
-                                            {data.opening_hours[day.key]?.map((slot: any, idx: number) => (
+                                            {data.opening_hours[day.key]?.map((slot: { open: string; close: string }, idx: number) => (
                                                 <div key={idx} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                                                     <Input
                                                         type="time"
@@ -543,6 +558,63 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
                                 ))}
                             </div>
                         </TabsContent>
+
+                        {/* TAB: SHORT (solo en edición) */}
+                        {location && (
+                            <TabsContent value="short" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-1">
+                                        <Video className="size-4 text-primary" /> Short de la sede
+                                    </h4>
+                                    <p className="text-[11px] text-slate-500 mb-4">
+                                        Video vertical (máx 10 s) para el selector de sedes. MP4 o MOV, recomendado 1080×1920, máx 50 MB.
+                                    </p>
+                                    {(location.short_embed_url && !data.remove_short && !data.short_video) && (
+                                        <div className="space-y-2 mb-4">
+                                            <Label className="text-xs font-bold text-slate-600">Vista previa</Label>
+                                            <div className="aspect-[9/16] max-h-[320px] w-full max-w-[180px] rounded-xl overflow-hidden border bg-black">
+                                                <iframe
+                                                    title="Short sede"
+                                                    src={location.short_embed_url + '?autoplay=false&preload=true'}
+                                                    className="w-full h-full"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                />
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                                                onClick={() => { setData('remove_short', true); setData('short_video', null); }}
+                                            >
+                                                <Trash2 className="size-3.5 mr-1.5" /> Quitar short
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {data.remove_short && (
+                                        <p className="text-xs text-amber-600 font-medium mb-2">El short se eliminará al guardar.</p>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="short_video" className="font-bold">Subir nuevo short</Label>
+                                        <Input
+                                            id="short_video"
+                                            type="file"
+                                            accept="video/mp4,video/quicktime"
+                                            className="h-10 cursor-pointer"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) { setData('short_video', file); setData('remove_short', false); }
+                                            }}
+                                        />
+                                        {data.short_video && (
+                                            <p className="text-xs text-green-600 font-medium">{data.short_video.name} (se subirá al guardar)</p>
+                                        )}
+                                        {errors.short_video && <p className="text-xs font-bold text-red-500">{errors.short_video}</p>}
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        )}
                     </Tabs>
                 </div>
             </ScrollArea>
@@ -561,7 +633,7 @@ export default function LocationForm({ location, onSuccess, onCancel }: Props) {
                     disabled={processing}
                     className="px-10 h-11 font-bold cursor-pointer"
                 >
-                    <Save className="mr-2 size-4" />
+                    {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
                     {location ? 'Guardar Cambios' : 'Crear Sede'}
                 </Button>
             </div>

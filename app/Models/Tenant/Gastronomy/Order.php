@@ -32,6 +32,7 @@ class Order extends Model
         'payment_method',
         'payment_reference',
         'payment_proof',
+        'waiter_collected',
         'cash_change',
         'created_by',
     ];
@@ -88,6 +89,6 @@ class Order extends Model
 
     public function location()
     {
-        return $this->belongsTo(\App\Models\Location::class);
+        return $this->belongsTo(\App\Models\Tenant\Locations\Location::class);
     }
 }

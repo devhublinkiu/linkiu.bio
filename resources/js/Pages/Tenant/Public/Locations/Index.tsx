@@ -1,37 +1,33 @@
 import React from 'react';
-import { Head, usePage } from '@inertiajs/react';
-import { PageProps } from '@/types';
+import { Head, router, usePage } from '@inertiajs/react';
+import type { PublicLocation } from '@/types/location';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import LocationCard from '@/Components/Tenant/Public/Locations/LocationCard';
 import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import { MapPin } from 'lucide-react';
 
-interface Location {
-    id: number;
+interface TenantPublic {
     name: string;
-    description: string | null;
-    is_main: boolean;
-    phone: string | null;
-    whatsapp: string | null;
-    whatsapp_message: string | null;
-    state: string | null;
-    city: string | null;
-    address: string | null;
-    latitude: number;
-    longitude: number;
-    opening_hours: {
-        [key: string]: Array<{ open: string; close: string }>;
-    };
-    social_networks: {
-        facebook?: string;
-        instagram?: string;
-        tiktok?: string;
-    };
-    is_active: boolean;
+    slug: string;
+    logo_url?: string | null;
+    store_description?: string | null;
+    brand_colors?: { bg_color?: string; name_color?: string };
 }
 
-export default function Index({ tenant, locations }: PageProps<{ tenant: any; locations: Location[] }>) {
+interface LocationsPageProps {
+    tenant: TenantPublic;
+    locations: PublicLocation[];
+    selected_location_id?: number | null;
+}
+
+export default function Index({ tenant, locations, selected_location_id = null }: LocationsPageProps) {
+    const { locationsCount = 0 } = usePage().props as { locationsCount?: number };
+    const slug = tenant.slug;
     const { bg_color, name_color } = tenant.brand_colors || { bg_color: '#db2777', name_color: '#ffffff' };
+
+    const enterSede = (locationId: number) => {
+        router.post(route('tenant.shorts.enter', { tenant: slug }), { location_id: locationId });
+    };
 
     return (
         <PublicLayout bgColor={bg_color}>
@@ -40,8 +36,8 @@ export default function Index({ tenant, locations }: PageProps<{ tenant: any; lo
             <div className="flex flex-col min-h-screen pb-20">
                 <Header
                     tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
+                    logoUrl={tenant.logo_url ?? undefined}
+                    description={tenant.store_description ?? undefined}
                     bgColor={bg_color}
                     textColor={name_color}
                 />
@@ -64,7 +60,12 @@ export default function Index({ tenant, locations }: PageProps<{ tenant: any; lo
                         {locations.length > 0 ? (
                             <div className="space-y-4">
                                 {locations.map((location) => (
-                                    <LocationCard key={location.id} location={location} />
+                                    <LocationCard
+                                        key={location.id}
+                                        location={location}
+                                        isCurrentSede={selected_location_id != null && location.id === selected_location_id}
+                                        onEnterSede={locationsCount > 1 && selected_location_id !== location.id ? enterSede : undefined}
+                                    />
                                 ))}
                             </div>
                         ) : (

@@ -2,7 +2,9 @@ import React from 'react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, AlertTriangle } from "lucide-react";
+import { Card, CardContent } from '@/Components/ui/card';
+import { Button } from '@/Components/ui/button';
 import ProductForm from '@/Components/Tenant/Admin/Gastronomy/Products/ProductForm';
 
 interface Category {
@@ -10,11 +12,19 @@ interface Category {
     name: string;
 }
 
-interface Props {
-    categories: Category[];
+interface LocationItem {
+    id: number;
+    name: string;
 }
 
-export default function Create({ categories }: Props) {
+interface Props {
+    categories: Category[];
+    locations: LocationItem[];
+    limit_reached?: boolean;
+    products_limit?: number | null;
+}
+
+export default function Create({ categories, locations, limit_reached, products_limit }: Props) {
     const { currentTenant } = usePage<PageProps>().props;
 
     return (
@@ -35,11 +45,30 @@ export default function Create({ categories }: Props) {
                         <p className="text-muted-foreground">Completa los campos para añadir un nuevo plato a tu menú.</p>
                     </div>
 
-                    <ProductForm
-                        categories={categories}
-                        submitRoute={route('tenant.admin.products.store', currentTenant?.slug)}
-                        method="post"
-                    />
+                    {limit_reached ? (
+                        <Card className="border-orange-200 bg-orange-50">
+                            <CardContent className="p-6 flex flex-col items-center text-center gap-4">
+                                <AlertTriangle className="w-12 h-12 text-orange-500" />
+                                <div>
+                                    <h3 className="text-lg font-bold text-orange-800">Límite de productos alcanzado</h3>
+                                    <p className="text-sm text-orange-700 mt-1">
+                                        Tu plan actual permite un máximo de <strong>{products_limit}</strong> productos.
+                                        Para agregar más, actualiza tu plan.
+                                    </p>
+                                </div>
+                                <Link href={route('tenant.admin.products.index', currentTenant?.slug)}>
+                                    <Button variant="outline">Volver a productos</Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <ProductForm
+                            categories={categories}
+                            locations={locations}
+                            submitRoute={route('tenant.admin.products.store', currentTenant?.slug)}
+                            method="post"
+                        />
+                    )}
                 </div>
             </div>
         </AdminLayout>

@@ -18,7 +18,8 @@ import {
     CheckCircle2,
     X,
     Building2,
-    Globe
+    Globe,
+    Loader2,
 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -53,14 +54,32 @@ import {
 } from "@/Components/ui/select";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { MultiSelect } from "@/Components/ui/multi-select";
+import {
+    Empty,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    EmptyDescription,
+} from '@/Components/ui/empty';
 
 interface ShippingZone {
     id?: number;
     department_code: string;
     department_name: string;
-    city_code?: string;
-    city_name?: string;
-    price?: number;
+    city_code?: string | null;
+    city_name?: string | null;
+    price?: number | null;
+}
+
+interface LocationOption {
+    id: number;
+    name: string;
+}
+
+/** Location with city/state for display (e.g. Domicilio local) */
+interface MethodLocation extends LocationOption {
+    city?: string | null;
+    state?: string | null;
 }
 
 interface ShippingMethod {
@@ -71,18 +90,22 @@ interface ShippingMethod {
     free_shipping_min_amount?: number;
     delivery_time?: string;
     instructions?: string;
-    settings?: any;
+    settings?: Record<string, string>;
     location_id: number | null;
-    location?: any;
+    location?: MethodLocation | null;
     zones?: ShippingZone[];
 }
 
+interface TenantSlug {
+    slug: string;
+}
+
 interface Props {
-    tenant: any;
+    tenant: TenantSlug;
     shippingMethods: ShippingMethod[];
     tenantCity?: string;
     tenantState?: string;
-    locations: any[];
+    locations: LocationOption[];
     userLocationId: number | null;
 }
 
@@ -91,7 +114,10 @@ export default function Index({ tenant, shippingMethods, tenantCity, tenantState
     const [showPermissionModal, setShowPermissionModal] = useState(false);
 
     const hasPermission = (permission: string) => {
-        return currentUserRole?.permissions?.includes(permission);
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner === true
+            || currentUserRole.permissions?.includes('*') === true
+            || currentUserRole.permissions?.includes(permission) === true;
     };
 
     const handleProtectedAction = (e: React.MouseEvent | null, permission: string, callback: () => void) => {
@@ -110,6 +136,11 @@ export default function Index({ tenant, shippingMethods, tenantCity, tenantState
     const pickupMethod = getMethod('pickup');
     const localMethod = getMethod('local');
     const nationalMethod = getMethod('national');
+
+    // Domicilio local: ciudad/estado de la sede si tiene location_id, si no del tenant
+    const localDisplayCity = localMethod?.location?.city ?? tenantCity;
+    const localDisplayState = localMethod?.location?.state ?? tenantState;
+    const localCityLabel = [localDisplayCity, localDisplayState].filter(Boolean).join(', ') || 'No configurada';
 
     return (
         <AdminLayout title="Configuración de Envíos">
@@ -148,7 +179,7 @@ export default function Index({ tenant, shippingMethods, tenantCity, tenantState
                             tenant={tenant}
                             method={localMethod}
                             title="Domicilio Local"
-                            description={`Entregas en tu ciudad (${tenantCity || 'No configurada'}).`}
+                            description={`Entregas en tu ciudad (${localCityLabel}).`}
                             icon={<MapPin className="w-6 h-6" />}
                             colorClass="bg-blue-100 text-blue-600"
                             borderColorClass="border-blue-500/50"
@@ -156,15 +187,15 @@ export default function Index({ tenant, shippingMethods, tenantCity, tenantState
                             locations={locations}
                         >
                             <div className="space-y-4">
-                                {!tenantCity && (
+                                {!localDisplayCity && (
                                     <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs font-medium border border-red-100">
-                                        ⚠️ Debes configurar la ciudad de tu sede en "Sede Principal" para que esto funcione correctamente.
+                                        ⚠️ Asigna una sede con ciudad configurada o configura la ciudad del negocio para que esto funcione.
                                     </div>
                                 )}
-                                {tenantCity && (
+                                {localDisplayCity && (
                                     <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-100 font-medium">
                                         <CheckCircle2 className="w-4 h-4" />
-                                        Funciona para clientes en <strong>{tenantCity}</strong>.
+                                        Funciona para clientes en <strong>{localCityLabel}</strong>.
                                     </div>
                                 )}
                                 <MethodSettingsForm tenant={tenant} method={localMethod} type="local" locations={locations} handleProtectedAction={handleProtectedAction} />
@@ -207,7 +238,29 @@ export default function Index({ tenant, shippingMethods, tenantCity, tenantState
     );
 }
 
-function ShippingCard({ tenant, method, title, description, icon, colorClass, borderColorClass, children, handleProtectedAction, locations }: any) {
+function ShippingCard({
+    tenant,
+    method,
+    title,
+    description,
+    icon,
+    colorClass,
+    borderColorClass,
+    children,
+    handleProtectedAction,
+    locations,
+}: {
+    tenant: TenantSlug;
+    method: ShippingMethod | undefined;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    colorClass: string;
+    borderColorClass: string;
+    children: React.ReactNode;
+    handleProtectedAction: (e: React.MouseEvent | null, permission: string, callback: () => void) => void;
+    locations: LocationOption[];
+}) {
     const handleToggle = (checked: boolean) => {
         if (!method) return;
         handleProtectedAction(null, 'shipping_zones.update', () => {
@@ -258,15 +311,29 @@ function ShippingCard({ tenant, method, title, description, icon, colorClass, bo
     );
 }
 
-function MethodSettingsForm({ tenant, method, type, locations = [], handleProtectedAction }: { tenant: any, method: any, type: string, locations: any[], handleProtectedAction: any }) {
+function MethodSettingsForm({
+    tenant,
+    method,
+    type,
+    locations = [],
+    handleProtectedAction,
+}: {
+    tenant: TenantSlug;
+    method: ShippingMethod | undefined;
+    type: string;
+    locations: LocationOption[];
+    handleProtectedAction: (e: React.MouseEvent | null, permission: string, callback: () => void) => void;
+}) {
     const { data, setData, put, processing, isDirty } = useForm({
-        cost: method.cost || 0,
-        free_shipping_min_amount: method.free_shipping_min_amount || '',
-        delivery_time: method.delivery_time || '',
-        instructions: method.instructions || '',
-        settings: method.settings || {},
-        location_id: method.location_id || 'all'
+        cost: method?.cost ?? 0,
+        free_shipping_min_amount: method?.free_shipping_min_amount ?? '',
+        delivery_time: method?.delivery_time ?? '',
+        instructions: method?.instructions ?? '',
+        settings: method?.settings ?? {},
+        location_id: method?.location_id ?? 'all'
     });
+
+    if (!method) return null;
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -281,7 +348,7 @@ function MethodSettingsForm({ tenant, method, type, locations = [], handleProtec
         <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-500 uppercase">Sede Responsable</Label>
-                <Select value={data.location_id?.toString()} onValueChange={v => setData('location_id', v === 'all' ? null : v)}>
+                <Select value={data.location_id?.toString()} onValueChange={v => setData('location_id', v === 'all' ? 'all' : v)}>
                     <SelectTrigger className="bg-white border-slate-200 h-9">
                         <SelectValue placeholder="Todas las sedes (Global)" />
                     </SelectTrigger>
@@ -303,7 +370,7 @@ function MethodSettingsForm({ tenant, method, type, locations = [], handleProtec
                             <CurrencyInput
                                 className="pl-6"
                                 value={data.cost}
-                                onChange={(val: any) => setData('cost', val)}
+                                onChange={(val: number | '') => setData('cost', val === '' ? 0 : val)}
                             />
                         </div>
                     </div>
@@ -314,8 +381,8 @@ function MethodSettingsForm({ tenant, method, type, locations = [], handleProtec
                             <CurrencyInput
                                 className="pl-6"
                                 placeholder="0"
-                                value={data.free_shipping_min_amount}
-                                onChange={(val: any) => setData('free_shipping_min_amount', val)}
+                                value={data.free_shipping_min_amount === '' || data.free_shipping_min_amount == null ? '' : Number(data.free_shipping_min_amount)}
+                                onChange={(val: number | '') => setData('free_shipping_min_amount', val === '' ? '' : val)}
                             />
                         </div>
                     </div>
@@ -350,7 +417,8 @@ function MethodSettingsForm({ tenant, method, type, locations = [], handleProtec
             {isDirty && (
                 <div className="flex justify-end pt-2">
                     <Button type="submit" size="sm" disabled={processing} className="gap-2 bg-slate-900 hover:bg-slate-800">
-                        <Save className="w-4 h-4" /> Guardar Cambios
+                        {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Guardar Cambios
                     </Button>
                 </div>
             )}
@@ -358,27 +426,44 @@ function MethodSettingsForm({ tenant, method, type, locations = [], handleProtec
     );
 }
 
-function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, method: any, handleProtectedAction: any }) {
+type GroupedZones = Record<string, { id: string; name: string; zones: ShippingZone[] }>;
+
+function ZonesManager({
+    tenant,
+    method,
+    handleProtectedAction,
+}: {
+    tenant: TenantSlug;
+    method: ShippingMethod;
+    handleProtectedAction: (e: React.MouseEvent | null, permission: string, callback: () => void) => void;
+}) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [zoneToDelete, setZoneToDelete] = useState<number | null>(null);
+    const [isSubmittingZones, setIsSubmittingZones] = useState(false);
 
     const handleDeleteZone = (zoneId: number) => {
         if (!zoneId) return;
         handleProtectedAction(null, 'shipping_zones.update', () => {
-            const newZones = method.zones.filter((z: any) => z.id !== zoneId);
+            const newZones = (method.zones || []).filter((z) => z.id !== zoneId);
             router.post(route('tenant.shipping.zones.update', { tenant: tenant.slug, method: method.id }), {
                 zones: newZones
-            }, {
+            } as unknown as Record<string, import('@inertiajs/core').FormDataConvertible>, {
                 preserveScroll: true,
-                onSuccess: () => toast.success('Zona eliminada')
+                onStart: () => setIsSubmittingZones(true),
+                onFinish: () => setIsSubmittingZones(false),
+                onSuccess: () => {
+                    toast.success('Zona eliminada');
+                    setZoneToDelete(null);
+                },
             });
         });
     };
 
-    const groupedZones = useMemo(() => {
-        const groups: Record<string, { id: string, name: string, zones: any[] }> = {};
+    const groupedZones = useMemo((): GroupedZones => {
+        const groups: GroupedZones = {};
         if (!method.zones) return {};
 
-        method.zones.forEach((zone: any) => {
+        method.zones.forEach((zone) => {
             const deptCode = zone.department_code;
             if (!groups[deptCode]) {
                 groups[deptCode] = {
@@ -395,7 +480,10 @@ function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, 
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Zonas de Cobertura ({method.zones?.length || 0})</h3>
+                <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    Zonas de Cobertura ({method.zones?.length || 0})
+                    {isSubmittingZones && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                </h3>
                 <AddZoneModal
                     tenant={tenant}
                     method={method}
@@ -406,8 +494,8 @@ function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, 
             </div>
 
             <div className="space-y-3">
-                {Object.values(groupedZones).map((group: any) => {
-                    const fullDeptZone = group.zones.find((z: any) => !z.city_code);
+                {Object.values(groupedZones).map((group) => {
+                    const fullDeptZone = group.zones.find((z) => !z.city_code);
 
                     return (
                         <div key={group.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-slate-300 transition-colors">
@@ -432,7 +520,7 @@ function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, 
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteZone(fullDeptZone.id)} className="bg-red-600 hover:bg-red-700">
+                                                <AlertDialogAction variant="destructive" onClick={() => fullDeptZone.id != null && handleDeleteZone(fullDeptZone.id)}>
                                                     Eliminar
                                                 </AlertDialogAction>
                                             </AlertDialogFooter>
@@ -452,22 +540,41 @@ function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, 
                                 </Badge>
                             ) : (
                                 <div className="flex flex-wrap gap-2">
-                                    {group.zones.map((zone: any) => (
+                                    {group.zones.map((zone) => (
                                         <Badge key={zone.id} variant="outline" className="text-xs font-medium gap-1 pr-1 pl-3 py-1 bg-slate-50 flex items-center border-slate-200">
                                             {zone.city_name}
-                                            {zone.price && (
+                                            {zone.price != null && (
                                                 <span className="font-bold text-slate-900 ml-1 border-l border-slate-200 pl-2">
                                                     ${new Intl.NumberFormat('es-CO').format(zone.price)}
                                                 </span>
                                             )}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-4 w-4 hover:bg-slate-200 rounded-full ml-1 text-slate-400 hover:text-red-600"
-                                                onClick={() => handleDeleteZone(zone.id)}
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </Button>
+                                            <AlertDialog open={zoneToDelete === zone.id} onOpenChange={(open) => !open && setZoneToDelete(null)}>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-4 w-4 hover:bg-slate-200 rounded-full ml-1 text-slate-400 hover:text-red-600"
+                                                        onClick={() => zone.id != null && setZoneToDelete(zone.id)}
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Eliminar esta ciudad?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Se quitará {zone.city_name} de la cobertura de envío.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction variant="destructive" onClick={() => zone.id != null && handleDeleteZone(zone.id)}>
+                                                            Eliminar
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </Badge>
                                     ))}
                                 </div>
@@ -477,23 +584,42 @@ function ZonesManager({ tenant, method, handleProtectedAction }: { tenant: any, 
                 })}
 
                 {(!method.zones || method.zones.length === 0) && (
-                    <div className="text-center py-8 text-sm text-slate-500 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                        No hay zonas de cobertura configuradas.
-                        <br />
-                        <span className="text-xs text-slate-400">Haz clic en "Nueva Zona" para empezar.</span>
-                    </div>
+                    <Empty className="border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <MapPin className="size-8 text-slate-400" />
+                            </EmptyMedia>
+                            <EmptyTitle>No hay zonas de cobertura</EmptyTitle>
+                            <EmptyDescription>
+                                Usa el botón &quot;Nueva Zona&quot; para agregar departamentos o ciudades.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
                 )}
             </div>
         </div>
     );
 }
 
-function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction }: any) {
+function AddZoneModal({
+    tenant,
+    method,
+    isOpen,
+    setIsOpen,
+    handleProtectedAction,
+}: {
+    tenant: TenantSlug;
+    method: ShippingMethod;
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+    handleProtectedAction: (e: React.MouseEvent | null, permission: string, callback: () => void) => void;
+}) {
     const { departments, cities, fetchCities, loadingDepts, loadingCities } = useColombiaApi();
     const [selectedDept, setSelectedDept] = useState<Department | null>(null);
     const [selectedCities, setSelectedCities] = useState<City[]>([]);
     const [selectAllCities, setSelectAllCities] = useState(false);
     const [price, setPrice] = useState<number | ''>('');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (selectedDept) {
@@ -509,11 +635,11 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
             if (!selectedDept) return;
 
             const currentZones = method.zones || [];
-            const newZones: any[] = [];
+            const newZones: Omit<ShippingZone, 'id'>[] = [];
             const zonePrice = price === '' ? null : price;
 
             if (selectAllCities) {
-                const exists = currentZones.some((z: any) =>
+                const exists = currentZones.some((z) =>
                     z.department_code === String(selectedDept.id) && z.city_code === null
                 );
 
@@ -528,7 +654,7 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
                 }
             } else {
                 selectedCities.forEach(city => {
-                    const exists = currentZones.some((z: any) =>
+                    const exists = currentZones.some((z) =>
                         z.department_code === String(selectedDept.id) &&
                         z.city_code === String(city.id)
                     );
@@ -553,9 +679,11 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
             const newZonesList = [...currentZones, ...newZones];
 
             router.post(route('tenant.shipping.zones.update', { tenant: tenant.slug, method: method.id }), {
-                zones: newZonesList
-            }, {
+                zones: newZonesList,
+            } as unknown as Record<string, import('@inertiajs/core').FormDataConvertible>, {
                 preserveScroll: true,
+                onStart: () => setIsSaving(true),
+                onFinish: () => setIsSaving(false),
                 onSuccess: () => {
                     toast.success(`${newZones.length} zona(s) agregada(s)`);
                     setIsOpen(false);
@@ -563,7 +691,7 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
                     setSelectedCities([]);
                     setSelectAllCities(false);
                     setPrice('');
-                }
+                },
             });
         });
     };
@@ -575,7 +703,7 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
                     <Plus className="w-3.5 h-3.5" /> Nueva Zona
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-[425px] max-h-[90vh] overflow-y-auto sm:w-full">
                 <DialogHeader>
                     <DialogTitle className="font-black text-xl">Agregar Cobertura</DialogTitle>
                     <DialogDescription>Selecciona los destinos nacionales permitidos.</DialogDescription>
@@ -657,7 +785,8 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
                     )}
                 </div>
                 <DialogFooter>
-                    <Button onClick={handleSave} disabled={!selectedDept || (!selectAllCities && selectedCities.length === 0)} className="w-full sm:w-auto bg-slate-900">
+                    <Button onClick={handleSave} disabled={!selectedDept || (!selectAllCities && selectedCities.length === 0) || isSaving} className="w-full sm:w-auto bg-slate-900 gap-2">
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         Agregar {selectAllCities ? 'Todo el Depto' : `${selectedCities.length} Zona(s)`}
                     </Button>
                 </DialogFooter>
@@ -666,7 +795,18 @@ function AddZoneModal({ tenant, method, isOpen, setIsOpen, handleProtectedAction
     );
 }
 
-function CurrencyInput({ value, onChange, className, ...props }: any) {
+function CurrencyInput({
+    value,
+    onChange,
+    className,
+    placeholder,
+    ...props
+}: {
+    value: number | '';
+    onChange: (value: number | '') => void;
+    className?: string;
+    placeholder?: string;
+}) {
     const format = (val: string | number) => {
         if (val === '' || val === null || val === undefined) return '';
         const numberVal = Number(val);
@@ -685,9 +825,9 @@ function CurrencyInput({ value, onChange, className, ...props }: any) {
 
     return (
         <Input
-            {...props}
             type="text"
             className={className}
+            placeholder={placeholder}
             value={format(value)}
             onChange={handleChange}
         />

@@ -3,135 +3,168 @@
 namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Slider;
+use App\Http\Requests\Tenant\Admin\StoreSliderRequest;
+use App\Http\Requests\Tenant\Admin\UpdateSliderRequest;
+use App\Models\Tenant\Locations\Location;
+use App\Models\Tenant\All\Slider;
+use App\Traits\StoresImageAsWebp;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Gate;
+use Inertia\Response;
 
 class SliderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    use StoresImageAsWebp;
+
+    public function index(Request $request): Response
     {
         Gate::authorize('sliders.view');
 
-        $sliders = Slider::orderBy('sort_order')->get();
+        $tenant = app('currentTenant');
+        $locationId = $request->query('location_id');
+        $userLocationId = $this->getUserLocationId($tenant);
+        if ($userLocationId !== null) {
+            $locationId = $userLocationId;
+        }
+
+        $query = Slider::select([
+            'id', 'tenant_id', 'location_id', 'name', 'image_path', 'image_path_desktop',
+            'storage_disk', 'link_type', 'external_url', 'linkable_type', 'linkable_id',
+            'start_at', 'end_at', 'active_days', 'clicks_count', 'sort_order', 'is_active', 'created_at',
+        ])->orderBy('sort_order');
+
+        if ($locationId) {
+            $query->where('location_id', $locationId);
+        }
+
+        $sliders = $query->paginate(15)->appends($request->query());
+        $locations = Location::select(['id', 'name'])->orderBy('name')->get();
+
+        $slidersLimit = $tenant->getLimit('sliders');
+        $slidersCount = Slider::count();
 
         return Inertia::render('Tenant/Admin/Sliders/Index', [
-            'sliders' => $sliders
+            'sliders' => $sliders,
+            'locations' => $locations,
+            'sliders_limit' => $slidersLimit,
+            'sliders_count' => $slidersCount,
+            'filters' => ['location_id' => $locationId],
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreSliderRequest $request, $tenant): RedirectResponse
     {
         Gate::authorize('sliders.create');
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'image_path' => 'required|image|max:2048', // 2MB max
-            'image_path_desktop' => 'nullable|image|max:4096',
-            'link_type' => 'required|in:none,internal,external',
-            'external_url' => 'nullable|required_if:link_type,external|url',
-            'linkable_type' => 'nullable|required_if:link_type,internal',
-            'linkable_id' => 'nullable|required_if:link_type,internal',
-            'start_at' => 'nullable|date',
-            'end_at' => 'nullable|date|after:start_at',
-            'active_days' => 'nullable|array',
-            'is_active' => 'boolean'
-        ]);
-
-        // Handle Image Uploads
-        if ($request->hasFile('image_path')) {
-            $validated['image_path'] = $request->file('image_path')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
+        $tenantModel = app('currentTenant');
+        $maxSliders = $tenantModel->getLimit('sliders');
+        if ($maxSliders !== null && Slider::count() >= $maxSliders) {
+            return back()->withErrors([
+                'limit' => "Has alcanzado el máximo de {$maxSliders} sliders permitidos en tu plan.",
+            ]);
         }
 
-        if ($request->hasFile('image_path_desktop')) {
-            $validated['image_path_desktop'] = $request->file('image_path_desktop')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
+        $validated = $request->validated();
+        $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenantModel->slug ?? ''));
+        $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenantModel->id) . '/sliders';
+
+        try {
+            if ($request->hasFile('image_path')) {
+                $validated['image_path'] = $this->storeImageAsWebp($request->file('image_path'), $basePath);
+                $validated['storage_disk'] = 'bunny';
+            }
+            if ($request->hasFile('image_path_desktop')) {
+                $validated['image_path_desktop'] = $this->storeImageAsWebp($request->file('image_path_desktop'), $basePath);
+            }
+
+            $slider = Slider::create($validated);
+
+            if (!empty($slider->image_path)) {
+                $this->registerMedia($slider->image_path, 'bunny');
+            }
+            if (!empty($slider->image_path_desktop)) {
+                $this->registerMedia($slider->image_path_desktop, 'bunny');
+            }
+        } catch (\Throwable $e) {
+            if (!empty($validated['image_path'] ?? null)) {
+                Storage::disk('bunny')->delete($validated['image_path'] ?? '');
+            }
+            if (!empty($validated['image_path_desktop'] ?? null)) {
+                Storage::disk('bunny')->delete($validated['image_path_desktop'] ?? '');
+            }
+            return back()->withErrors(['image_path' => 'Error al subir la imagen. Intenta de nuevo.'])->withInput();
         }
-
-        $slider = Slider::create($validated);
-
-        // Register in Media Library
-        if ($slider->image_path)
-            $this->registerMedia($slider->image_path);
-        if ($slider->image_path_desktop)
-            $this->registerMedia($slider->image_path_desktop);
 
         return redirect()->back()->with('success', 'Slider creado correctamente.');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $tenant, Slider $slider)
+    public function update(UpdateSliderRequest $request, $tenant, Slider $slider): RedirectResponse
     {
         Gate::authorize('sliders.update');
+        $this->authorizeSliderLocation($slider);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'link_type' => 'required|in:none,internal,external',
-            'external_url' => 'nullable|url',
-            'linkable_type' => 'nullable',
-            'linkable_id' => 'nullable',
-            'start_at' => 'nullable|date',
-            'end_at' => 'nullable|date|after:start_at',
-            'active_days' => 'nullable|array',
-            'is_active' => 'boolean',
-            'sort_order' => 'integer'
-        ]);
+        $validated = $request->validated();
+        $tenantModel = app('currentTenant');
+        $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenantModel->slug ?? ''));
+        $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenantModel->id) . '/sliders';
 
-        if ($request->hasFile('image_path')) {
-            // Delete old
-            if ($slider->image_path)
-                Storage::disk('s3')->delete($slider->image_path);
-            $validated['image_path'] = $request->file('image_path')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
-        }
-
-        if ($request->hasFile('image_path_desktop')) {
-            if ($slider->image_path_desktop) {
-                Storage::disk('s3')->delete($slider->image_path_desktop);
+        try {
+            if ($request->hasFile('image_path')) {
+                if ($slider->image_path && $slider->storage_disk) {
+                    Storage::disk($slider->storage_disk)->delete($slider->image_path);
+                }
+                $validated['image_path'] = $this->storeImageAsWebp($request->file('image_path'), $basePath);
+                $validated['storage_disk'] = 'bunny';
             }
-            $validated['image_path_desktop'] = $request->file('image_path_desktop')->store('uploads/' . app('currentTenant')->id . '/sliders', 's3');
+            if ($request->hasFile('image_path_desktop')) {
+                if ($slider->image_path_desktop && $slider->storage_disk) {
+                    Storage::disk($slider->storage_disk)->delete($slider->image_path_desktop);
+                }
+                $validated['image_path_desktop'] = $this->storeImageAsWebp($request->file('image_path_desktop'), $basePath);
+            }
+
+            $slider->update($validated);
+
+            if ($request->hasFile('image_path')) {
+                $this->registerMedia($slider->fresh()->image_path, 'bunny');
+            }
+            if ($request->hasFile('image_path_desktop')) {
+                $this->registerMedia($slider->fresh()->image_path_desktop, 'bunny');
+            }
+        } catch (\Throwable $e) {
+            return back()->withErrors(['image_path' => 'Error al actualizar la imagen. Intenta de nuevo.'])->withInput();
         }
-
-        $slider->update($validated);
-
-        // Register in Media Library (if new ones were uploaded)
-        if ($request->hasFile('image_path'))
-            $this->registerMedia($slider->image_path);
-        if ($request->hasFile('image_path_desktop'))
-            $this->registerMedia($slider->image_path_desktop);
 
         return redirect()->back()->with('success', 'Slider actualizado.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($tenant, Slider $slider)
+    public function destroy($tenant, Slider $slider): RedirectResponse
     {
         Gate::authorize('sliders.delete');
+        $this->authorizeSliderLocation($slider);
 
-        if ($slider->image_path)
-            Storage::disk('s3')->delete($slider->image_path);
-        if ($slider->image_path_desktop)
-            Storage::disk('s3')->delete($slider->image_path_desktop);
-
+        $disk = $slider->storage_disk ?? 'bunny';
+        try {
+            if ($slider->image_path) {
+                Storage::disk($disk)->delete($slider->image_path);
+            }
+            if ($slider->image_path_desktop) {
+                Storage::disk($disk)->delete($slider->image_path_desktop);
+            }
+        } catch (\Throwable $e) {
+            // Log but continue with delete
+        }
         $slider->delete();
 
         return redirect()->back()->with('success', 'Slider eliminado.');
     }
 
-    /**
-     * Public Endpoint: Track click and redirect
-     */
-    public function click(Slider $slider)
+    public function click(Slider $slider): RedirectResponse
     {
         $slider->increment('clicks_count');
 
@@ -148,33 +181,59 @@ class SliderController extends Controller
         return redirect()->route('tenant.home', ['tenant' => app('currentTenant')->slug]);
     }
 
-    /**
-     * Internal helper to register media in the global library.
-     */
-    private function registerMedia($path, $folder = 'sliders')
+    /** Location_id del usuario en este tenant (null = puede ver todas las sedes). */
+    private function getUserLocationId($tenant): ?int
     {
-        if (!$path)
-            return;
+        if (Auth::user()->is_super_admin || $tenant->owner_id === Auth::id()) {
+            return null;
+        }
+        $id = DB::table('tenant_user')
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', Auth::id())
+            ->value('location_id');
 
-        $disk = Storage::disk('s3');
-        if (!$disk->exists($path))
-            return;
+        return $id !== null ? (int) $id : null;
+    }
 
-        \App\Models\MediaFile::firstOrCreate(
-        ['path' => $path],
-        [
-            'tenant_id' => app('currentTenant')->id,
-            'name' => basename($path),
-            'disk' => 's3',
-            'mime_type' => $disk->mimeType($path),
-            'size' => $disk->size($path),
-            'extension' => pathinfo($path, PATHINFO_EXTENSION),
-            'type' => 'image',
-            'folder' => $folder,
-            'uploaded_by' => auth()->id(),
-            'url' => $disk->url($path),
-            'is_public' => true,
-        ]
+    /**
+     * IDOR: si el usuario tiene sede asignada en el tenant, solo puede actuar sobre sliders de esa sede.
+     */
+    private function authorizeSliderLocation(Slider $slider): void
+    {
+        $tenant = app('currentTenant');
+        $userLocationId = $this->getUserLocationId($tenant);
+        if ($userLocationId === null) {
+            return;
+        }
+        if ((int) $slider->location_id !== $userLocationId) {
+            abort(403, 'No tienes permiso para gestionar este slider.');
+        }
+    }
+
+    private function registerMedia(string $path, string $disk = 'bunny'): void
+    {
+        if (!$path) {
+            return;
+        }
+        $storage = Storage::disk($disk);
+        if (!$storage->exists($path)) {
+            return;
+        }
+        \App\Models\Tenant\MediaFile::firstOrCreate(
+            ['path' => $path],
+            [
+                'tenant_id' => app('currentTenant')->id,
+                'name' => basename($path),
+                'disk' => $disk,
+                'mime_type' => $storage->mimeType($path),
+                'size' => $storage->size($path),
+                'extension' => pathinfo($path, PATHINFO_EXTENSION),
+                'type' => 'image',
+                'folder' => 'sliders',
+                'uploaded_by' => auth()->id(),
+                'url' => $storage->url($path),
+                'is_public' => true,
+            ]
         );
     }
 }

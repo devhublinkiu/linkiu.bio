@@ -2,9 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Tenant\Locations\Location;
+use App\Models\Tenant\Payments\BankAccount;
+use App\Models\Tenant\Payments\PaymentMethod;
+use App\Models\Tenant\Shipping\TenantShippingMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class Tenant extends Model
@@ -33,7 +38,8 @@ class Tenant extends Model
         'is_active',
         'last_slug_changed_at',
         'slug_changes_count',
-        'trial_ends_at'
+        'trial_ends_at',
+        'bunny_stream_collection_id',
     ];
 
     protected $casts = [
@@ -53,7 +59,7 @@ class Tenant extends Model
             return $settings['logo_url'];
         }
         if (isset($settings['logo_path'])) {
-            return Storage::disk('s3')->url($settings['logo_path']);
+            return Storage::disk('bunny')->url($settings['logo_path']);
         }
         return null;
     }
@@ -85,6 +91,11 @@ class Tenant extends Model
     public function roles()
     {
         return $this->hasMany(Role::class);
+    }
+
+    public function legalPages(): HasMany
+    {
+        return $this->hasMany(TenantLegalPage::class);
     }
 
     public function users(): BelongsToMany
@@ -164,6 +175,36 @@ class Tenant extends Model
     }
 
     /**
+     * Get a numeric limit from the tenant's current plan.
+     * Returns null if the limit is not defined (meaning unlimited).
+     */
+    public function getLimit(string $limitKey): ?int
+    {
+        $subscription = $this->latestSubscription()->with('plan')->first();
+
+        if (!$subscription || !$subscription->isActive()) {
+            return null;
+        }
+
+        $plan = $subscription->plan;
+
+        if (!$plan) {
+            return null;
+        }
+
+        $limits = $plan->limits;
+        if (!is_array($limits) || empty($limits)) {
+            return null;
+        }
+
+        if (isset($limits[$limitKey])) {
+            return (int) $limits[$limitKey];
+        }
+
+        return null;
+    }
+
+    /**
      * Check if the tenant has a custom slug (different from auto-generated)
      */
     public function hasCustomSlug(): bool
@@ -198,7 +239,7 @@ class Tenant extends Model
      */
     public function paymentMethods()
     {
-        return $this->hasMany(TenantPaymentMethod::class);
+        return $this->hasMany(PaymentMethod::class);
     }
 
     /**
@@ -206,7 +247,7 @@ class Tenant extends Model
      */
     public function bankAccounts()
     {
-        return $this->hasMany(TenantBankAccount::class)->orderBy('sort_order')->orderBy('created_at');
+        return $this->hasMany(BankAccount::class)->orderBy('sort_order')->orderBy('created_at');
     }
 
     /**

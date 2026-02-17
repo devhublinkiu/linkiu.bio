@@ -16,7 +16,7 @@ return new class extends Migration {
             // File Information
             $table->string('name'); // Original filename
             $table->string('path')->nullable(); // Storage path (nullable for folders)
-            $table->string('disk')->default('s3'); // Storage disk
+            $table->string('disk')->default('bunny'); // Storage disk
             $table->string('mime_type')->nullable();
             $table->unsignedBigInteger('size')->nullable(); // Size in bytes
             $table->string('extension')->nullable();

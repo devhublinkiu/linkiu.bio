@@ -86,7 +86,7 @@ const MODULE_PERMISSIONS: Record<string, string> = {
     'profile': 'profile.view',
     'subscription': 'billing.view',
     'billing': 'billing.view',
-    'linkiu_pos': 'orders.view',
+    'linkiu_pos': 'pos.view',
     'digital_menu': 'products.view',
     'tables': 'tables.view',
     'reservations': 'reservations.view',

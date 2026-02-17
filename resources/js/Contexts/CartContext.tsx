@@ -9,16 +9,19 @@ export interface CartItem {
     image_url?: string;
     quantity: number;
     original_price?: number;
-    // We can add variants/modifiers support here later
-    variant_options?: any[];
+    variant_options?: { name: string; value: string; price?: number }[];
+    /** Identificador único de línea: producto + variantes (mismo producto con otras opciones = otra línea) */
+    lineKey: string;
 }
 
 export interface CartContextType {
     items: CartItem[];
     addToCart: (product: any) => void;
-    removeFromCart: (productId: number) => void;
-    updateQuantity: (productId: number, quantity: number) => void;
+    removeFromCart: (lineKey: string) => void;
+    updateQuantity: (lineKey: string, quantity: number) => void;
     clearCart: () => void;
+    /** Actualiza image_url de ítems del carrito por id de producto (p. ej. tras cargar desde API). */
+    mergeProductImageUrls: (products: Array<{ id: number; image_url?: string | null }>) => void;
     cartTotal: number;
     cartCount: number;
     isCartOpen: boolean;
@@ -39,14 +42,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from LocalStorage on mount
+    function getLineKey(item: { id: number; variant_options?: unknown[] }) {
+        return `${item.id}_${JSON.stringify(item.variant_options || [])}`;
+    }
+
     useEffect(() => {
         const savedCart = localStorage.getItem('gastronomy_cart');
         if (savedCart) {
             try {
-                setItems(JSON.parse(savedCart));
-            } catch (e) {
-                console.error("Failed to parse cart", e);
+                const parsed = JSON.parse(savedCart) as CartItem[];
+                const migrated = parsed.map(item => ({
+                    ...item,
+                    lineKey: item.lineKey || getLineKey(item),
+                }));
+                setItems(migrated);
+            } catch {
+                setItems([]);
             }
         }
         setIsLoaded(true);
@@ -67,9 +78,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
     }, [sharedTable]);
 
+    function normalizeImageUrl(p: any): string | undefined {
+        const url = p?.image_url ?? p?.imageUrl;
+        if (typeof url !== 'string') return undefined;
+        const t = url.trim();
+        return (t.startsWith('http://') || t.startsWith('https://')) ? t : undefined;
+    }
+
     const addToCart = (product: any) => {
+        const variantOptions = product.variant_options || [];
+        const lineKey = getLineKey({ id: product.id, variant_options: variantOptions });
+        const imageUrl = normalizeImageUrl(product);
+
         setItems(currentItems => {
-            const existingItem = currentItems.find(item => item.id === product.id);
+            const existingItem = currentItems.find(item => item.lineKey === lineKey);
 
             if (existingItem) {
                 toast.success(`Agregaste otro ${product.name}`, {
@@ -77,8 +99,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                     duration: 2000,
                 });
                 return currentItems.map(item =>
-                    item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
+                    item.lineKey === lineKey
+                        ? { ...item, quantity: item.quantity + (product.quantity || 1), image_url: imageUrl ?? item.image_url }
                         : item
                 );
             }
@@ -87,38 +109,49 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 description: `${product.name} añadido al carrito`,
                 duration: 2000,
             });
-
             return [...currentItems, {
                 id: product.id,
                 name: product.name,
                 price: Number(product.price),
                 original_price: product.original_price ? Number(product.original_price) : undefined,
-                image_url: product.image_url,
-                quantity: product.quantity || 1, // Use quantity from product if provided (from Drawer)
-                variant_options: product.variant_options || []
+                image_url: imageUrl ?? undefined,
+                quantity: product.quantity || 1,
+                variant_options: variantOptions,
+                lineKey,
             }];
         });
     };
 
-    const removeFromCart = (productId: number) => {
-        setItems(currentItems => currentItems.filter(item => item.id !== productId));
+    const removeFromCart = (lineKey: string) => {
+        setItems(currentItems => currentItems.filter(item => item.lineKey !== lineKey));
     };
 
-    const updateQuantity = (productId: number, quantity: number) => {
+    const updateQuantity = (lineKey: string, quantity: number) => {
         if (quantity < 1) {
-            removeFromCart(productId);
+            removeFromCart(lineKey);
             return;
         }
         setItems(currentItems =>
-            currentItems.map(item =>
-                item.id === productId ? { ...item, quantity } : item
-            )
+            currentItems.map(item => (item.lineKey === lineKey ? { ...item, quantity } : item))
         );
     };
 
     const clearCart = () => {
         setItems([]);
         localStorage.removeItem('gastronomy_cart');
+    };
+
+    const mergeProductImageUrls = (products: Array<{ id: number; image_url?: string | null }>) => {
+        const byId = new Map(products.map(p => [p.id, p.image_url]));
+        setItems(current =>
+            current.map(item => {
+                const url = byId.get(item.id);
+                if (url == null) return item;
+                const trimmed = typeof url === 'string' ? url.trim() : '';
+                if (!trimmed || (!trimmed.startsWith('http://') && !trimmed.startsWith('https://'))) return item;
+                return { ...item, image_url: trimmed };
+            })
+        );
     };
 
     const cartTotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -131,6 +164,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             removeFromCart,
             updateQuantity,
             clearCart,
+            mergeProductImageUrls,
             cartTotal,
             cartCount,
             isCartOpen,

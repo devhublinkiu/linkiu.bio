@@ -66,6 +66,12 @@ class PermissionSeeder extends Seeder
             ['locations.update', 'Editar Sedes', 'Sedes'],
             ['locations.delete', 'Eliminar Sedes', 'Sedes'],
 
+            // Shorts
+            ['shorts.view', 'Ver Shorts', 'Shorts'],
+            ['shorts.create', 'Crear Shorts', 'Shorts'],
+            ['shorts.update', 'Editar Shorts', 'Shorts'],
+            ['shorts.delete', 'Eliminar Shorts', 'Shorts'],
+
             // Payment Methods (Métodos de Pago)
             ['payment_methods.view', 'Ver Métodos de Pago', 'Pagos'],
             ['payment_methods.create', 'Crear Métodos de Pago', 'Pagos'],
@@ -82,6 +88,21 @@ class PermissionSeeder extends Seeder
             ['integrations.view', 'Ver Integraciones', 'Integraciones'],
             ['integrations.update', 'Editar Integraciones', 'Integraciones'],
 
+            // Products / Carta Digital (Gastronomía)
+            ['products.view', 'Ver Productos', 'Carta digital'],
+            ['products.create', 'Crear Productos', 'Carta digital'],
+            ['products.update', 'Editar Productos', 'Carta digital'],
+            ['products.delete', 'Eliminar Productos', 'Carta digital'],
+
+            // linkiuPOS (Caja / Punto de venta)
+            ['pos.view', 'Ver POS', 'linkiuPOS'],
+            ['pos.create', 'Crear pedidos (POS)', 'linkiuPOS'],
+            ['pos.manage', 'Gestionar cobros y pedidos (POS)', 'linkiuPOS'],
+
+            // Pedidos (Centro de pedidos / Gastronomía)
+            ['orders.view', 'Ver Pedidos', 'Pedidos'],
+            ['orders.update', 'Actualizar estado de pedidos', 'Pedidos'],
+
             // Kitchen (Cocina)
             ['kitchen.view', 'Ver Monitor de Cocina', 'Cocina'],
             ['kitchen.update', 'Gestionar Comandas', 'Cocina'],
@@ -93,10 +114,32 @@ class PermissionSeeder extends Seeder
             // Reservations (Reservas)
             ['reservations.view', 'Ver Reservas', 'Reservas'],
             ['reservations.update', 'Gestionar Reservas', 'Reservas'],
+
+            // Categories (Categorías de productos – módulo central)
+            ['categories.view', 'Ver Categorías', 'Categorías'],
+            ['categories.create', 'Crear Categorías', 'Categorías'],
+            ['categories.update', 'Editar Categorías', 'Categorías'],
+            ['categories.delete', 'Eliminar Categorías', 'Categorías'],
+
+            // Tables & Zones (Mesas y Zonas)
+            ['tables.view', 'Ver Mesas y Zonas', 'Mesas y Zonas'],
+            ['tables.create', 'Crear Mesas y Zonas', 'Mesas y Zonas'],
+            ['tables.update', 'Editar Mesas y Zonas', 'Mesas y Zonas'],
+            ['tables.delete', 'Eliminar Mesas y Zonas', 'Mesas y Zonas'],
+
+            // Inventory (Inventario)
+            ['inventory.view', 'Ver Inventario', 'Inventario'],
+            ['inventory.create', 'Crear Items de Inventario', 'Inventario'],
+            ['inventory.update', 'Actualizar Items de Inventario', 'Inventario'],
+            ['inventory.delete', 'Eliminar Items de Inventario', 'Inventario'],
+            ['inventory.movements.view', 'Ver Movimientos de Inventario', 'Inventario'],
+            ['inventory.movements.create', 'Registrar Movimientos', 'Inventario'],
+            ['inventory.stocks.view', 'Ver Stocks', 'Inventario'],
+            ['inventory.stocks.update', 'Configurar Stocks', 'Inventario'],
         ];
 
         foreach ($permissions as $perm) {
-            \App\Models\Permission::firstOrCreate(
+            \App\Models\Permission::updateOrCreate(
             ['name' => $perm[0]],
             [
                 'label' => $perm[1],

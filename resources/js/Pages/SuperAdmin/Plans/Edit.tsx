@@ -13,7 +13,7 @@ import { Trash2, ArrowLeft, Upload, Calculator, Plus } from 'lucide-react';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { FieldError } from '@/Components/ui/field';
 import { MediaInput } from '@/Components/Shared/MediaManager/MediaInput';
-import { VERTICAL_CONFIG, MODULE_LABELS } from '@/Config/menuConfig';
+import { VERTICAL_CONFIG, MODULE_LABELS, MODULE_HAS_LIMIT, LIMIT_BACKEND_KEY_TO_FORM, LIMIT_FORM_KEY_TO_BACKEND } from '@/Config/menuConfig';
 
 interface Vertical {
     id: number;
@@ -40,8 +40,9 @@ interface Plan {
     highlight_text: string | null;
     sort_order: number;
     features: any[] | null;
+    limits: Record<string, number> | null;
     cover_url: string | null;
-    cover_path?: string | null; // Added cover_path
+    cover_path?: string | null;
 }
 
 interface Props {
@@ -99,6 +100,18 @@ export default function Edit({ plan, verticals }: Props) {
 
     const [moduleConfig, setModuleConfig] = useState<Record<string, boolean>>(initialModuleConfig);
 
+    // Initialize limits from plan data (map backend keys to form keys, e.g. products → digital_menu)
+    const initialLimitsConfig: Record<string, string> = (() => {
+        if (!plan.limits) return {};
+        const result: Record<string, string> = {};
+        Object.entries(plan.limits).forEach(([key, val]) => {
+            const formKey = LIMIT_BACKEND_KEY_TO_FORM[key] ?? key;
+            result[formKey] = val.toString();
+        });
+        return result;
+    })();
+    const [limitsConfig, setLimitsConfig] = useState<Record<string, string>>(initialLimitsConfig);
+
     // Sync modules when vertical changes
     useEffect(() => {
         const vertical = verticals.find(v => v.id.toString() === data.vertical_id);
@@ -123,6 +136,10 @@ export default function Edit({ plan, verticals }: Props) {
 
     const handleModuleToggle = (key: string, enabled: boolean) => {
         setModuleConfig(prev => ({ ...prev, [key]: enabled }));
+    };
+
+    const handleLimitChange = (key: string, value: string) => {
+        setLimitsConfig(prev => ({ ...prev, [key]: value }));
     };
 
     // Auto-generate slug from name if user changes name (optional behavior, maybe safer to disable on edit to avoid breaking links, keeping it manual-ish)
@@ -180,11 +197,21 @@ export default function Edit({ plan, verticals }: Props) {
         // We use `router.post` to send custom data payload while keeping useForm for errors?
         // OR we use the `transform` option if available, but `useForm` here is correct?
 
-        // Let's use router.post directly to ensure we send exact payload.
+        // Build limits object (map form keys to backend keys, e.g. digital_menu → products)
+        const finalLimits: Record<string, number> = {};
+        Object.entries(limitsConfig).forEach(([key, val]) => {
+            const num = parseInt(val);
+            if (!isNaN(num) && num > 0) {
+                const backendKey = LIMIT_FORM_KEY_TO_BACKEND[key] ?? key;
+                finalLimits[backendKey] = num;
+            }
+        });
+
         router.post(route('plans.update', plan.id), {
             ...data,
             _method: 'PUT',
-            features: finalFeatures
+            features: finalFeatures,
+            limits: Object.keys(finalLimits).length > 0 ? finalLimits : null,
         });
     };
 
@@ -508,21 +535,33 @@ export default function Edit({ plan, verticals }: Props) {
                     <Card>
                         <CardHeader>
                             <CardTitle>Permisos de Módulos</CardTitle>
-                            <CardDescription>Define qué módulos del sidebar estarán activos para este plan.</CardDescription>
+                            <CardDescription>Define qué módulos del sidebar estarán activos para este plan y sus límites.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {Object.keys(moduleConfig).length > 0 ? (
                                     Object.entries(moduleConfig).map(([key, enabled]) => (
-                                        <div key={key} className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                                        <div key={key} className="flex items-center gap-3 border p-3 rounded-lg hover:bg-slate-50 transition-colors">
                                             <Checkbox
                                                 id={`mod-${key}`}
                                                 checked={enabled}
                                                 onCheckedChange={(c) => handleModuleToggle(key, c as boolean)}
                                             />
-                                            <Label htmlFor={`mod-${key}`} className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            <Label htmlFor={`mod-${key}`} className="cursor-pointer text-sm font-medium leading-none flex-1">
                                                 {MODULE_LABELS[key] || key}
                                             </Label>
+                                            {MODULE_HAS_LIMIT[key] && (
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    placeholder="∞"
+                                                    className="w-20 h-8 text-xs text-center"
+                                                    value={limitsConfig[key] || ''}
+                                                    onChange={(e) => handleLimitChange(key, e.target.value)}
+                                                    title={MODULE_HAS_LIMIT[key]}
+                                                    disabled={!enabled}
+                                                />
+                                            )}
                                         </div>
                                     ))
                                 ) : (
@@ -532,6 +571,7 @@ export default function Edit({ plan, verticals }: Props) {
                                     </p>
                                 )}
                             </div>
+                            <p className="text-xs text-muted-foreground mt-3">Los campos numéricos definen el máximo permitido. Vacío = ilimitado.</p>
                         </CardContent>
                     </Card>
 

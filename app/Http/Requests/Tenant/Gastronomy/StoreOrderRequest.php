@@ -3,27 +3,39 @@
 namespace App\Http\Requests\Tenant\Gastronomy;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class StoreOrderRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return true; // Middleware handles auth and tenant
+        return Gate::allows('pos.create');
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
+        $tenantId = app('currentTenant')->id;
+
         return [
-            'location_id' => 'required|exists:locations,id',
+            'location_id' => [
+                'required',
+                Rule::exists('locations', 'id')->where('tenant_id', $tenantId),
+            ],
             'service_type' => 'required|string|in:dine_in,takeout,delivery',
-            'table_id' => 'nullable|required_if:service_type,dine_in|exists:tables,id',
-            'customer_id' => 'nullable|integer|exists:gastronomy_customers,id',
+            'table_id' => [
+                'nullable',
+                'required_if:service_type,dine_in',
+                Rule::exists('tables', 'id')->where('tenant_id', $tenantId),
+            ],
+            'customer_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('gastronomy_customers', 'id')->where('tenant_id', $tenantId),
+            ],
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'nullable|string|max:20',
             'delivery_address' => 'nullable|required_if:service_type,delivery|array',
@@ -34,25 +46,32 @@ class StoreOrderRequest extends FormRequest
             'cash_amount' => 'nullable|numeric|min:0',
             'cash_change' => 'nullable|numeric|min:0',
             'items' => 'nullable|array',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.product_id' => [
+                'required',
+                Rule::exists('products', 'id')->where('tenant_id', $tenantId),
+            ],
+            'items.*.quantity' => 'required|integer|min:1|max:100',
             'items.*.variant_options' => 'nullable|array',
             'send_to_kitchen' => 'nullable|boolean',
         ];
     }
 
     /**
-     * Custom error messages in Spanish.
+     * @return array<string, string>
      */
     public function messages(): array
     {
         return [
             'location_id.required' => 'La sede es obligatoria.',
-            'location_id.exists' => 'La sede seleccionada no es válida.',
+            'location_id.exists' => 'La sede seleccionada no pertenece a este negocio.',
             'service_type.required' => 'El tipo de servicio es obligatorio.',
             'table_id.required_if' => 'La mesa es obligatoria para pedidos de salón.',
+            'table_id.exists' => 'La mesa no pertenece a este negocio.',
+            'customer_id.exists' => 'El cliente no pertenece a este negocio.',
             'customer_name.required' => 'El nombre del cliente es obligatorio.',
             'payment_proof.mimes' => 'El comprobante debe ser una imagen (jpg, png, webp).',
+            'items.*.product_id.exists' => 'Uno de los productos no pertenece a este negocio.',
+            'items.*.quantity.max' => 'La cantidad máxima por producto es 100.',
         ];
     }
 }

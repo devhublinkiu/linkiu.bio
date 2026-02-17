@@ -3,11 +3,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/Components/ui/sh
 import { Input } from '@/Components/ui/input';
 import { Button } from '@/Components/ui/button';
 import { ScrollArea } from '@/Components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from "@/Components/ui/tabs";
-import { Badge } from '@/Components/ui/badge';
 import { Card } from '@/Components/ui/card';
-import { Search, ChefHat, X } from 'lucide-react';
+import { Search, ChefHat } from 'lucide-react';
 import { Category, Product } from '@/types/pos';
+import { formatCurrency } from '@/utils/currency';
 
 interface Props {
     open: boolean;
@@ -120,7 +119,7 @@ export default function ProductCatalogDrawer({ open, onOpenChange, categories, o
                                         {product.name}
                                     </div>
                                     <div className="font-bold text-indigo-600 mt-1">
-                                        ${parseFloat(String(product.price)).toLocaleString()}
+                                        {formatCurrency(product.price)}
                                     </div>
                                 </div>
                             </Card>

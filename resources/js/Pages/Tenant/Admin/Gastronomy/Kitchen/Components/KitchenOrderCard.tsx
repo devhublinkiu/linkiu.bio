@@ -6,39 +6,29 @@ import { ScrollArea } from '@/Components/ui/scroll-area';
 import {
     Clock,
     CheckCircle2,
+    ChefHat,
     Table as TableIcon,
-    Users
+    Users,
+    Loader2,
+    Ban,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { KitchenOrder } from '@/types/pos';
 
-export interface KitchenOrderItem {
-    id: number;
-    product_name: string;
-    quantity: number;
-    variant_options?: { name: string; value?: string }[];
-}
-
-export interface KitchenOrder {
-    id: number;
-    ticket_number: string;
-    status: string;
-    priority: 'high' | 'normal' | 'low';
-    service_type: string;
-    customer_name: string;
-    table?: { name: string };
-    creator?: { name: string };
-    created_at: string;
-    items: KitchenOrderItem[];
-}
+// Re-export for backward compat
+export type { KitchenOrder, KitchenOrderItem } from '@/types/pos';
 
 interface KitchenOrderCardProps {
     order: KitchenOrder;
     onReady: (id: number) => void;
+    onPreparing?: (id: number) => void;
+    processingId?: number | null;
 }
 
-export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
+export const KitchenOrderCard = ({ order, onReady, onPreparing, processingId }: KitchenOrderCardProps) => {
     const [elapsedMinutes, setElapsedMinutes] = useState(0);
+    const isProcessing = processingId === order.id;
 
     useEffect(() => {
         const calculate = () => {
@@ -48,13 +38,13 @@ export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
         };
 
         calculate();
-        const interval = setInterval(calculate, 30000); // Actualizar cada 30s
+        const interval = setInterval(calculate, 15000); // Actualizar cada 15s
         return () => clearInterval(interval);
     }, [order.created_at]);
 
     const getUrgencyColor = () => {
-        if (elapsedMinutes >= 20) return 'border-red-500 bg-red-50/50';
-        if (elapsedMinutes >= 10) return 'border-amber-500 bg-amber-50/50';
+        if (elapsedMinutes >= 20) return 'border-red-500 bg-red-50';
+        if (elapsedMinutes >= 10) return 'border-amber-500 bg-amber-50';
         return 'border-slate-200 bg-white';
     };
 
@@ -63,6 +53,10 @@ export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
         if (elapsedMinutes >= 10) return 'bg-amber-500 text-white';
         return 'bg-slate-100 text-slate-700';
     };
+
+    // Filtrar items: solo 'active' se muestran como pendientes, 'served' ya fueron despachados antes
+    const activeItems = order.items.filter(i => i.status === 'active' || !i.status);
+    const cancelledItems = order.items.filter(i => i.status === 'cancelled');
 
     return (
         <motion.div
@@ -85,6 +79,12 @@ export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
                             {order.priority === 'high' && (
                                 <Badge className="bg-red-600 text-white text-[10px] py-0 px-1 font-bold animate-pulse">
                                     ALTA PRIORIDAD
+                                </Badge>
+                            )}
+                            {/* Badge de estado */}
+                            {order.status === 'preparing' && (
+                                <Badge className="bg-blue-600 text-white text-[10px] py-0 px-1 font-bold">
+                                    EN PREPARACIÓN
                                 </Badge>
                             )}
                         </div>
@@ -112,8 +112,9 @@ export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
                 <CardContent className="p-3 pt-0 flex-1 overflow-hidden">
                     <ScrollArea className="h-full pr-2">
                         <div className="space-y-3 pt-2">
-                            {order.items.map((item, idx) => (
-                                <div key={idx} className="flex gap-3 border-b border-slate-100 pb-2 last:border-0">
+                            {/* Items activos */}
+                            {activeItems.map((item) => (
+                                <div key={item.id} className="flex gap-3 border-b border-slate-100 pb-2 last:border-0">
                                     <span className="text-xl font-bold text-blue-600 bg-blue-50 w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0">
                                         {item.quantity}
                                     </span>
@@ -130,20 +131,64 @@ export const KitchenOrderCard = ({ order, onReady }: KitchenOrderCardProps) => {
                                                 ))}
                                             </div>
                                         )}
+                                        {item.notes && (
+                                            <div className="mt-1 text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-200 font-medium">
+                                                ⚠️ {item.notes}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Items cancelados (tachados) */}
+                            {cancelledItems.length > 0 && (
+                                <div className="border-t border-red-100 pt-2 mt-2">
+                                    {cancelledItems.map((item) => (
+                                        <div key={item.id} className="flex gap-3 pb-1 opacity-50">
+                                            <span className="text-sm font-bold text-red-400 bg-red-50 w-6 h-6 flex items-center justify-center rounded flex-shrink-0">
+                                                <Ban className="w-3 h-3" />
+                                            </span>
+                                            <span className="text-sm text-red-400 line-through leading-tight">
+                                                {item.quantity}x {item.product_name}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </ScrollArea>
                 </CardContent>
 
-                <CardFooter className="p-3 pt-2 bg-slate-50/50">
+                <CardFooter className="p-3 pt-2 bg-slate-50 flex flex-col gap-2">
+                    {/* Botón Preparando (solo si status es confirmed) */}
+                    {order.status === 'confirmed' && onPreparing && (
+                        <Button
+                            onClick={() => onPreparing(order.id)}
+                            variant="outline"
+                            className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 font-bold h-10"
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <ChefHat className="w-4 h-4 mr-2" />
+                            )}
+                            PREPARANDO
+                        </Button>
+                    )}
+
+                    {/* Botón Despachar */}
                     <Button
                         onClick={() => onReady(order.id)}
                         className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-lg shadow-sm"
+                        disabled={isProcessing}
                     >
-                        <CheckCircle2 className="w-5 h-5 mr-2" />
-                        DESPACHAR
+                        {isProcessing ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                            <CheckCircle2 className="w-5 h-5 mr-2" />
+                        )}
+                        {isProcessing ? 'PROCESANDO...' : 'DESPACHAR'}
                     </Button>
                 </CardFooter>
             </Card>

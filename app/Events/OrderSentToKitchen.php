@@ -17,25 +17,19 @@ class OrderSentToKitchen implements ShouldBroadcastNow
     public function __construct(\App\Models\Tenant\Gastronomy\Order $order)
     {
         $this->order = $order;
-        \Illuminate\Support\Facades\Log::info('OrderSentToKitchen event instantiated for Order #' . $order->id);
     }
 
     public function broadcastOn(): array
     {
         $tenantId = $this->order->tenant_id;
         $locationId = $this->order->location_id;
-        
+
         $channels = [];
         $channels[] = new Channel('tenant.' . $tenantId . '.kitchen');
 
         if ($locationId) {
             $channels[] = new Channel('tenant.' . $tenantId . '.location.' . $locationId . '.kitchen');
         }
-
-        \Illuminate\Support\Facades\Log::info('OrderSentToKitchen broadcasting to channels: ', [
-            'order_id' => $this->order->id,
-            'channels' => array_map(fn($c) => (string)$c, $channels)
-        ]);
 
         return $channels;
     }
@@ -62,11 +56,13 @@ class OrderSentToKitchen implements ShouldBroadcastNow
             'priority' => $this->order->priority ?? 'normal',
             'created_at' => $this->order->created_at->toIso8601String(),
             'items' => $this->order->items->map(fn($item) => [
-        'id' => $item->id,
-        'product_name' => $item->product_name,
-        'quantity' => $item->quantity,
-        'variant_options' => $item->variant_options,
-        ]),
+                'id' => $item->id,
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'variant_options' => $item->variant_options,
+                'notes' => $item->notes,
+                'status' => $item->status ?? 'active',
+            ]),
         ];
     }
 }

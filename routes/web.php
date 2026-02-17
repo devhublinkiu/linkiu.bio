@@ -141,6 +141,8 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
         )->name('superadmin.dashboard');
 
         Route::resource('tenants', \App\Http\Controllers\SuperAdmin\TenantController::class);
+        Route::get('reportes-tiendas', [\App\Http\Controllers\SuperAdmin\StoreReportController::class, 'index'])->name('superadmin.store-reports.index');
+        Route::patch('reportes-tiendas/{storeReport}/status', [\App\Http\Controllers\SuperAdmin\StoreReportController::class, 'updateStatus'])->name('superadmin.store-reports.update-status');
         Route::resource('categories', \App\Http\Controllers\SuperAdmin\BusinessCategoryController::class)->except(['create', 'show', 'edit']);
         Route::resource('users', \App\Http\Controllers\SuperAdmin\UserController::class)->except(['show', 'edit']);
         Route::resource('roles', \App\Http\Controllers\SuperAdmin\RoleController::class);
@@ -191,46 +193,125 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
 // 4. Tenant Zone
 Route::prefix('{tenant}')->group(function () {
 
-    // 4.1 Tenant Public URL
-    // 4.1 Tenant Public URL
-    Route::get('/', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'index'])->name('tenant.home');
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4.1 TENANT PUBLIC VIEWS (Vertical-Specific Router)
+    // ═══════════════════════════════════════════════════════════════════════
 
-    // 4.1b Public Locations (Transversal)
+    // Páginas legales primero (evitar que otra ruta consuma segmentos)
+    Route::get('/legal/{slug}', [\App\Http\Controllers\Tenant\LegalController::class , 'show'])->name('tenant.legal.show');
+
+    /**
+     * Main Public Homepage - Conditional Router by Vertical
+     * 
+     * Detects the tenant's vertical and loads the appropriate controller/view.
+     * Add new vertical routes here as they are implemented.
+     */
+    Route::get('/', function () {
+        $tenant = app('currentTenant');
+
+        // Load vertical relationship to get slug
+        $tenant->load('vertical');
+        $verticalSlug = $tenant->vertical->slug ?? null;
+
+        switch ($verticalSlug) {
+            case 'gastronomia':
+                $locationsCount = \App\Models\Tenant\Locations\Location::where('tenant_id', $tenant->id)->where('is_active', true)->count();
+                if ($locationsCount >= 2 && !session('selected_location_id')) {
+                    return app(\App\Http\Controllers\Tenant\Gastronomy\PublicController::class)->shorts(request());
+                }
+                return app(\App\Http\Controllers\Tenant\Gastronomy\PublicController::class)->index(request());
+
+            case 'ecommerce':
+                // TODO: Implement E-commerce public controller
+                // return app(\App\Http\Controllers\Tenant\Ecommerce\PublicController::class)->index(request());
+                return \Inertia\Inertia::render('Tenant/Public/Unavailable', [
+                    'tenant' => $tenant,
+                    'message' => 'Tienda en construcción. Próximamente disponible.'
+                ]);
+
+            case 'dropshipping':
+                // TODO: Implement Dropshipping public controller
+                // return app(\App\Http\Controllers\Tenant\Dropshipping\PublicController::class)->index(request());
+                return \Inertia\Inertia::render('Tenant/Public/Unavailable', [
+                    'tenant' => $tenant,
+                    'message' => 'Tienda en construcción. Próximamente disponible.'
+                ]);
+
+            default:
+                // Unknown vertical or no vertical assigned
+                return \Inertia\Inertia::render('Tenant/Public/Unavailable', [
+                    'tenant' => $tenant,
+                    'message' => 'Vertical no configurado. Contacta a soporte.'
+                ]);
+        }
+    })->name('tenant.home');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4.2 TRANSVERSAL PUBLIC ROUTES (Available for all verticals)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Public Locations (Sedes)
     Route::get('/locations', [\App\Http\Controllers\Tenant\PublicController::class , 'locations'])->name('tenant.public.locations');
 
-    // 4.1c Public Menu (Smart Catalogue)
+    // Reporte de problemas con el negocio (público, transversal)
+    Route::post('/report', [\App\Http\Controllers\Tenant\StoreReportController::class , 'store'])->name('tenant.report.store');
+
+    // Validar Clicks en Sliders (Public)
+    Route::get('/sliders/{slider}/click', [\App\Http\Controllers\Tenant\Admin\SliderController::class , 'click'])->name('tenant.sliders.click');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4.3 GASTRONOMÍA - PUBLIC ROUTES
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Menu & Catalogue
     Route::get('/menu', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'menu'])->name('tenant.menu');
     Route::get('/menu/category/{slug}', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'category'])->name('tenant.menu.category');
-
-    // 4.1d Public Favorites
-    Route::get('/favoritos', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'favorites'])->name('tenant.favorites');
-
-    // 4.1g Public Cart
-    Route::get('/carrito', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'cart'])->name('tenant.cart');
-
     Route::post('/menu/products/batch', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'batchProducts'])->name('tenant.menu.products.batch');
 
-    // 4.1e Public Payment Methods
-    Route::get('/api/cart/payment-methods', [\App\Http\Controllers\Tenant\Client\PaymentController::class , 'index'])->name('tenant.api.payment-methods.index');
+    // Favorites
+    Route::get('/favoritos', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'favorites'])->name('tenant.favorites');
 
-    // 4.1f Public Checkout (Dedicated Page)
+    // Cart
+    Route::get('/carrito', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'cart'])->name('tenant.cart');
+
+    // Checkout & Orders
     Route::get('/checkout', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'checkout'])->name('tenant.checkout');
     Route::post('/checkout/process', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'processCheckout'])->name('tenant.checkout.process');
     Route::get('/pedido/{order}', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'success'])->name('tenant.checkout.success');
     Route::post('/pos/orders', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'store'])->name('tenant.pos.store');
 
-    // 4.1h Magic Link Upload (Payment Proof)
+    // Payment Methods API
+    Route::get('/api/cart/payment-methods', [\App\Http\Controllers\Tenant\Client\PaymentController::class , 'index'])->name('tenant.api.payment-methods.index');
+
+    // Magic Link Upload (Payment Proof)
     Route::get('/magic/upload/{token}', [\App\Http\Controllers\Tenant\Gastronomy\MagicLinkController::class , 'show'])->name('tenant.magic.show');
     Route::post('/magic/upload/{token}', [\App\Http\Controllers\Tenant\Gastronomy\MagicLinkController::class , 'store'])->name('tenant.magic.store');
 
-    // 4.1b Validar Clicks en Sliders (Public)
-    Route::get('/sliders/{slider}/click', [\App\Http\Controllers\Tenant\Admin\SliderController::class , 'click'])->name('tenant.sliders.click');
-
-    // 4.1i Public Reservations
+    // Reservations
     Route::get('/reservas', [\App\Http\Controllers\Tenant\Gastronomy\ReservationController::class , 'index'])->name('tenant.reservations.index');
     Route::post('/reservas', [\App\Http\Controllers\Tenant\Gastronomy\ReservationController::class , 'store'])->name('tenant.reservations.store');
 
-    // 4.2 Tenant Admin Panel
+    // Shorts: vista pública (elegir sede + promos) y entrar
+    Route::get('/shorts', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'shorts'])->name('tenant.public.shorts');
+    Route::post('/entrar', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'enterLocation'])->name('tenant.shorts.enter');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TODO: 4.4 E-COMMERCE - PUBLIC ROUTES (When implemented)
+    // ═══════════════════════════════════════════════════════════════════════
+    // Route::get('/catalog', [Ecommerce\PublicController::class, 'catalog'])->name('tenant.ecommerce.catalog');
+    // Route::get('/product/{slug}', [Ecommerce\PublicController::class, 'product'])->name('tenant.ecommerce.product');
+    // ...
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TODO: 4.5 DROPSHIPPING - PUBLIC ROUTES (When implemented)
+    // ═══════════════════════════════════════════════════════════════════════
+    // Route::get('/shop', [Dropshipping\PublicController::class, 'shop'])->name('tenant.dropshipping.shop');
+    // ...
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4.6 TENANT ADMIN PANEL (Authenticated Area)
+    // ═══════════════════════════════════════════════════════════════════════
+
     Route::prefix('admin')->group(function () {
             // Redirect /slug/admin to /slug/admin/dashboard
             Route::get('/', function () {
@@ -266,14 +347,20 @@ Route::prefix('{tenant}')->group(function () {
                     Route::resource('sliders', \App\Http\Controllers\Tenant\Admin\SliderController::class)->names('tenant.sliders');
 
                     // 4.6 Tickers (Promotional)
+                    Route::patch('tickers/reorder', [\App\Http\Controllers\Tenant\Admin\TickerController::class, 'reorder'])->name('tenant.admin.tickers.reorder');
                     Route::resource('tickers', \App\Http\Controllers\Tenant\Admin\TickerController::class)->names('tenant.admin.tickers');
 
                     // 4.7 Locations (Sedes)
-                    Route::resource('locations', \App\Http\Controllers\Tenant\Admin\LocationController::class)->names('tenant.locations');
-                    Route::patch('locations/{location}/toggle-active', [\App\Http\Controllers\Tenant\Admin\LocationController::class , 'toggleActive'])->name('tenant.locations.toggle-active');
+                    Route::resource('locations', \App\Http\Controllers\Tenant\Admin\Locations\LocationController::class)->names('tenant.locations');
+                    Route::patch('locations/{location}/toggle-active', [\App\Http\Controllers\Tenant\Admin\Locations\LocationController::class, 'toggleActive'])->name('tenant.locations.toggle-active');
+
+                    // Shorts (aplica a todas las verticales)
+                    Route::resource('shorts', \App\Http\Controllers\Tenant\Admin\ShortController::class)->names('tenant.shorts');
+                    Route::patch('shorts/{short}/toggle-active', [\App\Http\Controllers\Tenant\Admin\ShortController::class, 'toggleActive'])->name('tenant.shorts.toggle-active');
 
                     // Productos (Gastronomía)
                     Route::resource('products', \App\Http\Controllers\Tenant\Admin\Gastronomy\ProductController::class)->names('tenant.admin.products');
+                    Route::patch('products/{product}/toggle-availability', [\App\Http\Controllers\Tenant\Admin\Gastronomy\ProductController::class, 'toggleAvailability'])->name('tenant.admin.products.toggle-availability');
 
                     // Mesas y Zonas (Gastronomía)
                     Route::prefix('tables')->group(function () {
@@ -291,9 +378,28 @@ Route::prefix('{tenant}')->group(function () {
                         }
                         );
 
+                        // Inventario (Inventory)
+                        Route::prefix('inventory')->group(function () {
+                            // Items
+                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryItemController::class, 'index'])->name('tenant.admin.inventory.index');
+                            Route::post('/', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryItemController::class, 'store'])->name('tenant.admin.inventory.store');
+                            Route::put('/{inventoryItem}', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryItemController::class, 'update'])->name('tenant.admin.inventory.update');
+                            Route::delete('/{inventoryItem}', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryItemController::class, 'destroy'])->name('tenant.admin.inventory.destroy');
+
+                            // Stocks
+                            Route::get('/stocks', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryStockController::class, 'index'])->name('tenant.admin.inventory.stocks.index');
+                            Route::put('/stocks/{inventoryStock}', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryStockController::class, 'update'])->name('tenant.admin.inventory.stocks.update');
+
+                            // Movements
+                            Route::get('/movements', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryMovementController::class, 'index'])->name('tenant.admin.inventory.movements.index');
+                            Route::post('/movements', [\App\Http\Controllers\Tenant\Admin\Inventory\InventoryMovementController::class, 'store'])->name('tenant.admin.inventory.movements.store');
+                        });
+
                         // Punto de Venta (POS)
                         Route::get('/pos', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'index'])->name('tenant.admin.pos');
                         Route::post('/pos/tables/{table}/free', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'freeTable'])->name('tenant.admin.pos.free-table');
+                        Route::post('/pos/items/{item}/cancel', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'cancelItem'])->name('tenant.admin.pos.cancel-item');
+                        Route::post('/pos/orders/{order}/verify-payment', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'verifyWaiterPayment'])->name('tenant.admin.pos.verify-payment');
                         Route::get('/pos/customers', [\App\Http\Controllers\Tenant\Gastronomy\CustomerController::class , 'index'])->name('tenant.admin.pos.customers.index');
                         Route::post('/pos/customers', [\App\Http\Controllers\Tenant\Gastronomy\CustomerController::class , 'store'])->name('tenant.admin.pos.customers.store');
 
@@ -315,11 +421,12 @@ Route::prefix('{tenant}')->group(function () {
 
                         Route::get('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class , 'edit'])->name('tenant.settings.edit');
                         Route::patch('/settings', [\App\Http\Controllers\Tenant\Admin\SettingsController::class , 'update'])->name('tenant.settings.update');
+                        Route::post('/settings/legal-pages/update', [\App\Http\Controllers\Tenant\Admin\LegalPageController::class , 'update'])->name('tenant.settings.legal-pages.update');
                         Route::post('/settings/logo', [\App\Http\Controllers\Tenant\Admin\SettingsController::class , 'updateLogo'])->name('tenant.settings.logo.update');
                         Route::post('/settings/favicon', [\App\Http\Controllers\Tenant\Admin\SettingsController::class , 'updateFavicon'])->name('tenant.settings.favicon.update');
 
-                        Route::get('/whatsapp', [\App\Http\Controllers\Tenant\Admin\WhatsAppController::class , 'edit'])->name('tenant.whatsapp.edit');
-                        Route::patch('/whatsapp', [\App\Http\Controllers\Tenant\Admin\WhatsAppController::class , 'update'])->name('tenant.whatsapp.update');
+                        Route::get('/whatsapp', [\App\Http\Controllers\Tenant\Admin\WhatsApp\WhatsAppController::class, 'edit'])->name('tenant.whatsapp.edit');
+                        Route::patch('/whatsapp', [\App\Http\Controllers\Tenant\Admin\WhatsApp\WhatsAppController::class, 'update'])->name('tenant.whatsapp.update');
 
                         Route::post('/logout', [\App\Http\Controllers\Auth\TenantAuthController::class , 'logout'])->name('tenant.logout');
 
@@ -344,19 +451,18 @@ Route::prefix('{tenant}')->group(function () {
 
                         // Payment Methods
                         Route::prefix('payment-methods')->name('tenant.payment-methods.')->group(function () {
-                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\PaymentMethodController::class , 'index'])->name('index');
-                            Route::put('/{method}', [\App\Http\Controllers\Tenant\Admin\PaymentMethodController::class , 'updateMethod'])->name('update.method');
-                            Route::post('/accounts', [\App\Http\Controllers\Tenant\Admin\PaymentMethodController::class , 'storeAccount'])->name('accounts.store');
-                            Route::put('/accounts/{account}', [\App\Http\Controllers\Tenant\Admin\PaymentMethodController::class , 'updateAccount'])->name('accounts.update');
-                            Route::delete('/accounts/{account}', [\App\Http\Controllers\Tenant\Admin\PaymentMethodController::class , 'destroyAccount'])->name('accounts.destroy');
-                        }
-                        );
+                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\PaymentMethods\PaymentMethodController::class, 'index'])->name('index');
+                            Route::put('/{method}', [\App\Http\Controllers\Tenant\Admin\PaymentMethods\PaymentMethodController::class, 'updateMethod'])->name('update.method');
+                            Route::post('/accounts', [\App\Http\Controllers\Tenant\Admin\PaymentMethods\PaymentMethodController::class, 'storeAccount'])->name('accounts.store');
+                            Route::put('/accounts/{account}', [\App\Http\Controllers\Tenant\Admin\PaymentMethods\PaymentMethodController::class, 'updateAccount'])->name('accounts.update');
+                            Route::delete('/accounts/{account}', [\App\Http\Controllers\Tenant\Admin\PaymentMethods\PaymentMethodController::class, 'destroyAccount'])->name('accounts.destroy');
+                        });
 
                         // Shipping Methods
                         Route::prefix('shipping')->name('tenant.shipping.')->group(function () {
-                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\ShippingController::class , 'index'])->name('index');
-                            Route::put('/{method}', [\App\Http\Controllers\Tenant\Admin\ShippingController::class , 'update'])->name('update');
-                            Route::post('/{method}/zones', [\App\Http\Controllers\Tenant\Admin\ShippingController::class , 'updateZones'])->name('zones.update');
+                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\Shipping\ShippingController::class, 'index'])->name('index');
+                            Route::put('/{method}', [\App\Http\Controllers\Tenant\Admin\Shipping\ShippingController::class, 'update'])->name('update');
+                            Route::post('/{method}/zones', [\App\Http\Controllers\Tenant\Admin\Shipping\ShippingController::class, 'updateZones'])->name('zones.update');
                         }
                         );
                         // Specific Gastronomy Modules (KDS & Waiters)
@@ -370,15 +476,18 @@ Route::prefix('{tenant}')->group(function () {
                         Route::prefix('waiters')->name('tenant.admin.waiters.')->group(function () {
                             Route::get('/', [\App\Http\Controllers\Tenant\Admin\Gastronomy\WaiterController::class , 'index'])->name('index');
                             Route::post('/order', [\App\Http\Controllers\Tenant\Admin\Gastronomy\WaiterController::class , 'storeOrder'])->name('store');
+                            Route::post('/payment-proof', [\App\Http\Controllers\Tenant\Admin\Gastronomy\WaiterController::class , 'submitPaymentProof'])->name('payment-proof');
                         }
                         );
 
                         Route::prefix('media')->name('tenant.media.')->group(function () {
-                            Route::get('/', [\App\Http\Controllers\Shared\MediaController::class , 'index'])->name('index');
-                            Route::get('/list', [\App\Http\Controllers\Shared\MediaController::class , 'list'])->name('list');
-                            Route::post('/folder', [\App\Http\Controllers\Shared\MediaController::class , 'createFolder'])->name('folder.create');
-                            Route::post('/', [\App\Http\Controllers\Shared\MediaController::class , 'store'])->name('store');
-                            Route::delete('/{id}', [\App\Http\Controllers\Shared\MediaController::class , 'destroy'])->name('destroy');
+                            Route::get('/', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'index'])->name('index');
+                            Route::get('/list', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'list'])->name('list');
+                            Route::get('/{id}/download', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'download'])->name('download');
+                            Route::get('/{id}', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'show'])->name('show');
+                            Route::post('/folder', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'createFolder'])->name('folder.create');
+                            Route::post('/', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'store'])->name('store');
+                            Route::delete('/{id}', [\App\Http\Controllers\Tenant\Admin\Media\MediaController::class, 'destroy'])->name('destroy');
                         }
                         );
                     }

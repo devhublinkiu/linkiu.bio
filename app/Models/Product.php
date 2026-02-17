@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Tenant\Locations\Location;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
@@ -23,6 +26,7 @@ class Product extends Model
         'cost',
         'sku',
         'image',
+        'storage_disk',
         'gallery',
         'preparation_time',
         'calories',
@@ -51,21 +55,48 @@ class Product extends Model
 
     protected $appends = ['image_url', 'gallery_urls'];
 
-    public function getImageUrlAttribute()
+    /* ──────────────────── Accessors ──────────────────── */
+
+    public function getImageUrlAttribute(): ?string
     {
-        return $this->image ?\Illuminate\Support\Facades\Storage::disk('s3')->url($this->image) : null;
+        if (empty($this->image)) {
+            return null;
+        }
+        $disk = $this->attributes['storage_disk'] ?? 'bunny';
+        if ($disk !== 'bunny') {
+            return null;
+        }
+        $path = ltrim($this->image, '/');
+        try {
+            $url = Storage::disk('bunny')->url($path);
+            return (is_string($url) && str_starts_with($url, 'http')) ? $url : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
-    public function getGalleryUrlsAttribute()
+    public function getGalleryUrlsAttribute(): array
     {
         if (empty($this->gallery)) {
             return [];
         }
-
-        return array_map(function ($path) {
-            return \Illuminate\Support\Facades\Storage::disk('s3')->url($path);
+        $disk = $this->attributes['storage_disk'] ?? 'bunny';
+        if ($disk !== 'bunny') {
+            return [];
+        }
+        $urls = array_map(function ($path) {
+            try {
+                $url = Storage::disk('bunny')->url(ltrim($path, '/'));
+                return (is_string($url) && str_starts_with($url, 'http')) ? $url : null;
+            } catch (\Throwable $e) {
+                return null;
+            }
         }, $this->gallery);
+
+        return array_values(array_filter($urls));
     }
+
+    /* ──────────────────── Relations ──────────────────── */
 
     /**
      * Get the category that owns the product.
@@ -78,5 +109,15 @@ class Product extends Model
     public function variantGroups()
     {
         return $this->hasMany(ProductVariantGroup::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Sedes donde este producto está disponible (tabla pivote product_location).
+     */
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(Location::class, 'product_location')
+            ->withPivot('is_available')
+            ->withTimestamps();
     }
 }

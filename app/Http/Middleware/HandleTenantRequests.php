@@ -18,7 +18,6 @@ class HandleTenantRequests
     {
         $tenantSlug = $request->route('tenant');
 
-        // Prevent collision with SuperAdmin management routes
         if (!$tenantSlug || $request->is('superlinkiu*')) {
             return $next($request);
         }
@@ -27,9 +26,6 @@ class HandleTenantRequests
 
         // Bind current tenant to the container for easy access globally
         app()->instance('currentTenant', $tenant);
-
-        // Optional: Set default URL for route generation to include tenant
-        // URL::defaults(['tenant' => $tenant->slug]);
 
         return $next($request);
     }

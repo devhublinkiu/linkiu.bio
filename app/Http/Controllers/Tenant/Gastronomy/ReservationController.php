@@ -17,13 +17,23 @@ class ReservationController extends Controller
     public function index()
     {
         $tenant = app('currentTenant');
-        $locations = \App\Models\Location::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->get();
+        $locationsQuery = \App\Models\Tenant\Locations\Location::where('tenant_id', $tenant->id)
+            ->where('is_active', true);
+
+        $locations = $locationsQuery->get()->map(fn ($loc) => [
+            'id' => $loc->id,
+            'name' => $loc->name,
+            'address' => $loc->address,
+            'opening_hours' => $loc->opening_hours,
+            'reservation_price_per_person' => $loc->reservation_price_per_person,
+            'reservation_min_anticipation' => $loc->reservation_min_anticipation,
+            'reservation_slot_duration' => $loc->reservation_slot_duration,
+            'reservation_payment_proof_required' => $loc->reservation_payment_proof_required,
+        ]);
 
         // Eager load bank accounts
         // Fetch Payment Methods (Bank Transfer) and map to BankAccount structure
-        $paymentMethods = \App\Models\TenantPaymentMethod::where('tenant_id', $tenant->id)
+        $paymentMethods = \App\Models\Tenant\Payments\PaymentMethod::where('tenant_id', $tenant->id)
             ->where('type', 'bank_transfer')
             ->where('is_active', true)
             ->get();
@@ -31,23 +41,31 @@ class ReservationController extends Controller
         $mappedMethods = $paymentMethods->map(function ($pm) {
             $settings = $pm->settings ?? [];
             return [
-            'id' => 'pm_' . $pm->id,
-            'bank_name' => $settings['bank_name'] ?? 'Banco',
-            'account_type' => $settings['account_type'] ?? 'Cuenta',
-            'account_number' => $settings['account_number'] ?? '',
-            'account_holder' => $settings['owner_name'] ?? '',
-            'sort_order' => 0,
+                'id' => 'pm_' . $pm->id,
+                'bank_name' => $settings['bank_name'] ?? 'Banco',
+                'account_type' => $settings['account_type'] ?? 'Cuenta',
+                'account_number' => $settings['account_number'] ?? '',
+                'account_holder' => $settings['owner_name'] ?? '',
+                'location_id' => $pm->location_id,
+                'sort_order' => 0,
             ];
         });
 
-        // Fetch Legacy Bank Accounts
-        $bankAccounts = \App\Models\TenantBankAccount::where('tenant_id', $tenant->id)
+        $bankAccountsCollection = \App\Models\Tenant\Payments\BankAccount::where('tenant_id', $tenant->id)
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->get();
+            ->get()
+            ->map(fn ($acc) => [
+                'id' => $acc->id,
+                'bank_name' => $acc->bank_name,
+                'account_type' => $acc->account_type,
+                'account_number' => $acc->account_number,
+                'account_holder' => $acc->account_holder,
+                'location_id' => $acc->location_id,
+                'sort_order' => $acc->sort_order ?? 0,
+            ]);
 
-        // Merge both sources
-        $allBankAccounts = $mappedMethods->merge($bankAccounts);
+        $allBankAccounts = $mappedMethods->concat($bankAccountsCollection)->values();
 
         return Inertia::render('Tenant/Gastronomy/Public/Reservations/Index', [
             'tenant' => $tenant,
@@ -89,7 +107,7 @@ class ReservationController extends Controller
         ]);
 
         // Check if proof is required by location settings
-        $location = \App\Models\Location::where('tenant_id', $tenant->id)->findOrFail($validated['location_id']);
+        $location = \App\Models\Tenant\Locations\Location::where('tenant_id', $tenant->id)->findOrFail($validated['location_id']);
         if ($location->reservation_payment_proof_required && !$request->hasFile('payment_proof')) {
             return redirect()->back()->withErrors(['payment_proof' => 'El comprobante de pago es obligatorio para esta sede.']);
         }
@@ -97,10 +115,13 @@ class ReservationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Handle file upload
+            // Handle file upload (misma estructura que slider: uploads/{tenant}/reservation_proofs)
             $paymentProofPath = null;
+            $storageDisk = 'bunny';
             if ($request->hasFile('payment_proof')) {
-                $paymentProofPath = $request->file('payment_proof')->store('reservation_proofs', 'public');
+                $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+                $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/reservation_proofs';
+                $paymentProofPath = $request->file('payment_proof')->store($basePath, $storageDisk);
             }
 
             // 1. Find or Create Customer
@@ -111,7 +132,7 @@ class ReservationController extends Controller
             ],
             [
                 'name' => $validated['customer_name'],
-                'email' => $validated['customer_email'],
+                'email' => $validated['customer_email'] ?? null,
             ]
             );
 
@@ -126,9 +147,10 @@ class ReservationController extends Controller
                 'status' => 'pending', // Pending approval by default
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
-                'customer_email' => $validated['customer_email'],
-                'notes' => $validated['notes'],
+                'customer_email' => $validated['customer_email'] ?? null,
+                'notes' => $validated['notes'] ?? null,
                 'payment_proof' => $paymentProofPath,
+                'payment_proof_storage_disk' => $storageDisk,
             ]);
 
 
@@ -150,19 +172,19 @@ class ReservationController extends Controller
                 "{$tenant->slug}/sedes" // Button param
             );
 
-            // B. Notify Admin (New Reservation Alert)
-            // Template: linkiu_alert_v1
-            // Vars: {{1}} Client, {{2}} Date, {{3}} Quantity
-            if ($tenant->contact_phone) {
+            // B. Notify Admin (New Reservation Alert) — solo whatsapp_admin_phone y si feature activa
+            // Template: linkiu_alert_v1 | Vars: {{1}} Client, {{2}} Date, {{3}} Quantity
+            $adminPhone = $tenant->settings['whatsapp_admin_phone'] ?? null;
+            if ($tenant->hasFeature('whatsapp') && $adminPhone) {
                 $infobip->sendTemplate(
-                    $tenant->contact_phone,
+                    $adminPhone,
                     'linkiu_alert_v1',
-                [
-                    $validated['customer_name'],
-                    $formattedDate,
-                    $validated['party_size']
-                ],
-                    null // No button
+                    [
+                        $validated['customer_name'],
+                        $formattedDate,
+                        (string) $validated['party_size'],
+                    ],
+                    null
                 );
             }
             // 4. Dispatch Real-Time Event (Socket)

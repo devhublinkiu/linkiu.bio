@@ -1,30 +1,13 @@
 import { Button } from '@/Components/ui/button';
 import { ScrollArea } from '@/Components/ui/scroll-area';
 import { Badge } from '@/Components/ui/badge';
-import { ShoppingCart, Trash2, User, UserPlus, CreditCard, Banknote, Minus, Plus, ChefHat } from 'lucide-react';
-import { Table, TaxSettings } from '@/types/pos';
+import { ShoppingCart, Trash2, User, UserPlus, CreditCard, Banknote, Minus, Plus, ChefHat, Loader2, Package, Ban } from 'lucide-react';
+import { CartItem as CartItemType, Customer, Table, TaxSettings, VariantOption } from '@/types/pos';
+import { formatCurrency, calculateTax } from '@/utils/currency';
 import { useMemo } from 'react';
 
-interface CartItem {
-    id: string;
-    product_id: number;
-    name: string;
-    price: number;
-    quantity: number;
-    image_url?: string;
-    total: number;
-    variant_options?: any[];
-    is_sent?: boolean;
-}
-
-interface Customer {
-    id: number;
-    name: string;
-    phone?: string;
-}
-
 interface CartSidebarProps {
-    cart: CartItem[];
+    cart: CartItemType[];
     cartTotal: number;
     selectedCustomer: Customer | null;
     onUpdateQuantity: (id: string, delta: number) => void;
@@ -33,16 +16,19 @@ interface CartSidebarProps {
     onOpenCustomerModal: () => void;
     onShowCheckout: () => void;
     onSendToKitchen: () => void;
-    canPay: boolean; // Permission check
+    canPay: boolean;
+    isProcessing?: boolean;
+    isTakeoutMode?: boolean;
     selectedTable: Table | null;
     onAddProducts: () => void;
     onFreeTable?: () => void;
+    onCancelSentItem?: (itemId: string) => void;
     taxSettings?: TaxSettings;
 }
 
 export default function CartSidebar({
     cart,
-    cartTotal, // This is the sum of item.total (qty * unit_price)
+    cartTotal,
     selectedCustomer,
     onUpdateQuantity,
     onRemoveFromCart,
@@ -51,45 +37,24 @@ export default function CartSidebar({
     onShowCheckout,
     onSendToKitchen,
     canPay,
+    isProcessing = false,
+    isTakeoutMode = false,
     selectedTable,
     onAddProducts,
     onFreeTable,
+    onCancelSentItem,
     taxSettings
 }: CartSidebarProps) {
 
     const { subtotal, taxAmount, grandTotal } = useMemo(() => {
-        const rate = taxSettings?.tax_rate || 0;
-        const includesTax = taxSettings?.price_includes_tax || false;
-
-        let sub = 0;
-        let tax = 0;
-        let total = 0;
-
-        if (includesTax) {
-            // Price includes tax (e.g. 119 with 19% tax)
-            // Subtotal = 119 / 1.19 = 100
-            // Tax = 19
-            total = cartTotal;
-            sub = total / (1 + rate / 100);
-            tax = total - sub;
-        } else {
-            // Price excludes tax (e.g. 100 with 19% tax)
-            // Subtotal = 100
-            // Tax = 19
-            // Total = 119
-            sub = cartTotal;
-            tax = sub * (rate / 100);
-            total = sub + tax;
-        }
-
-        return {
-            subtotal: sub,
-            taxAmount: tax,
-            grandTotal: total
-        };
+        return calculateTax(
+            cartTotal,
+            taxSettings?.tax_rate || 0,
+            taxSettings?.price_includes_tax || false
+        );
     }, [cartTotal, taxSettings]);
 
-    if (!selectedTable) {
+    if (!selectedTable && !isTakeoutMode) {
         return (
             <div className="flex flex-col h-full bg-white items-center justify-center p-8 text-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -104,15 +69,21 @@ export default function CartSidebar({
     return (
         <div className="flex flex-col h-full bg-white w-full">
             {/* Cart Header */}
-            <div className="h-16 px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0 bg-indigo-50">
+            <div className={`h-16 px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0 ${isTakeoutMode ? 'bg-indigo-100' : 'bg-indigo-50'}`}>
                 <div>
                     <h2 className="font-black text-xl text-indigo-900 flex items-center gap-2">
-                        {selectedTable.name}
+                        {isTakeoutMode ? (
+                            <><Package className="w-5 h-5" /> Pedido Rápido</>
+                        ) : (
+                            selectedTable?.name
+                        )}
                     </h2>
-                    <p className="text-xs text-indigo-400 font-medium">Orden en curso</p>
+                    <p className="text-xs text-indigo-400 font-medium">
+                        {isTakeoutMode ? 'Takeout / Delivery' : 'Orden en curso'}
+                    </p>
                 </div>
                 <div className="flex items-center gap-1">
-                    {selectedTable.status === 'occupied' && onFreeTable && (
+                    {selectedTable?.status === 'occupied' && onFreeTable && !isTakeoutMode && (
                         <Button
                             variant="ghost"
                             size="sm"
@@ -176,16 +147,21 @@ export default function CartSidebar({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start">
                                         <div className="font-bold text-sm text-slate-800 truncate pr-2">{item.name}</div>
-                                        <div className="font-bold text-sm text-slate-900">${item.total.toLocaleString()}</div>
+                                        <div className="font-bold text-sm text-slate-900">{formatCurrency(item.total)}</div>
                                     </div>
                                     <div className="text-xs text-slate-400 min-h-[16px] flex items-center justify-between">
-                                        <span>${item.price.toLocaleString()} c/u</span>
+                                        <span>{formatCurrency(item.price)} c/u</span>
                                         {item.is_sent && (
                                             <Badge variant="outline" className="text-[9px] h-4 bg-orange-50 text-orange-600 border-orange-200">
                                                 En Cocina
                                             </Badge>
                                         )}
                                     </div>
+                                    {item.notes && (
+                                        <div className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded mt-1 border border-amber-100 italic">
+                                            📝 {item.notes}
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center justify-between mt-2">
                                         {/* Qty Controls */}
@@ -200,7 +176,19 @@ export default function CartSidebar({
                                                 </button>
                                             </div>
                                         ) : (
-                                            <span className="text-xs font-bold text-slate-400">Cantidad: {item.quantity}</span>
+                                            <div className="flex items-center justify-between w-full">
+                                                <span className="text-xs font-bold text-slate-400">Cantidad: {item.quantity}</span>
+                                                {onCancelSentItem && (
+                                                    <button
+                                                        onClick={() => onCancelSentItem(item.id)}
+                                                        className="text-[10px] font-bold text-red-400 hover:text-red-600 flex items-center gap-1 transition-colors"
+                                                        title="Anular item"
+                                                    >
+                                                        <Ban className="w-3 h-3" />
+                                                        Anular
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -227,33 +215,41 @@ export default function CartSidebar({
                 <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Subtotal</span>
-                        <span className="font-medium">${subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        <span className="font-medium">{formatCurrency(subtotal)}</span>
                     </div>
-                    {taxSettings && (
+                    {taxSettings && taxSettings.tax_rate > 0 && (
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500">
                                 {taxSettings.tax_name} ({taxSettings.tax_rate}%)
                             </span>
-                            <span className="font-medium">${taxAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            <span className="font-medium">{formatCurrency(taxAmount)}</span>
                         </div>
                     )}
                     <div className="flex justify-between items-end pt-2 border-t border-dashed border-slate-200">
                         <span className="font-bold text-lg text-slate-900">Total</span>
-                        <span className="font-black text-2xl text-indigo-600">${grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        <span className="font-black text-2xl text-indigo-600">{formatCurrency(grandTotal)}</span>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
                     {canPay ? (
                         <div className="grid grid-cols-2 gap-3">
-                            <Button variant="outline" size="lg" className="h-14 flex flex-col items-center justify-center gap-1 border-slate-300 hover:bg-slate-50 hover:text-slate-900">
-                                <CreditCard className="w-5 h-5 mb-0.5" />
-                                <span className="text-xs font-bold">Tarjeta</span>
+                            {/* Enviar a Cocina (reemplaza Tarjeta) */}
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                className="h-14 flex flex-col items-center justify-center gap-1 border-orange-300 text-orange-600 hover:bg-orange-50"
+                                disabled={cart.length === 0 || isProcessing || !cart.some(item => !item.is_sent)}
+                                onClick={onSendToKitchen}
+                            >
+                                {isProcessing ? <Loader2 className="w-5 h-5 mb-0.5 animate-spin" /> : <ChefHat className="w-5 h-5 mb-0.5" />}
+                                <span className="text-xs font-bold">Cocina</span>
                             </Button>
+                            {/* Cobrar */}
                             <Button
                                 size="lg"
                                 className="h-14 flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white"
-                                disabled={cart.length === 0}
+                                disabled={cart.length === 0 || isProcessing}
                                 onClick={onShowCheckout}
                             >
                                 <Banknote className="w-5 h-5 mb-0.5" />
@@ -264,11 +260,11 @@ export default function CartSidebar({
                         <Button
                             size="lg"
                             className="h-14 flex flex-col items-center justify-center gap-1 bg-orange-500 hover:bg-orange-600 text-white w-full"
-                            disabled={cart.length === 0}
+                            disabled={cart.length === 0 || isProcessing}
                             onClick={onSendToKitchen}
                         >
-                            <ChefHat className="w-6 h-6 mb-0.5" />
-                            <span className="text-xs font-bold uppercase">Enviar a Cocina</span>
+                            {isProcessing ? <Loader2 className="w-6 h-6 mb-0.5 animate-spin" /> : <ChefHat className="w-6 h-6 mb-0.5" />}
+                            <span className="text-xs font-bold uppercase">{isProcessing ? 'Enviando...' : 'Enviar a Cocina'}</span>
                         </Button>
                     )}
                 </div>

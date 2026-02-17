@@ -10,16 +10,24 @@ interface Category {
     name: string;
 }
 
+interface LocationItem {
+    id: number;
+    name: string;
+}
+
 interface Product {
     id: number;
     name: string;
     category_id: number;
     short_description?: string;
     price: number | string;
+    original_price?: number | string;
     cost?: number | string;
     sku?: string;
     image: string;
+    image_url?: string | null;
     gallery?: string[];
+    gallery_urls?: string[];
     preparation_time?: number;
     calories?: number;
     allergens?: string[];
@@ -27,14 +35,16 @@ interface Product {
     is_available: boolean;
     is_featured: boolean;
     status: 'active' | 'inactive';
+    locations?: LocationItem[];
 }
 
 interface Props {
     product: Product;
     categories: Category[];
+    locations: LocationItem[];
 }
 
-export default function Edit({ product, categories }: Props) {
+export default function Edit({ product, categories, locations }: Props) {
     const { currentTenant } = usePage<PageProps>().props;
 
     return (
@@ -58,6 +68,7 @@ export default function Edit({ product, categories }: Props) {
                     <ProductForm
                         product={product}
                         categories={categories}
+                        locations={locations}
                         submitRoute={route('tenant.admin.products.update', [currentTenant?.slug, product.id])}
                         method="put"
                     />

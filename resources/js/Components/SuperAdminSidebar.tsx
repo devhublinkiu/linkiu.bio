@@ -95,11 +95,15 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                 title: "Atención",
                 url: "#",
                 icon: LifeBuoy,
-                isActive: url.startsWith('/superlinkiu/support'),
+                isActive: url.startsWith('/superlinkiu/support') || url.startsWith('/superlinkiu/reportes-tiendas'),
                 items: [
                     {
                         title: "Tickets de Soporte",
                         url: "/superlinkiu/support",
+                    },
+                    {
+                        title: "Reportes tiendas",
+                        url: "/superlinkiu/reportes-tiendas",
                     },
                 ],
             },

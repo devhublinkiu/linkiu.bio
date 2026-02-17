@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
 import { PageProps } from '@/types';
@@ -39,15 +39,21 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/Components/ui/empty';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { toast } from 'sonner';
+
+export type TableStatus = 'available' | 'occupied' | 'reserved' | 'maintenance';
+type TableStatusLegacy = TableStatus | 'active' | 'inactive';
 
 interface Table {
     id: number;
     zone_id: number;
+    location_id?: number;
     name: string;
     token: string;
     capacity: number | null;
-    status: 'available' | 'occupied' | 'reserved' | 'maintenance' | 'active' | 'inactive'; // Added temporary legacy types for safety
+    status: TableStatusLegacy;
 }
 
 interface Location {
@@ -59,6 +65,7 @@ interface Location {
 interface Zone {
     id: number;
     name: string;
+    location_id?: number;
     tables: Table[];
 }
 
@@ -68,14 +75,45 @@ interface Props {
     currentLocationId: number;
 }
 
+function normalizeTableStatus(s: Table['status']): TableStatus {
+    if (s === 'active') return 'available';
+    if (s === 'inactive') return 'maintenance';
+    return s as TableStatus;
+}
+
 export default function Index({ zones, locations, currentLocationId }: Props) {
-    const { currentTenant } = usePage<PageProps>().props;
+    const { currentTenant, currentUserRole, flash } = usePage<PageProps & { flash?: { error?: string; success?: string } }>().props;
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+    useEffect(() => {
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash?.error]);
     const [isZoneSheetOpen, setIsZoneSheetOpen] = useState(false);
     const [isTableSheetOpen, setIsTableSheetOpen] = useState(false);
     const [isBulkSheetOpen, setIsBulkSheetOpen] = useState(false);
     const [editingZone, setEditingZone] = useState<Zone | null>(null);
     const [editingTable, setEditingTable] = useState<Table | null>(null);
     const [itemToDelete, setItemToDelete] = useState<{ type: 'zone' | 'table', id: number } | null>(null);
+
+    const hasPermission = (permission: string) => {
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner === true
+            || currentUserRole.permissions?.includes('*') === true
+            || currentUserRole.permissions?.includes(permission) === true;
+    };
+    const handleProtectedAction = (e: React.MouseEvent | null, permission: string, callback: () => void) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (!hasPermission(permission)) {
+            setShowPermissionModal(true);
+        } else {
+            callback();
+        }
+    };
 
     // Zone Form
     const zoneForm = useForm({
@@ -111,7 +149,10 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
     const handleOpenZoneSheet = (zone?: Zone) => {
         if (zone) {
             setEditingZone(zone);
-            zoneForm.setData('name', zone.name);
+            zoneForm.setData({
+                name: zone.name,
+                location_id: (zone.location_id ?? currentLocationId).toString(),
+            });
         } else {
             setEditingZone(null);
             zoneForm.reset('name');
@@ -127,8 +168,8 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                 zone_id: table.zone_id.toString(),
                 name: table.name,
                 capacity: table.capacity?.toString() || '',
-                status: (table.status === 'active' ? 'available' : (table.status === 'inactive' ? 'maintenance' : table.status)) as any,
-                location_id: currentLocationId.toString(),
+                status: normalizeTableStatus(table.status),
+                location_id: (table.location_id ?? currentLocationId).toString(),
             });
         } else {
             setEditingTable(null);
@@ -141,38 +182,44 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
 
     const submitZone = (e: React.FormEvent) => {
         e.preventDefault();
+        const onError = () => toast.error('Revisa los campos del formulario.');
         if (editingZone) {
             zoneForm.put(route('tenant.admin.zones.update', [currentTenant?.slug, editingZone.id]), {
                 onSuccess: () => {
                     toast.success('Zona actualizada');
                     setIsZoneSheetOpen(false);
-                }
+                },
+                onError,
             });
         } else {
             zoneForm.post(route('tenant.admin.zones.store', currentTenant?.slug), {
                 onSuccess: () => {
                     toast.success('Zona creada');
                     setIsZoneSheetOpen(false);
-                }
+                },
+                onError,
             });
         }
     };
 
     const submitTable = (e: React.FormEvent) => {
         e.preventDefault();
+        const onError = () => toast.error('Revisa los campos del formulario.');
         if (editingTable) {
             tableForm.put(route('tenant.admin.tables.update', [currentTenant?.slug, editingTable.id]), {
                 onSuccess: () => {
                     toast.success('Mesa actualizada');
                     setIsTableSheetOpen(false);
-                }
+                },
+                onError,
             });
         } else {
             tableForm.post(route('tenant.admin.tables.store', currentTenant?.slug), {
                 onSuccess: () => {
                     toast.success('Mesa creada');
                     setIsTableSheetOpen(false);
-                }
+                },
+                onError,
             });
         }
     };
@@ -184,7 +231,8 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                 toast.success('Mesas creadas masivamente');
                 setIsBulkSheetOpen(false);
                 bulkForm.reset();
-            }
+            },
+            onError: () => toast.error('No se pudieron crear las mesas. Revisa los campos o intenta con menos cantidad.'),
         });
     };
 
@@ -199,7 +247,8 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
             onSuccess: () => {
                 toast.success(`${itemToDelete.type === 'zone' ? 'Zona' : 'Mesa'} eliminada`);
                 setItemToDelete(null);
-            }
+            },
+            onError: () => toast.error('No se pudo eliminar. Inténtalo de nuevo.'),
         });
     };
 
@@ -254,27 +303,39 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => router.get(route('tenant.admin.tables.print', [currentTenant?.slug]))}>
-                            <QrCode className="w-4 h-4 mr-2" /> Centro de QRs
-                        </Button>
-                        <Button variant="outline" onClick={() => handleOpenZoneSheet()}>
-                            <MapPin className="w-4 h-4 mr-2" /> Nueva Zona
-                        </Button>
-                        <Button onClick={() => handleOpenTableSheet()}>
-                            <Plus className="w-4 h-4 mr-2" /> Nueva Mesa
-                        </Button>
+                        <Button
+                                variant="outline"
+                                onClick={() => handleProtectedAction(null, 'tables.view', () => router.get(route('tenant.admin.tables.print', [currentTenant?.slug])))}
+                            >
+                                <QrCode className="w-4 h-4 mr-2" /> Centro de QRs
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => handleProtectedAction(null, 'tables.create', () => handleOpenZoneSheet())}
+                            >
+                                <MapPin className="w-4 h-4 mr-2" /> Nueva Zona
+                            </Button>
+                            <Button onClick={() => handleProtectedAction(null, 'tables.create', () => handleOpenTableSheet())}>
+                                <Plus className="w-4 h-4 mr-2" /> Nueva Mesa
+                            </Button>
                     </div>
                 </div>
 
                 {zones.length === 0 ? (
-                    <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
-                        <MapPin className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-                        <h3 className="text-lg font-medium">No hay zonas configuradas</h3>
-                        <p className="text-sm text-muted-foreground mb-6">Empieza creando una zona como "Salón Principal" o "Terraza".</p>
-                        <Button onClick={() => handleOpenZoneSheet()}>
+                    <Empty className="border-2 border-dashed rounded-xl bg-white py-12">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <MapPin className="size-4" />
+                            </EmptyMedia>
+                            <EmptyTitle>No hay zonas configuradas</EmptyTitle>
+                            <EmptyDescription>
+                                Empieza creando una zona como &quot;Salón Principal&quot; o &quot;Terraza&quot;.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                        <Button className="mt-4" onClick={() => handleProtectedAction(null, 'tables.create', () => handleOpenZoneSheet())}>
                             <Plus className="w-4 h-4 mr-2" /> Crear mi primera zona
                         </Button>
-                    </Card>
+                    </Empty>
                 ) : (
                     <div className="grid gap-6">
                         {zones.map((zone) => (
@@ -288,10 +349,14 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                         </CardTitle>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => {
-                                            setIsBulkSheetOpen(true);
-                                            bulkForm.setData('zone_id', zone.id.toString());
-                                        }}>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleProtectedAction(null, 'tables.create', () => {
+                                                setIsBulkSheetOpen(true);
+                                                bulkForm.setData('zone_id', zone.id.toString());
+                                            })}
+                                        >
                                             <UserPlus className="w-4 h-4 mr-2" /> Carga Masiva
                                         </Button>
                                         <DropdownMenu>
@@ -301,10 +366,10 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleOpenZoneSheet(zone)}>
+                                                <DropdownMenuItem onClick={() => handleProtectedAction(null, 'tables.update', () => handleOpenZoneSheet(zone))}>
                                                     <Edit className="w-4 h-4 mr-2" /> Editar Zona
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600 focus:text-red-700" onClick={() => setItemToDelete({ type: 'zone', id: zone.id })}>
+                                                <DropdownMenuItem className="text-red-600 focus:text-red-700" onClick={() => handleProtectedAction(null, 'tables.delete', () => setItemToDelete({ type: 'zone', id: zone.id }))}>
                                                     <Trash2 className="w-4 h-4 mr-2" /> Eliminar Zona
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -334,13 +399,13 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => handleOpenTableSheet(table)}>
+                                                            <DropdownMenuItem onClick={() => handleProtectedAction(null, 'tables.update', () => handleOpenTableSheet(table))}>
                                                                 <Edit className="w-4 h-4 mr-2" /> Editar Mesa
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => regenerateToken(table.id)}>
+                                                            <DropdownMenuItem onClick={() => handleProtectedAction(null, 'tables.update', () => regenerateToken(table.id))}>
                                                                 <RefreshCw className="w-4 h-4 mr-2" /> Regenerar Token
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600 focus:text-red-700" onClick={() => setItemToDelete({ type: 'table', id: table.id })}>
+                                                            <DropdownMenuItem className="text-red-600 focus:text-red-700" onClick={() => handleProtectedAction(null, 'tables.delete', () => setItemToDelete({ type: 'table', id: table.id }))}>
                                                                 <Trash2 className="w-4 h-4 mr-2" /> Eliminar
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
@@ -350,7 +415,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                                 <div className="flex flex-col gap-2 mt-4">
                                                     <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Acceso Cliente</div>
                                                     <div className="flex gap-2">
-                                                        <Button variant="secondary" size="sm" className="flex-1 h-8 text-xs font-bold" onClick={() => window.open(route('tenant.table.detect', [currentTenant?.slug, table.token]), '_blank')}>
+                                                        <Button variant="secondary" size="sm" className="flex-1 h-8 text-xs font-bold" onClick={() => window.open(`${window.location.origin}/${currentTenant?.slug}?m=${table.token}`, '_blank')}>
                                                             <QrCode className="w-3 h-3 mr-1.5" /> Ver QR
                                                         </Button>
                                                     </div>
@@ -358,8 +423,9 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                             </div>
                                         ))}
                                         <button
-                                            onClick={() => handleOpenTableSheet(undefined, zone.id)}
-                                            className="bg-slate-50 border-2 border-dashed border-slate-200 p-4 flex flex-col items-center justify-center text-slate-400 hover:text-primary hover:border-primary hover:bg-white transition-all group"
+                                            type="button"
+                                            onClick={() => handleProtectedAction(null, 'tables.create', () => handleOpenTableSheet(undefined, zone.id))}
+                                            className="bg-slate-50 border-2 border-dashed border-slate-200 p-4 flex flex-col items-center justify-center text-slate-400 hover:text-primary hover:border-primary hover:bg-white transition-all group cursor-pointer"
                                         >
                                             <Plus className="w-6 h-6 mb-2 group-hover:scale-110 transition-transform" />
                                             <span className="text-xs font-bold uppercase tracking-tight">Agregar Mesa</span>
@@ -391,6 +457,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                 placeholder="Ej. Terraza"
                                 required
                             />
+                            {zoneForm.errors.name && <p className="text-destructive text-xs">{zoneForm.errors.name}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -408,6 +475,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {zoneForm.errors.location_id && <p className="text-destructive text-xs">{zoneForm.errors.location_id}</p>}
                         </div>
                         <SheetFooter>
                             <Button type="submit" disabled={zoneForm.processing} className="w-full">
@@ -443,6 +511,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {tableForm.errors.zone_id && <p className="text-destructive text-xs">{tableForm.errors.zone_id}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="table-name">Nombre / ID de Mesa</Label>
@@ -453,6 +522,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                 placeholder="Ej. Mesa 01"
                                 required
                             />
+                            {tableForm.errors.name && <p className="text-destructive text-xs">{tableForm.errors.name}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="table-capacity">Capacidad (Personas)</Label>
@@ -463,12 +533,13 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                 onChange={e => tableForm.setData('capacity', e.target.value)}
                                 placeholder="Ej. 4"
                             />
+                            {tableForm.errors.capacity && <p className="text-destructive text-xs">{tableForm.errors.capacity}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="table-status">Estado</Label>
                             <Select
                                 value={tableForm.data.status}
-                                onValueChange={v => tableForm.setData('status', v as any)}
+                                onValueChange={(v) => tableForm.setData('status', v as TableStatus)}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
@@ -480,6 +551,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     <SelectItem value="maintenance">Mantenimiento</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {tableForm.errors.status && <p className="text-destructive text-xs">{tableForm.errors.status}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -497,6 +569,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {tableForm.errors.location_id && <p className="text-destructive text-xs">{tableForm.errors.location_id}</p>}
                         </div>
                         <SheetFooter>
                             <Button type="submit" disabled={tableForm.processing} className="w-full">
@@ -532,6 +605,8 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {bulkForm.errors.zone_id && <p className="text-destructive text-xs">{bulkForm.errors.zone_id}</p>}
+                            {bulkForm.errors.location_id && <p className="text-destructive text-xs">{bulkForm.errors.location_id}</p>}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -549,6 +624,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                     value={bulkForm.data.start_number}
                                     onChange={e => bulkForm.setData('start_number', parseInt(e.target.value) || 1)}
                                 />
+                                {bulkForm.errors.start_number && <p className="text-destructive text-xs">{bulkForm.errors.start_number}</p>}
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -559,6 +635,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                 value={bulkForm.data.count}
                                 onChange={e => bulkForm.setData('count', parseInt(e.target.value) || 1)}
                             />
+                            {bulkForm.errors.count && <p className="text-destructive text-xs">{bulkForm.errors.count}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label>Capacidad por mesa</Label>
@@ -567,6 +644,7 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                                 value={bulkForm.data.capacity}
                                 onChange={e => bulkForm.setData('capacity', e.target.value)}
                             />
+                            {bulkForm.errors.capacity && <p className="text-destructive text-xs">{bulkForm.errors.capacity}</p>}
                         </div>
                         <SheetFooter>
                             <Button type="submit" disabled={bulkForm.processing} className="w-full">
@@ -589,12 +667,17 @@ export default function Index({ zones, locations, currentLocationId }: Props) {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={confirmDelete}>
+                        <AlertDialogAction variant="destructive" onClick={confirmDelete}>
                             Eliminar
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
+            />
         </AdminLayout>
     );
 }

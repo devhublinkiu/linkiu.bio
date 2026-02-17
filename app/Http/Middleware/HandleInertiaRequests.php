@@ -121,7 +121,7 @@ class HandleInertiaRequests extends Middleware
             'site_settings' => fn() => cache()->remember('site_settings_global', 3600, function () {
                 $settings = \App\Models\SiteSetting::first();
                 /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-                $disk = \Illuminate\Support\Facades\Storage::disk('s3');
+                $disk = \Illuminate\Support\Facades\Storage::disk('bunny');
 
                 return $settings ? [
                     'app_name' => $settings->app_name,
@@ -130,6 +130,25 @@ class HandleInertiaRequests extends Middleware
                 ] : null;
             }),
             'selectedTable' => session('selected_table'),
+            // Sede actual (nombre) para header público gastronomía — elegir sede / Shorts
+            'selectedLocationName' => function () {
+                if (!app()->bound('currentTenant')) return null;
+                $tenant = app('currentTenant');
+                $locationId = session('selected_location_id');
+                if (!$locationId) return null;
+                $location = \App\Models\Tenant\Locations\Location::where('tenant_id', $tenant->id)
+                    ->where('id', $locationId)
+                    ->value('name');
+                return $location;
+            },
+            'selected_location_id' => session('selected_location_id'),
+            // Cantidad de sedes activas: >1 = mostrar sliders de sedes y barra "Toca para cambiar"; 1 = solo promos + "Ingresar a la tienda"
+            'locationsCount' => function () {
+                if (!app()->bound('currentTenant')) return 0;
+                return \App\Models\Tenant\Locations\Location::where('tenant_id', app('currentTenant')->id)
+                    ->where('is_active', true)
+                    ->count();
+            },
         ];
     }
 }

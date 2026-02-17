@@ -4,12 +4,14 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
+    use StoresImageAsWebp;
     public function __construct()
     {
         $this->middleware('sa.permission:sa.settings.view')->only('index');
@@ -25,8 +27,8 @@ class SettingController extends Controller
 
         return Inertia::render('SuperAdmin/Settings/Index', [
             'settings' => $settings->toArray(),
-            'logo_url' => $settings->logo_path ? Storage::disk('s3')->url($settings->logo_path) : null,
-            'favicon_url' => $settings->favicon_path ? Storage::disk('s3')->url($settings->favicon_path) : null,
+            'logo_url' => $settings->logo_path ? Storage::disk('bunny')->url($settings->logo_path) : null,
+            'favicon_url' => $settings->favicon_path ? Storage::disk('bunny')->url($settings->favicon_path) : null,
         ]);
     }
 
@@ -69,29 +71,31 @@ class SettingController extends Controller
             'bank_account_nit'
         ]);
 
+        $basePathSettings = 'uploads/superadmin/settings';
+        $basePathProfiles = 'uploads/superadmin/profile-photos';
+
         if ($request->hasFile('logo')) {
             if ($settings->logo_path) {
-                Storage::disk('s3')->delete($settings->logo_path);
+                Storage::disk('bunny')->delete($settings->logo_path);
             }
-            $path = $request->file('logo')->store('site-assets', ['disk' => 's3', 'visibility' => 'public']);
+            $path = $this->storeImageAsWebp($request->file('logo'), $basePathSettings, 'bunny', 1920, 85);
             $data['logo_path'] = $path;
         }
 
         if ($request->hasFile('favicon')) {
             if ($settings->favicon_path) {
-                Storage::disk('s3')->delete($settings->favicon_path);
+                Storage::disk('bunny')->delete($settings->favicon_path);
             }
-            $path = $request->file('favicon')->store('site-assets', ['disk' => 's3', 'visibility' => 'public']);
+            $path = $this->storeImageAsWebp($request->file('favicon'), $basePathSettings, 'bunny', 512, 85);
             $data['favicon_path'] = $path;
         }
 
-        // Handle User Profile Photo
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_path) {
-                Storage::disk('s3')->delete($user->profile_photo_path);
+                Storage::disk('bunny')->delete($user->profile_photo_path);
             }
-            $user_path = $request->file('profile_photo')->store('profile-photos', ['disk' => 's3', 'visibility' => 'public']);
-            $user->update(['profile_photo_path' => $user_path]);
+            $path = $this->storeImageAsWebp($request->file('profile_photo'), $basePathProfiles, 'bunny', 512, 85);
+            $user->update(['profile_photo_path' => $path]);
         }
 
         $settings->update($data);

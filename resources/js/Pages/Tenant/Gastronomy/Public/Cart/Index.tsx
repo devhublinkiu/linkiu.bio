@@ -1,9 +1,12 @@
-import { Head, Link } from '@inertiajs/react'; // Removed unused imports
+import { useState, useEffect } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import axios from 'axios';
 import { useCart } from '@/Contexts/CartContext';
 import { Button } from '@/Components/ui/button';
 import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
+import { formatPrice } from '@/lib/utils';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,17 +19,41 @@ import {
     AlertDialogTrigger,
 } from "@/Components/ui/alert-dialog";
 
-const CartInner = ({ tenant }: { tenant: any }) => {
-    const { items, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+interface TenantProps {
+    slug: string;
+    brand_colors?: { bg_color?: string };
+}
 
-    // Helper function for price formatting
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            maximumFractionDigits: 0
-        }).format(price);
+const CartInner = ({ tenant }: { tenant: TenantProps }) => {
+    const { items, cartTotal, updateQuantity, removeFromCart, clearCart, mergeProductImageUrls, isLoaded } = useCart();
+    const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
+    const itemImageUrl = (item: { image_url?: string }) => {
+        const url = typeof item.image_url === 'string' ? item.image_url.trim() : '';
+        return url && (url.startsWith('http://') || url.startsWith('https://')) ? url : null;
     };
+
+    const showItemImage = (item: { lineKey: string; image_url?: string }) =>
+        Boolean(itemImageUrl(item)) && !imageErrors.has(item.lineKey);
+
+    const handleImageError = (lineKey: string) => {
+        setImageErrors(prev => new Set(prev).add(lineKey));
+    };
+
+    // Si hay ítems sin image_url (p. ej. carrito desde localStorage), pedir productos al backend y rellenar URLs
+    useEffect(() => {
+        if (!tenant?.slug || !isLoaded || items.length === 0) return;
+        const needImage = items.filter(i => !itemImageUrl(i));
+        if (needImage.length === 0) return;
+        const ids = [...new Set(needImage.map(i => i.id))];
+        axios
+            .post(route('tenant.menu.products.batch', [tenant.slug]), { ids })
+            .then((res) => {
+                const products = Array.isArray(res.data) ? res.data : [];
+                if (products.length) mergeProductImageUrls(products);
+            })
+            .catch(() => {});
+    }, [tenant?.slug, isLoaded, items.length]);
 
     return (
         <div className="min-h-screen bg-slate-50 pb-32">
@@ -78,7 +105,7 @@ const CartInner = ({ tenant }: { tenant: any }) => {
                             <h2 className="text-xl font-bold text-slate-800">Tu carrito está vacío</h2>
                             <p className="text-slate-500 max-w-xs mx-auto">Parece que aún no has agregado nada delicioso a tu pedido.</p>
                         </div>
-                        <Link href={route('tenant.home', tenant.slug)}>
+                        <Link href={route('tenant.menu', tenant.slug)}>
                             <Button className="font-bold" size="lg">Ir al Menú</Button>
                         </Link>
                     </div>
@@ -88,16 +115,21 @@ const CartInner = ({ tenant }: { tenant: any }) => {
                             <AnimatePresence initial={false}>
                                 {items.map((item) => (
                                     <motion.div
-                                        key={item.id}
+                                        key={item.lineKey}
                                         layout
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4"
                                     >
-                                        <div className="w-24 h-24 bg-slate-100 rounded-xl overflow-hidden shrink-0">
-                                            {item.image_url ? (
-                                                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                                        <div className="w-24 h-24 bg-slate-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
+                                            {showItemImage(item) ? (
+                                                <img
+                                                    src={itemImageUrl(item)!}
+                                                    alt={item.name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={() => handleImageError(item.lineKey)}
+                                                />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-slate-300">
                                                     <ShoppingBag className="w-8 h-8" />
@@ -113,7 +145,7 @@ const CartInner = ({ tenant }: { tenant: any }) => {
                                                 </div>
                                                 {item.variant_options && item.variant_options.length > 0 && (
                                                     <p className="text-xs text-slate-500 mt-1">
-                                                        {item.variant_options.map(v => v.name).join(', ')}
+                                                        {item.variant_options.map(v => v.value).join(', ')}
                                                     </p>
                                                 )}
                                             </div>
@@ -121,21 +153,27 @@ const CartInner = ({ tenant }: { tenant: any }) => {
                                             <div className="flex items-center justify-between mt-3">
                                                 <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
                                                     <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        type="button"
+                                                        aria-label="Disminuir cantidad"
+                                                        onClick={() => updateQuantity(item.lineKey, item.quantity - 1)}
                                                         className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 active:scale-95 transition-transform"
                                                     >
                                                         <Minus className="w-4 h-4" />
                                                     </button>
-                                                    <span className="font-bold text-slate-800 w-6 text-center">{item.quantity}</span>
+                                                    <span className="font-bold text-slate-800 w-6 text-center" aria-live="polite">{item.quantity}</span>
                                                     <button
-                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        type="button"
+                                                        aria-label="Aumentar cantidad"
+                                                        onClick={() => updateQuantity(item.lineKey, item.quantity + 1)}
                                                         className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-900 active:scale-95 transition-transform"
                                                     >
                                                         <Plus className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                                 <button
-                                                    onClick={() => removeFromCart(item.id)}
+                                                    type="button"
+                                                    aria-label="Quitar del carrito"
+                                                    onClick={() => removeFromCart(item.lineKey)}
                                                     className="p-2 text-slate-400 hover:text-red-500 transition-colors"
                                                 >
                                                     <Trash2 className="w-5 h-5" />
@@ -170,7 +208,7 @@ const CartInner = ({ tenant }: { tenant: any }) => {
     );
 };
 
-export default function CartIndex({ tenant }: { tenant: any }) {
+export default function CartIndex({ tenant }: { tenant: TenantProps }) {
     const bgColor = tenant.brand_colors?.bg_color || '#f8fafc';
 
     return (

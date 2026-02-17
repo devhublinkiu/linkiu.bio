@@ -14,7 +14,7 @@ class Zone extends Model
 
     public function location(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(\App\Models\Location::class);
+        return $this->belongsTo(\App\Models\Tenant\Locations\Location::class);
     }
 
     public function tables(): HasMany

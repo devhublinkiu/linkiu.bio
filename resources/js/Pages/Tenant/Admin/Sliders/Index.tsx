@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import type { RequestPayload } from '@inertiajs/core';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
@@ -40,40 +41,36 @@ import {
     AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/Components/ui/popover";
+    Empty,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    EmptyDescription,
+} from '@/Components/ui/empty';
 import { DateTimePicker } from "@/Components/ui/datetime-picker";
-import { Plus, Edit, Trash2, ExternalLink, Calendar as CalendarIcon, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
+import { Plus, Edit, Trash2, ExternalLink, Calendar as CalendarIcon, Link as LinkIcon, Image as ImageIcon, Images, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 import { PageProps } from '@/types';
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import SharedPagination from '@/Components/Shared/Pagination';
+import { Skeleton } from '@/Components/ui/skeleton';
+import type { Slider, PaginatedSliders } from '@/types/slider';
 
-interface Slider {
+interface LocationOption {
     id: number;
     name: string;
-    image_path: string;
-    link_type: 'none' | 'internal' | 'external';
-    external_url?: string;
-    linkable_type?: string;
-    linkable_id?: number;
-    start_at?: string;
-    end_at?: string;
-    active_days?: number[];
-    clicks_count: number;
-    is_active: boolean;
-    sort_order: number;
 }
 
 interface Props {
-    sliders: Slider[];
+    sliders: PaginatedSliders;
+    locations: LocationOption[];
+    sliders_limit: number | null;
+    sliders_count: number;
+    filters: { location_id?: string | null };
 }
 
-export default function Index({ sliders }: Props) {
+export default function Index({ sliders, locations, sliders_limit, sliders_count, filters }: Props) {
     const { currentTenant } = usePage<PageProps>().props;
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingSlider, setEditingSlider] = useState<Slider | null>(null);
@@ -81,6 +78,8 @@ export default function Index({ sliders }: Props) {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [showPermissionModal, setShowPermissionModal] = useState(false);
 
+    const atLimit = sliders_limit !== null && sliders_count >= sliders_limit;
+    const [listLoading, setListLoading] = useState(false);
     const { currentUserRole } = usePage<PageProps>().props;
 
     const checkPermission = (permission: string) => {
@@ -98,7 +97,8 @@ export default function Index({ sliders }: Props) {
         }
     };
 
-    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, processing, errors, reset, clearErrors } = useForm({
+        location_id: filters.location_id || (locations[0]?.id.toString() ?? ''),
         name: '',
         image_path: null as File | null,
         link_type: 'none' as 'none' | 'internal' | 'external',
@@ -116,6 +116,7 @@ export default function Index({ sliders }: Props) {
         reset();
         setPreviewImage(null);
         clearErrors();
+        setData('location_id', (filters.location_id || locations[0]?.id.toString()) ?? '');
         setIsSheetOpen(true);
     };
 
@@ -123,6 +124,7 @@ export default function Index({ sliders }: Props) {
         setEditingSlider(slider);
         clearErrors();
         setData({
+            location_id: slider.location_id?.toString() ?? '',
             name: slider.name,
             image_path: null,
             link_type: slider.link_type,
@@ -134,7 +136,7 @@ export default function Index({ sliders }: Props) {
             is_active: slider.is_active,
             active_days: slider.active_days || [],
         });
-        setPreviewImage(`/media/${slider.image_path}`);
+        setPreviewImage((slider as Slider & { image_url?: string }).image_url ?? null);
         setIsSheetOpen(true);
     };
 
@@ -144,30 +146,51 @@ export default function Index({ sliders }: Props) {
         const permission = editingSlider ? 'sliders.update' : 'sliders.create';
 
         handleActionWithPermission(permission, () => {
-            const formData = {
+            const startAtStr = data.start_at ? format(data.start_at, "yyyy-MM-dd HH:mm:ss") : null;
+            const endAtStr = data.end_at ? format(data.end_at, "yyyy-MM-dd HH:mm:ss") : null;
+            const formData: Record<string, unknown> = {
                 ...data,
-                start_at: data.start_at ? format(data.start_at, "yyyy-MM-dd HH:mm:ss") : '',
-                end_at: data.end_at ? format(data.end_at, "yyyy-MM-dd HH:mm:ss") : '',
+                location_id: data.location_id ? String(data.location_id) : undefined,
+                external_url: data.link_type === 'external' ? (data.external_url || null) : null,
+                linkable_type: data.link_type === 'internal' ? (data.linkable_type || null) : null,
+                linkable_id: data.link_type === 'internal' && data.linkable_id ? Number(data.linkable_id) : null,
+                start_at: startAtStr,
+                end_at: endAtStr,
             };
+            if (formData.image_path === null || formData.image_path === undefined) {
+                delete formData.image_path;
+            }
+            if (formData.start_at === null || formData.start_at === '') delete formData.start_at;
+            if (formData.end_at === null || formData.end_at === '') delete formData.end_at;
 
             if (editingSlider) {
                 router.post(route('tenant.sliders.update', [currentTenant?.slug, editingSlider.id]), {
                     ...formData,
                     _method: 'put',
                 }, {
+                    preserveScroll: true,
                     onSuccess: () => {
                         toast.success('Slider actualizado');
                         setIsSheetOpen(false);
                     },
-                    onError: () => toast.error('Error al actualizar'),
+                    onError: (errs) => {
+                        const firstError = errs && typeof errs === 'object' ? Object.values(errs)[0] : null;
+                        const msg = typeof firstError === 'string' ? firstError : (typeof errs?.limit === 'string' ? errs.limit : 'Revisa los campos del formulario');
+                        toast.error(msg);
+                    },
                 });
             } else {
-                router.post(route('tenant.sliders.store', currentTenant?.slug), formData, {
+                router.post(route('tenant.sliders.store', currentTenant?.slug), { ...formData } as RequestPayload, {
+                    preserveScroll: true,
                     onSuccess: () => {
                         toast.success('Slider creado');
                         setIsSheetOpen(false);
                     },
-                    onError: () => toast.error('Error al crear'),
+                    onError: (errs) => {
+                        const firstError = errs && typeof errs === 'object' ? Object.values(errs)[0] : null;
+                        const msg = typeof firstError === 'string' ? firstError : (typeof errs?.limit === 'string' ? errs.limit : 'Revisa los campos del formulario');
+                        toast.error(msg);
+                    },
                 });
             }
         });
@@ -218,17 +241,96 @@ export default function Index({ sliders }: Props) {
                 onOpenChange={setShowPermissionModal}
             />
 
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Sliders</h1>
-                    <p className="text-sm text-muted-foreground">Gestiona los banners promocionales de tu tienda.</p>
+                    <p className="text-sm text-muted-foreground">
+                        Gestiona los banners promocionales de tu tienda.
+                        {sliders_limit !== null && (
+                            <span className="ml-1 font-medium text-foreground">
+                                ({sliders_count} / {sliders_limit} usados)
+                            </span>
+                        )}
+                    </p>
                 </div>
-                <Button onClick={() => handleActionWithPermission('sliders.create', openCreate)} className="gap-2">
-                    <Plus className="w-4 h-4" /> Nuevo Slider
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {locations.length > 0 && (
+                        <Select
+                            value={filters.location_id ?? 'all'}
+                            onValueChange={(val: string) => {
+                                const url = route('tenant.sliders.index', currentTenant?.slug);
+                                setListLoading(true);
+                                router.get(url, val === 'all' ? {} : { location_id: val }, {
+                                    preserveState: true,
+                                    onFinish: () => setListLoading(false),
+                                });
+                            }}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Sede" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas las sedes</SelectItem>
+                                {locations.map((loc) => (
+                                    <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                    <Button
+                        onClick={() => handleActionWithPermission('sliders.create', () => !atLimit && openCreate())}
+                        disabled={atLimit}
+                        className="gap-2"
+                        title={atLimit ? 'Has alcanzado el máximo de sliders permitidos en tu plan' : undefined}
+                    >
+                        <Plus className="w-4 h-4" /> Nuevo Slider
+                    </Button>
+                </div>
             </div>
 
-            <Card>
+            {listLoading ? (
+                <Card>
+                    <CardContent className="p-0">
+                        <div className="p-4 space-y-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="flex gap-3">
+                                    <Skeleton className="h-12 w-24 rounded-lg flex-shrink-0" />
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-3/4" />
+                                        <Skeleton className="h-3 w-1/2" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : sliders.data.length === 0 ? (
+                <Card>
+                    <CardContent className="py-16">
+                        <Empty>
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <Images className="h-5 w-5" />
+                                </EmptyMedia>
+                                <EmptyTitle>No hay sliders creados</EmptyTitle>
+                                <EmptyDescription>
+                                    Los sliders aparecen como carrusel en la portada de tu tienda. Crea el primero para destacar promociones o productos.
+                                </EmptyDescription>
+                            </EmptyHeader>
+                            <Button
+                                onClick={() => handleActionWithPermission('sliders.create', () => !atLimit && openCreate())}
+                                disabled={atLimit}
+                                className="gap-2 mt-4"
+                                title={atLimit ? 'Has alcanzado el máximo de sliders permitidos en tu plan' : undefined}
+                            >
+                                <Plus className="w-4 h-4" /> Crear primer slider
+                            </Button>
+                        </Empty>
+                    </CardContent>
+                </Card>
+            ) : (
+            <>
+            <Card className="hidden md:block">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader>
@@ -243,12 +345,12 @@ export default function Index({ sliders }: Props) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {sliders.map((slider) => (
+                            {sliders.data.map((slider) => (
                                 <TableRow key={slider.id}>
                                     <TableCell>
                                         <div className="relative w-24 h-12 rounded-lg overflow-hidden bg-muted border">
                                             <img
-                                                src={`/media/${slider.image_path}`}
+                                                src={slider.image_url ?? `/media/${slider.image_path}`}
                                                 alt={slider.name}
                                                 className="w-full h-full object-cover"
                                             />
@@ -306,17 +408,50 @@ export default function Index({ sliders }: Props) {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {sliders.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                                        No hay sliders creados.
-                                    </TableCell>
-                                </TableRow>
-                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
             </Card>
+
+            <div className="md:hidden space-y-3">
+                {sliders.data.map((slider) => (
+                    <Card key={slider.id}>
+                        <CardContent className="p-4">
+                            <div className="flex gap-3">
+                                <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted border flex-shrink-0">
+                                    <img src={slider.image_url ?? `/media/${slider.image_path}`} alt={slider.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{slider.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {slider.link_type === 'none' && 'Sin enlace'}
+                                        {slider.link_type === 'external' && 'Enlace externo'}
+                                        {slider.link_type === 'internal' && 'Enlace interno'}
+                                        · {slider.clicks_count} clicks
+                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <Switch checked={slider.is_active} onCheckedChange={() => toggleActive(slider)} />
+                                        <div className="flex gap-1">
+                                            <Button size="icon" variant="ghost" onClick={() => handleActionWithPermission('sliders.update', () => openEdit(slider))}>
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="text-red-500" onClick={() => handleActionWithPermission('sliders.delete', () => setSliderToDelete(slider))}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {sliders.links && sliders.links.length > 3 && (
+                <SharedPagination links={sliders.links} className="mt-4" />
+            )}
+            </>
+            )}
 
             {/* Create/Edit Sheet */}
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -327,7 +462,27 @@ export default function Index({ sliders }: Props) {
                     </SheetHeader>
 
                     <form onSubmit={submit} className="space-y-6 mt-6">
-                        {/* Name */}
+                        {locations.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Sede</Label>
+                                <Select
+                                    value={data.location_id}
+                                    onValueChange={(val: string) => setData('location_id', val)}
+                                    required
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una sede" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {locations.map((loc) => (
+                                            <SelectItem key={loc.id} value={String(loc.id)}>{loc.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {errors.location_id && <p className="text-red-500 text-xs">{errors.location_id}</p>}
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <Label htmlFor="name">Nombre Administrativo</Label>
                             <Input
@@ -381,7 +536,7 @@ export default function Index({ sliders }: Props) {
                                 <Label>Tipo de Enlace</Label>
                                 <Select
                                     value={data.link_type}
-                                    onValueChange={(val: any) => {
+                                    onValueChange={(val: 'none' | 'internal' | 'external') => {
                                         setData('link_type', val);
                                         if (val === 'none') {
                                             setData('external_url', '');
@@ -440,8 +595,11 @@ export default function Index({ sliders }: Props) {
                         </div>
 
                         <div className="flex justify-end gap-2 pt-4">
-                            <Button type="button" variant="outline" onClick={() => setIsSheetOpen(false)}>Cancelar</Button>
-                            <Button type="submit" disabled={processing}>{editingSlider ? 'Guardar Cambios' : 'Crear Slider'}</Button>
+                            <Button type="button" variant="outline" onClick={() => setIsSheetOpen(false)} disabled={processing}>Cancelar</Button>
+                            <Button type="submit" disabled={processing} className="gap-2">
+                                {processing && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {editingSlider ? 'Guardar Cambios' : 'Crear Slider'}
+                            </Button>
                         </div>
                     </form>
                 </SheetContent>
@@ -455,7 +613,7 @@ export default function Index({ sliders }: Props) {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDelete} variant="destructive">Eliminar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Models\TenantLegalPage;
 use App\Models\SiteSetting;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -15,6 +17,7 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
+    use StoresImageAsWebp;
     /**
      * Get the current tenant from the container (resolved by middleware).
      */
@@ -41,7 +44,7 @@ class SettingsController extends Controller
 
         // Prepare URLs for assets
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk("s3");
+        $disk = Storage::disk("bunny");
 
         if (isset($settings["logo_path"])) {
             $settings["logo_url"] = $disk->url($settings["logo_path"]);
@@ -51,11 +54,28 @@ class SettingsController extends Controller
             $settings["favicon_url"] = $disk->url($settings["favicon_path"]);
         }
 
+        $legalSlugs = TenantLegalPage::legalSlugs();
+        $existingPages = TenantLegalPage::where('tenant_id', $tenant->id)->get()->keyBy('slug');
+        $legalPages = [];
+        foreach ($legalSlugs as $slug => $title) {
+            $page = $existingPages->get($slug);
+            if (!$page) {
+                $page = TenantLegalPage::create([
+                    'tenant_id' => $tenant->id,
+                    'slug' => $slug,
+                    'title' => $title,
+                    'content' => null,
+                ]);
+            }
+            $legalPages[] = ['slug' => $page->slug, 'title' => $page->title, 'content' => $page->content ?? ''];
+        }
+
         return Inertia::render("Tenant/Admin/Settings/Edit", [
             "tenantSettings" => $settings,
             "tenant" => $tenant->only(["id", "name", "slug", "logo_url", "slug_changes_count", "last_slug_changed_at"]),
             "slugChangePrice" => SiteSetting::first()?->slug_change_price ?? 10000.00,
             "status" => session("status"),
+            "legalPages" => $legalPages,
         ]);
     }
 
@@ -155,6 +175,8 @@ class SettingsController extends Controller
 
         $tenant = $this->getTenant();
         $settings = $tenant->settings ?? [];
+        $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+        $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/settings';
 
         if (is_string($input)) {
             $settings["logo_url"] = $input;
@@ -162,12 +184,20 @@ class SettingsController extends Controller
                 unset($settings["logo_path"]);
             }
         } elseif ($request->hasFile("logo")) {
-            if (isset($settings["logo_path"])) {
-                Storage::disk("s3")->delete($settings["logo_path"]);
+            try {
+                if (isset($settings["logo_path"])) {
+                    Storage::disk("bunny")->delete($settings["logo_path"]);
+                }
+                $path = $this->storeImageAsWebp($request->file("logo"), $basePath);
+                $settings["logo_path"] = $path;
+                unset($settings["logo_url"]);
+                $this->registerMedia($path, 'bunny');
+            } catch (\Throwable $e) {
+                if (isset($path)) {
+                    Storage::disk('bunny')->delete($path);
+                }
+                return Redirect::back()->withErrors(["logo" => "Error al subir el logo. Intenta de nuevo."]);
             }
-            $path = $request->file("logo")->store("tenants/logos", "s3");
-            $settings["logo_path"] = $path;
-            unset($settings["logo_url"]); 
         }
 
         $tenant->update(["settings" => $settings]);
@@ -189,6 +219,8 @@ class SettingsController extends Controller
 
         $tenant = $this->getTenant();
         $settings = $tenant->settings ?? [];
+        $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+        $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/settings';
 
         if (is_string($input)) {
             $settings["favicon_url"] = $input;
@@ -196,12 +228,20 @@ class SettingsController extends Controller
                 unset($settings["favicon_path"]);
             }
         } elseif ($request->hasFile("favicon")) {
-            if (isset($settings["favicon_path"])) {
-                Storage::disk("s3")->delete($settings["favicon_path"]);
+            try {
+                if (isset($settings["favicon_path"])) {
+                    Storage::disk("bunny")->delete($settings["favicon_path"]);
+                }
+                $path = $this->storeImageAsWebp($request->file("favicon"), $basePath, 'bunny', 512);
+                $settings["favicon_path"] = $path;
+                unset($settings["favicon_url"]);
+                $this->registerMedia($path, 'bunny');
+            } catch (\Throwable $e) {
+                if (isset($path)) {
+                    Storage::disk('bunny')->delete($path);
+                }
+                return Redirect::back()->withErrors(["favicon" => "Error al subir el favicon. Intenta de nuevo."]);
             }
-            $path = $request->file("favicon")->store("tenants/favicons", "s3");
-            $settings["favicon_path"] = $path;
-            unset($settings["favicon_url"]);
         }
 
         $tenant->update(["settings" => $settings]);

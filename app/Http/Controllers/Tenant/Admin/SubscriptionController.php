@@ -10,12 +10,14 @@ use App\Models\User;
 use App\Notifications\PaymentReportedNotification;
 use App\Notifications\PaymentPendingReviewNotification;
 use App\Events\PaymentReportedEvent;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 
 class SubscriptionController extends Controller
 {
+    use StoresImageAsWebp;
     public function index($tenant)
     {
         \Illuminate\Support\Facades\Gate::authorize('billing.view');
@@ -210,13 +212,18 @@ class SubscriptionController extends Controller
 
         // 3. Handle Receipt Upload if provided (direct from Checkout)
         if ($request->hasFile('proof')) {
-            // Using 'public' disk instead of 's3' for better local compatibility
-            $path = $request->file('proof')->store('payment-proofs', ['disk' => 'public']);
+            $tenant = app('currentTenant');
+            $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+            $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/payment-proofs';
 
-            $invoice->update([
-                'proof_of_payment_path' => $path,
-                'status' => 'pending_review',
-                'paid_at' => now(),
+            try {
+                $path = $this->storeImageAsWebp($request->file('proof'), $basePath);
+                $this->registerMedia($path, 'bunny');
+
+                $invoice->update([
+                    'proof_of_payment_path' => $path,
+                    'status' => 'pending_review',
+                    'paid_at' => now(),
             ]);
 
             // Notify SuperAdmins (Safely check if tenant is loaded)
@@ -246,15 +253,27 @@ class SubscriptionController extends Controller
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Error broadcasting: " . $e->getMessage());
             }
+
+            // 4. Update Slug if provided
+            if ($request->filled('slug') && $plan->allow_custom_slug) {
+                $tenant->update(['slug' => $request->slug]);
+            }
+
+            // Explicitly using the current tenant's slug for redirect
+            return redirect()->to("/{$tenant->slug}/admin/subscription/success?invoice_id={$invoice->id}");
+            } catch (\Throwable $e) {
+                if (isset($path)) {
+                    Storage::disk('bunny')->delete($path);
+                }
+                return redirect()
+                    ->route('tenant.subscription.checkout', ['tenant' => $tenant->slug])
+                    ->withErrors(['proof' => 'Error al subir el comprobante. Intenta de nuevo.']);
+            }
         }
 
-        // 4. Update Slug if provided
-        if ($request->filled('slug') && $plan->allow_custom_slug) {
-            $tenant->update(['slug' => $request->slug]);
-        }
-
-        // Explicitly using the current tenant's slug for redirect
-        return redirect()->to("/{$tenant->slug}/admin/subscription/success?invoice_id={$invoice->id}");
+        return redirect()
+            ->route('tenant.subscription.checkout', ['tenant' => $tenant->slug])
+            ->with('info', 'No se proporcionó comprobante.');
     }
 
     public function success(Request $request, $tenantSlug)

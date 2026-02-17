@@ -4,7 +4,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/Components/ui/card';
-import { MessageCircle, Save, Smartphone, ShieldCheck, ShieldAlert, AlertCircle } from 'lucide-react';
+import { MessageCircle, Save, Smartphone, ShieldCheck, ShieldAlert, AlertCircle, Loader2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
@@ -12,7 +12,13 @@ import { Badge } from '@/Components/ui/badge';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { PageProps } from '@/types';
 
-export default function Settings({ settings, hasFeature, tenant }: { settings: { whatsapp_admin_phone: string }, hasFeature: boolean, tenant: any }) {
+interface WhatsAppSettingsProps {
+    settings: { whatsapp_admin_phone: string };
+    hasFeature: boolean;
+    tenant: { id: number; slug: string; name: string; logo_url?: string };
+}
+
+export default function Settings({ settings, hasFeature, tenant }: WhatsAppSettingsProps) {
     const { currentUserRole } = usePage<PageProps>().props;
     const [showPermissionModal, setShowPermissionModal] = useState(false);
 
@@ -162,7 +168,7 @@ export default function Settings({ settings, hasFeature, tenant }: { settings: {
                                 disabled={processing}
                                 className="w-full sm:w-auto px-10 font-bold shadow-md shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             >
-                                <Save className="mr-2 size-4" />
+                                {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
                                 Guardar Configuración
                             </Button>
                         </CardFooter>

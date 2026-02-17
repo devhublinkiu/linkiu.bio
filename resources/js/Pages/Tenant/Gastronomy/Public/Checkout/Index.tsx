@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useCart, CartContextType } from '@/Contexts/CartContext';
 import { Button } from '@/Components/ui/button';
@@ -26,13 +26,15 @@ interface CheckoutFormProps {
     table?: any;
     shippingMethod?: any;
     bankAccounts: any[];
+    defaultLocationId?: number | null;
     serviceType: ServiceType;
     setServiceType: (type: ServiceType) => void;
     deliveryCost: number;
 }
 
-const CheckoutForm = ({ tenant, table, shippingMethod, bankAccounts, serviceType, setServiceType, deliveryCost }: CheckoutFormProps) => {
+const CheckoutForm = ({ tenant, table, shippingMethod, bankAccounts, defaultLocationId, serviceType, setServiceType, deliveryCost }: CheckoutFormProps) => {
     const { items, cartTotal, clearCart } = useCart();
+    const selectedLocationId = (usePage().props as { selected_location_id?: number | null }).selected_location_id;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
 
@@ -69,11 +71,20 @@ const CheckoutForm = ({ tenant, table, shippingMethod, bankAccounts, serviceType
 
         setIsSubmitting(true);
 
+        const locationId = serviceType === 'dine_in' && table?.location_id
+                ? table.location_id
+                : (selectedLocationId ?? defaultLocationId);
+        if (!locationId && serviceType !== 'dine_in') {
+            toast.error('No se pudo determinar la sede. Recarga la página o elige una sede.');
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             const payload = new FormData();
-            payload.append('tenant_id', tenant.id);
             payload.append('service_type', serviceType);
             if (serviceType === 'dine_in' && table) payload.append('table_id', table.id);
+            if (locationId) payload.append('location_id', String(locationId));
 
             payload.append('customer_name', formData.customer_name);
             if (formData.customer_phone) payload.append('customer_phone', formData.customer_phone);
@@ -103,23 +114,20 @@ const CheckoutForm = ({ tenant, table, shippingMethod, bankAccounts, serviceType
                 }
             });
 
-            const response = await axios.post(route('tenant.pos.store', tenant.slug), payload, {
+            const response = await axios.post(route('tenant.checkout.process', { tenant: tenant.slug }), payload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            if (response.data.success) {
+            if (response.data?.success && response.data?.redirect_url) {
                 toast.success('¡Pedido enviado!');
                 clearCart();
-                // Redirect to success page
-                if (response.data.redirect_url) {
-                    window.location.href = response.data.redirect_url;
-                } else {
-                    window.location.href = route('tenant.home', tenant.slug);
-                }
+                window.location.href = response.data.redirect_url;
+            } else {
+                toast.error(response.data?.message || 'Error al procesar el pedido');
             }
         } catch (error: any) {
-            console.error(error);
-            toast.error(error.response?.data?.message || 'Error al procesar el pedido');
+            const message = error.response?.data?.message || error.response?.data?.errors?.location_id?.[0] || 'Error al procesar el pedido';
+            toast.error(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -352,7 +360,7 @@ const CheckoutForm = ({ tenant, table, shippingMethod, bankAccounts, serviceType
 };
 
 // Main Page Component
-export default function CheckoutIndex({ tenant, table, shippingMethod, bankAccounts = [] }: { tenant: any, table?: any, shippingMethod?: any, bankAccounts?: any[] }) {
+export default function CheckoutIndex({ tenant, table, shippingMethod, bankAccounts = [], default_location_id }: { tenant: any; table?: any; shippingMethod?: any; bankAccounts?: any[]; default_location_id?: number | null }) {
     const [serviceType, setServiceType] = useState<ServiceType>(table ? 'dine_in' : 'takeout');
 
     // Calculate costs at parent level to pass to Layout
@@ -408,6 +416,7 @@ export default function CheckoutIndex({ tenant, table, shippingMethod, bankAccou
                 table={table}
                 shippingMethod={shippingMethod}
                 bankAccounts={bankAccounts}
+                defaultLocationId={default_location_id}
                 serviceType={serviceType}
                 setServiceType={setServiceType}
                 deliveryCost={deliveryCost}

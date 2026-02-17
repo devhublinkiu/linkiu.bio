@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,8 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    use StoresImageAsWebp;
+
     /**
      * Display the tenant admin's profile form.
      */
@@ -105,23 +108,47 @@ class ProfileController extends Controller
         $user = $request->user();
 
         if ($tenant = app('currentTenant')) {
-            // Update Tenant Pivot
+            $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+            $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/profiles';
+
             if ($request->hasFile('photo')) {
-                // Determine if we need to delete old file? (Maybe complex for pivot)
-                // For now just overwrite path
-                $path = $request->file('photo')->store('profiles/' . $tenant->id, 's3');
-                $user->tenants()->updateExistingPivot($tenant->id, ['profile_photo_path' => $path]);
+                try {
+                    // Delete old photo if exists
+                    $oldPath = $user->tenants()->where('tenant_id', $tenant->id)->first()?->pivot->profile_photo_path;
+                    if ($oldPath && !filter_var($oldPath, FILTER_VALIDATE_URL)) {
+                        Storage::disk('bunny')->delete($oldPath);
+                    }
+
+                    $path = $this->storeImageAsWebp($request->file('photo'), $basePath);
+                    $user->tenants()->updateExistingPivot($tenant->id, ['profile_photo_path' => $path]);
+                    $this->registerMedia($path, 'bunny');
+                } catch (\Throwable $e) {
+                    if (isset($path)) {
+                        Storage::disk('bunny')->delete($path);
+                    }
+                    return back()->withErrors(['photo' => 'Error al subir la foto. Intenta de nuevo.']);
+                }
             } elseif ($request->input('photo_url')) {
                 $user->tenants()->updateExistingPivot($tenant->id, ['profile_photo_path' => $request->input('photo_url')]);
             }
         } else {
-            // Global fallback
+            $basePath = 'uploads/profiles';
+
             if ($request->hasFile('photo')) {
-                if ($user->profile_photo_path && !filter_var($user->profile_photo_path, FILTER_VALIDATE_URL)) {
-                    Storage::disk('s3')->delete($user->profile_photo_path);
+                try {
+                    if ($user->profile_photo_path && !filter_var($user->profile_photo_path, FILTER_VALIDATE_URL)) {
+                        Storage::disk('bunny')->delete($user->profile_photo_path);
+                    }
+
+                    $path = $this->storeImageAsWebp($request->file('photo'), $basePath);
+                    $user->update(['profile_photo_path' => $path]);
+                    $this->registerMedia($path, 'bunny');
+                } catch (\Throwable $e) {
+                    if (isset($path)) {
+                        Storage::disk('bunny')->delete($path);
+                    }
+                    return back()->withErrors(['photo' => 'Error al subir la foto. Intenta de nuevo.']);
                 }
-                $path = $request->file('photo')->store('profiles', 's3');
-                $user->update(['profile_photo_path' => $path]);
             } elseif ($request->input('photo_url')) {
                 $user->update(['profile_photo_path' => $request->input('photo_url')]);
             }

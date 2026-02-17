@@ -5,12 +5,14 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessCategory;
 use App\Models\CategoryIcon;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class CategoryIconController extends Controller
 {
+    use StoresImageAsWebp;
     /**
      * Display a listing of the resource.
      */
@@ -62,7 +64,7 @@ class CategoryIconController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $path = $request->file('icon')->store('category-icons', 's3'); // Store in S3
+        $path = $this->storeImageAsWebp($request->file('icon'), 'uploads/superadmin/category-icons', 'bunny', 512, 85);
 
         CategoryIcon::create([
             'name' => $request->name,
@@ -101,10 +103,10 @@ class CategoryIconController extends Controller
         if ($request->hasFile('icon')) {
             // Delete old
             if ($categoryIcon->path) {
-                Storage::disk('s3')->delete($categoryIcon->path);
+                Storage::disk('bunny')->delete($categoryIcon->path);
             }
             // Store new
-            $data['path'] = $request->file('icon')->store('category-icons', 's3');
+            $data['path'] = $this->storeImageAsWebp($request->file('icon'), 'uploads/superadmin/category-icons', 'bunny', 512, 85);
         }
 
         $categoryIcon->update($data);
@@ -121,7 +123,7 @@ class CategoryIconController extends Controller
             return back()->with('error', 'No se puede eliminar este icono porque está en uso por una o más categorías.');
         }
 
-        Storage::disk('s3')->delete($categoryIcon->path);
+        Storage::disk('bunny')->delete($categoryIcon->path);
         $categoryIcon->delete();
 
         return back()->with('success', 'Icono eliminado correctamente.');

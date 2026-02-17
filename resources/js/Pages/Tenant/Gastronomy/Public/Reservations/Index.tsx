@@ -1,37 +1,81 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm } from '@inertiajs/react';
-import { Calendar, Clock, Users, User, Phone, Mail, CheckCircle, MapPin, ChevronRight, ChevronLeft, AlertCircle, Banknote, Upload, Copy, FileText, Smartphone } from 'lucide-react';
+import { Head, useForm, router } from '@inertiajs/react';
+import { Calendar, Clock, Users, User, Phone, Mail, CheckCircle, MapPin, ChevronRight, ChevronLeft, AlertCircle, Banknote, Upload, Copy, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
-import { format, parse, isBefore, startOfHour, addMinutes, isAfter } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format, parse, isBefore, addMinutes, isAfter } from 'date-fns';
+import { es, enUS } from 'date-fns/locale';
 import { toast } from 'sonner';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import Header from '@/Components/Tenant/Gastronomy/Public/Header';
+import { formatPrice } from '@/lib/utils';
 import axios from 'axios';
 
+interface BrandColors {
+    bg_color?: string;
+    name_color?: string;
+    description_color?: string;
+    primary_color?: string;
+}
+
+interface TenantProps {
+    slug: string;
+    name: string;
+    logo_url?: string;
+    store_description?: string;
+    brand_colors?: BrandColors;
+}
+
+interface LocationProps {
+    id: number;
+    name: string;
+    address?: string;
+    opening_hours?: Record<string, Array<{ open: string; close: string }>>;
+    reservation_price_per_person?: number;
+    reservation_min_anticipation?: number;
+    reservation_slot_duration?: number;
+    reservation_payment_proof_required?: boolean;
+}
+
+interface BankAccountProps {
+    id: string | number;
+    bank_name: string;
+    account_type: string;
+    account_number: string;
+    account_holder?: string;
+    /** null = todas las sedes; número = solo esa sede */
+    location_id?: number | null;
+}
+
+interface CreatedReservationProps {
+    id: number;
+}
+
 interface Props {
-    tenant: any;
-    locations: any[];
-    bankAccounts: any[];
+    tenant: TenantProps;
+    locations: LocationProps[];
+    bankAccounts: BankAccountProps[];
 }
 
 export default function ReservationIndex({ tenant, locations, bankAccounts = [] }: Props) {
-    const [step, setStep] = useState(locations.length > 1 ? 0 : 1); // 0: Loc, 1: Date, 2: Contact, 3: Payment, 4: Summary, 5: Success
-    const [createdReservation, setCreatedReservation] = useState<any>(null);
+    const hasMultipleLocations = locations.length > 1;
+    const hasNoLocations = locations.length === 0;
+    const [step, setStep] = useState(hasNoLocations ? 0 : hasMultipleLocations ? 0 : 1); // 0: Loc or empty, 1: Date, 2: Contact, 3: Payment, 4: Summary, 5: Success
+    const [createdReservation, setCreatedReservation] = useState<CreatedReservationProps | null>(null);
 
-    // Safely get brand colors
     const brandColors = tenant.brand_colors || {
         bg_color: '#f8fafc',
         name_color: '#1e293b',
-        description_color: '#64748b'
+        description_color: '#64748b',
+        primary_color: '#4f46e5'
     };
 
-    const { bg_color, name_color } = brandColors;
+    const { bg_color, name_color, primary_color } = brandColors;
+    const primaryColor = primary_color ?? '#4f46e5';
 
     const form = useForm({
         location_id: locations.length === 1 ? locations[0].id : '',
@@ -54,8 +98,7 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
         if (!selectedLocation || !selectedLocation.opening_hours) return [];
 
         const date = parse(form.data.reservation_date, 'yyyy-MM-dd', new Date());
-        // Database keys are in English: monday, tuesday, etc.
-        const dayName = format(date, 'EEEE', { locale: undefined }).toLowerCase();
+        const dayName = format(date, 'EEEE', { locale: enUS }).toLowerCase();
         const ranges = selectedLocation.opening_hours[dayName];
 
         // Format is usually an array of {open, close}
@@ -102,10 +145,20 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
         return Array.from(new Set(slots)).sort();
     }, [selectedLocation, form.data.reservation_date]);
 
+    // Cuentas bancarias visibles para la sede seleccionada (globales o de esa sede)
+    const bankAccountsForLocation = useMemo(() => {
+        if (!bankAccounts?.length) return [];
+        const locationId = selectedLocation?.id;
+        return bankAccounts.filter(
+            (acc: BankAccountProps) => acc.location_id == null || acc.location_id === locationId
+        );
+    }, [bankAccounts, selectedLocation?.id]);
+
     // Reset time when date or location changes
     useEffect(() => {
         form.setData('reservation_time', '');
     }, [form.data.reservation_date, form.data.location_id]);
+
 
     const handleSubmit = async () => {
         const formData = new FormData();
@@ -128,21 +181,23 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
             });
 
             if (response.data.success) {
-                setCreatedReservation(response.data.reservation);
+                setCreatedReservation(response.data.reservation as CreatedReservationProps);
                 setStep(5);
                 toast.success('Reserva confirmada con éxito');
             }
         } catch (error: any) {
             if (error.response && error.response.status === 422) {
-                // Set errors in form
                 const errors = error.response.data.errors;
                 Object.keys(errors).forEach(key => {
                     form.setError(key as any, errors[key][0]);
                 });
                 toast.error('Por favor corrige los errores en el formulario');
             } else {
-                toast.error('Error al procesar la reserva. Intenta nuevamente.');
-                console.error(error);
+                const serverMessage = error.response?.data?.message;
+                const message = typeof serverMessage === 'string' && serverMessage
+                    ? serverMessage
+                    : 'Error al procesar la reserva. Intenta nuevamente.';
+                toast.error(message);
             }
         }
     };
@@ -153,7 +208,7 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
     };
 
     return (
-        <PublicLayout bgColor={bg_color} showFloatingCart={false}>
+        <PublicLayout bgColor={bg_color}>
             <Head title={`Reservar en ${tenant.name}`} />
 
             <div className="flex flex-col">
@@ -163,31 +218,71 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                     description={tenant.store_description}
                     bgColor={bg_color}
                     textColor={name_color}
+                    descriptionColor={brandColors.description_color}
                 />
             </div>
 
             <div className="flex-1 bg-slate-50 p-4 -mt-4 relative z-0 pb-20">
-                <Card className="w-full shadow-lg border-t-4 border-indigo-600 mb-8 mt-4">
+                <Card className="w-full max-w-xl mx-auto mb-8 mt-4 border-0 shadow-sm bg-white/80 backdrop-blur-sm rounded-2xl">
                     <CardHeader className="text-center space-y-2">
                         <CardTitle className="text-2xl font-bold text-slate-800">
-                            {step === 5 ? '¡Reserva Confirmada!' : `Reservar Mesa`}
+                            {step === 5 ? '¡Reserva Confirmada!' : 'Reservar Mesa'}
                         </CardTitle>
                         <CardDescription>
-                            {step === 0 && "Selecciona la sede"}
+                            {step === 0 && !hasNoLocations && "Selecciona la sede"}
+                            {step === 0 && hasNoLocations && "No hay sedes disponibles"}
                             {step === 1 && "Selecciona cuándo quieres visitarnos"}
                             {step === 2 && "Tus datos de contacto"}
                             {step === 3 && "Pago y Comprobante"}
                             {step === 4 && "Confirma los detalles"}
                             {step === 5 && "Gracias por tu reserva. Te hemos enviado un WhatsApp."}
                         </CardDescription>
+                        {/* Stepper: una sola línea */}
+                        {step < 5 && !hasNoLocations && (
+                            <div className="flex items-center justify-center gap-1 sm:gap-8 pt-4 flex-nowrap" aria-label="Pasos del formulario">
+                                {[
+                                    { n: 0, label: 'Sede' },
+                                    { n: 1, label: 'Fecha' },
+                                    { n: 2, label: 'Contacto' },
+                                    { n: 3, label: 'Pago' },
+                                    { n: 4, label: 'Resumen' },
+                                ].map(({ n, label }) => {
+                                    const active = step === n;
+                                    const done = step > n;
+                                    return (
+                                        <div
+                                            key={n}
+                                            className={`flex flex-col items-center gap-0.5 text-xs font-medium rounded-xl px-2 py-2 ${active ? '' : done ? 'text-slate-500' : 'text-slate-400'}`}
+                                            style={active ? { backgroundColor: `${primaryColor}18`, color: primaryColor } : {}}
+                                        >
+                                            {done ? <CheckCircle className="w-4 h-4 text-green-500" /> : <span className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-[10px]">{n + 1}</span>}
+                                            <span>{label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </CardHeader>
 
                     <CardContent>
+                        {/* Step 0: Empty state when no locations */}
+                        {step === 0 && hasNoLocations && (
+                            <div className="py-10 text-center space-y-4">
+                                <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                                    <MapPin className="w-7 h-7 text-amber-600" />
+                                </div>
+                                <p className="text-slate-600">No hay sedes disponibles para reservas en este momento.</p>
+                                <Button variant="outline" asChild>
+                                    <a href={route('tenant.home', tenant.slug)}>Volver al inicio</a>
+                                </Button>
+                            </div>
+                        )}
+
                         {/* Step 0: Location Selection */}
-                        {step === 0 && (
+                        {step === 0 && !hasNoLocations && (
                             <div className="space-y-4">
-                                <p className="text-sm text-center text-slate-600">Por favor selecciona una sede para continuar:</p>
-                                <div className="grid grid-cols-1 gap-3">
+                                <p className="text-sm text-center text-slate-500">Elige una sede para continuar</p>
+                                <div className="grid grid-cols-1 gap-2">
                                     {locations.map((loc) => (
                                         <div
                                             key={loc.id}
@@ -195,18 +290,24 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                                 form.setData('location_id', loc.id);
                                                 setStep(1);
                                             }}
-                                            className="cursor-pointer p-4 rounded-lg border hover:border-indigo-500 hover:bg-slate-50 transition-all flex items-center justify-between group"
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => e.key === 'Enter' && (form.setData('location_id', loc.id), setStep(1))}
+                                            className="cursor-pointer p-4 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 shadow-sm hover:shadow transition-all flex items-center justify-between group"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="bg-indigo-100 p-2 rounded-full text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                                <div
+                                                    className="p-2 rounded-full transition-colors"
+                                                    style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+                                                >
                                                     <MapPin className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-medium text-slate-900">{loc.name}</h3>
+                                                    <h3 className="font-medium text-slate-800">{loc.name}</h3>
                                                     <p className="text-xs text-slate-500">{loc.address}</p>
                                                 </div>
                                             </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-600" />
+                                            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" style={{ color: primaryColor }} />
                                         </div>
                                     ))}
                                 </div>
@@ -218,8 +319,8 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                             <div className="space-y-6">
                                 {/* Pax */}
                                 <div className="space-y-3">
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-indigo-600" />
+                                    <label className="text-sm font-medium flex items-center gap-2" style={{ color: primaryColor }}>
+                                        <Users className="w-4 h-4" style={{ color: primaryColor }} />
                                         Cantidad de Personas
                                     </label>
                                     <div className="flex items-center gap-4 justify-center bg-slate-100 p-3 rounded-lg">
@@ -248,8 +349,8 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
 
                                 {/* Date */}
                                 <div className="space-y-3">
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-indigo-600" />
+                                    <label className="text-sm font-medium flex items-center gap-2" style={{ color: primaryColor }}>
+                                        <Calendar className="w-4 h-4" style={{ color: primaryColor }} />
                                         Fecha
                                     </label>
                                     <Input
@@ -258,28 +359,32 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         value={form.data.reservation_date}
                                         onChange={(e) => form.setData('reservation_date', e.target.value)}
                                         className="bg-white"
+                                        id="reservation_date"
                                     />
                                 </div>
 
-                                {/* Timer Slots */}
+                                {/* Time Slots */}
                                 <div className="space-y-3">
-                                    <label className="text-sm font-medium flex items-center gap-2">
-                                        <Clock className="w-4 h-4 text-indigo-600" />
+                                    <label className="text-sm font-medium flex items-center gap-2" style={{ color: primaryColor }}>
+                                        <Clock className="w-4 h-4" style={{ color: primaryColor }} />
                                         Hora Disponible
                                     </label>
                                     {timeSlots.length > 0 ? (
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {timeSlots.map((slot) => (
-                                                <Button
-                                                    key={slot}
-                                                    type="button"
-                                                    variant={form.data.reservation_time === slot ? 'default' : 'outline'}
-                                                    className={`w-full ${form.data.reservation_time === slot ? 'bg-indigo-600 hover:bg-indigo-700' : 'hover:bg-indigo-50'}`}
-                                                    onClick={() => form.setData('reservation_time', slot)}
-                                                >
-                                                    {format(parse(slot, 'HH:mm', new Date()), 'h:mm a')}
-                                                </Button>
-                                            ))}
+                                        <div className="max-h-48 overflow-y-auto pr-1">
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {timeSlots.map((slot) => (
+                                                    <Button
+                                                        key={slot}
+                                                        type="button"
+                                                        variant={form.data.reservation_time === slot ? 'default' : 'outline'}
+                                                        className="w-full"
+                                                        style={form.data.reservation_time === slot ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                                                        onClick={() => form.setData('reservation_time', slot)}
+                                                    >
+                                                        {format(parse(slot, 'HH:mm', new Date()), 'h:mm a')}
+                                                    </Button>
+                                                ))}
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center p-6 bg-amber-50 rounded-lg text-amber-700 border border-amber-200">
@@ -293,7 +398,8 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                 </div>
 
                                 <Button
-                                    className="w-full mt-4"
+                                    className="w-full mt-4 text-white"
+                                    style={{ backgroundColor: primaryColor }}
                                     onClick={() => {
                                         if (!form.data.reservation_time) {
                                             toast.error("Por favor selecciona una hora");
@@ -311,38 +417,41 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                         {step === 2 && (
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium flex items-center gap-2">
+                                    <Label htmlFor="customer_name" className="text-sm font-medium flex items-center gap-2 text-slate-700">
                                         <User className="w-4 h-4 text-slate-500" />
                                         Tu Nombre
-                                    </label>
+                                    </Label>
                                     <Input
+                                        id="customer_name"
                                         placeholder="Ej: Juan Pérez"
                                         value={form.data.customer_name}
                                         onChange={(e) => form.setData('customer_name', e.target.value)}
                                     />
-                                    {form.errors.customer_name && <p className="text-xs text-red-500">{form.errors.customer_name}</p>}
+                                    {form.errors.customer_name && <p className="text-xs text-destructive">{form.errors.customer_name}</p>}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium flex items-center gap-2">
+                                    <Label htmlFor="customer_phone" className="text-sm font-medium flex items-center gap-2 text-slate-700">
                                         <Phone className="w-4 h-4 text-slate-500" />
                                         WhatsApp
-                                    </label>
+                                    </Label>
                                     <Input
+                                        id="customer_phone"
                                         placeholder="Ej: 3001234567"
                                         type="tel"
                                         value={form.data.customer_phone}
                                         onChange={(e) => form.setData('customer_phone', e.target.value)}
                                     />
-                                    {form.errors.customer_phone && <p className="text-xs text-red-500">{form.errors.customer_phone}</p>}
+                                    {form.errors.customer_phone && <p className="text-xs text-destructive">{form.errors.customer_phone}</p>}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium flex items-center gap-2">
+                                    <Label htmlFor="customer_email" className="text-sm font-medium flex items-center gap-2 text-slate-700">
                                         <Mail className="w-4 h-4 text-slate-500" />
                                         Correo (Opcional)
-                                    </label>
+                                    </Label>
                                     <Input
+                                        id="customer_email"
                                         placeholder="correo@ejemplo.com"
                                         type="email"
                                         value={form.data.customer_email}
@@ -351,11 +460,12 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium flex items-center gap-2">
+                                    <Label htmlFor="notes" className="text-sm font-medium flex items-center gap-2 text-slate-700">
                                         <FileText className="w-4 h-4 text-slate-500" />
                                         Notas Especiales
-                                    </label>
+                                    </Label>
                                     <Textarea
+                                        id="notes"
                                         placeholder="Cumpleaños, alergias, mesa en terraza..."
                                         value={form.data.notes}
                                         onChange={(e) => form.setData('notes', e.target.value)}
@@ -367,7 +477,8 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         <ChevronLeft className="w-4 h-4 mr-1" /> Atrás
                                     </Button>
                                     <Button
-                                        className="flex-1"
+                                        className="flex-1 text-white"
+                                        style={{ backgroundColor: primaryColor }}
                                         onClick={() => {
                                             if (!form.data.customer_name || !form.data.customer_phone) {
                                                 toast.error("Nombre y Teléfono son obligatorios");
@@ -385,6 +496,22 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                         {/* Step 3: Payment (Bank Info & Proof) - Checkout Style */}
                         {step === 3 && (
                             <div className="space-y-6">
+                                {/* Valor reserva (si está configurado) */}
+                                {selectedLocation && Number(selectedLocation.reservation_price_per_person ?? 0) > 0 && (
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-600">Valor por persona</span>
+                                            <span className="font-medium text-slate-900">{formatPrice(Number(selectedLocation.reservation_price_per_person))}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2">
+                                            <span className="text-slate-800">Total ({form.data.party_size} {form.data.party_size === 1 ? 'persona' : 'personas'})</span>
+                                            <span className="font-bold" style={{ color: primaryColor }}>
+                                                {formatPrice(Number(selectedLocation.reservation_price_per_person) * form.data.party_size)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-3">
                                     <div className="flex items-start gap-3">
                                         <Banknote className="w-5 h-5 text-blue-600 mt-1" />
@@ -394,10 +521,10 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         </div>
                                     </div>
 
-                                    {/* Bank Accounts List from Checkout */}
-                                    {bankAccounts && bankAccounts.length > 0 ? (
+                                    {/* Cuentas de la sede seleccionada (o globales) */}
+                                    {bankAccountsForLocation.length > 0 ? (
                                         <div className="space-y-2 mb-4">
-                                            {bankAccounts.map((account: any) => (
+                                            {bankAccountsForLocation.map((account: BankAccountProps) => (
                                                 <div key={account.id} className="bg-white p-3 rounded-lg border border-slate-200 text-xs text-slate-600 flex justify-between items-center shadow-sm">
                                                     <div>
                                                         <p className="font-bold text-slate-900 text-sm">{account.bank_name}</p>
@@ -417,7 +544,9 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         </div>
                                     ) : (
                                         <div className="p-3 bg-yellow-50 text-yellow-700 text-xs rounded mb-3 border border-yellow-100">
-                                            No hay cuentas bancarias configuradas. Consulta al establecimiento.
+                                            {bankAccounts?.length
+                                                ? 'No hay cuentas bancarias para esta sede. Consulta al establecimiento.'
+                                                : 'No hay cuentas bancarias configuradas. Consulta al establecimiento.'}
                                         </div>
                                     )}
 
@@ -443,7 +572,7 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                             />
                                             <label
                                                 htmlFor="proof"
-                                                className={`cursor-pointer bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center active:scale-95 ${!form.data.payment_proof && selectedLocation?.reservation_payment_proof_required ? 'border-red-300 ring-2 ring-red-100' : ''}`}
+                                                className={`cursor-pointer bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shadow-sm w-full justify-center active:scale-95 ${!form.data.payment_proof && selectedLocation?.reservation_payment_proof_required ? 'border-red-300 ring-2 ring-red-100' : ''}`}
                                             >
                                                 <Upload className="w-4 h-4" />
                                                 {form.data.payment_proof ? 'Cambiar archivo' : 'Subir Comprobante'}
@@ -466,7 +595,8 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         <ChevronLeft className="w-4 h-4 mr-1" /> Atrás
                                     </Button>
                                     <Button
-                                        className="flex-1"
+                                        className="flex-1 text-white"
+                                        style={{ backgroundColor: primaryColor }}
                                         onClick={() => {
                                             if (selectedLocation?.reservation_payment_proof_required && !form.data.payment_proof) {
                                                 toast.error('Debes subir el comprobante de pago para continuar.');
@@ -498,7 +628,9 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         </div>
                                         <div>
                                             <span className="block text-xs text-slate-500">Fecha</span>
-                                            <span className="font-medium">{form.data.reservation_date}</span>
+                                            <span className="font-medium">
+                                                {format(parse(form.data.reservation_date, 'yyyy-MM-dd', new Date()), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })}
+                                            </span>
                                         </div>
                                         <div>
                                             <span className="block text-xs text-slate-500">Hora</span>
@@ -549,7 +681,7 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                     <h3 className="text-xl font-bold text-slate-900">¡Reserva Solicitada!</h3>
                                     <div className="bg-slate-100 p-4 rounded-lg inline-block w-full max-w-xs">
                                         <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Código de Reserva</p>
-                                        <p className="text-3xl font-mono font-black text-indigo-600 tracking-wider">
+                                        <p className="text-3xl font-mono font-black tracking-wider" style={{ color: primaryColor }}>
                                             #{String(createdReservation?.id || '000').padStart(4, '0')}
                                         </p>
                                     </div>
@@ -562,11 +694,13 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-slate-500 flex items-center gap-2"><Calendar className="w-4 h-4" /> Fecha:</span>
-                                            <span className="font-medium text-slate-900">{form.data.reservation_date}</span>
+                                            <span className="font-medium text-slate-900">
+                                                {format(parse(form.data.reservation_date, 'yyyy-MM-dd', new Date()), "EEEE d 'de' MMMM", { locale: es })}
+                                            </span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-slate-500 flex items-center gap-2"><Clock className="w-4 h-4" /> Hora:</span>
-                                            <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                                            <span className="font-bold px-2 py-0.5 rounded" style={{ backgroundColor: `${primaryColor}22`, color: primaryColor }}>
                                                 {form.data.reservation_time ? format(parse(form.data.reservation_time, 'HH:mm', new Date()), 'h:mm a') : '-'}
                                             </span>
                                         </div>
@@ -574,13 +708,31 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                                             <span className="text-slate-500 flex items-center gap-2"><Users className="w-4 h-4" /> Personas:</span>
                                             <span className="font-medium text-slate-900">{form.data.party_size}</span>
                                         </div>
+                                        {selectedLocation && Number(selectedLocation.reservation_price_per_person ?? 0) > 0 && (
+                                            <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-2 mt-2">
+                                                <span className="text-slate-600 font-medium">Valor pagado</span>
+                                                <span className="font-bold" style={{ color: primaryColor }}>
+                                                    {formatPrice(Number(selectedLocation.reservation_price_per_person) * form.data.party_size)}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                     <p className="text-slate-600 text-sm max-w-sm mx-auto">
                                         Hemos recibido tu solicitud. Te enviaremos una confirmación a tu WhatsApp <strong>{form.data.customer_phone}</strong> en breve.
                                     </p>
-                                    <Button variant="outline" onClick={() => window.location.reload()}>
-                                        Hacer otra reserva
-                                    </Button>
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <Button
+                                            className="text-white"
+                                            style={{ backgroundColor: primaryColor }}
+                                            onClick={() => router.visit(route('tenant.reservations.index', tenant.slug))}
+                                        >
+                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                            Hacer otra reserva
+                                        </Button>
+                                        <Button variant="outline" asChild>
+                                            <a href={route('tenant.home', tenant.slug)}>Volver al inicio</a>
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         )}

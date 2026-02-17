@@ -1,14 +1,23 @@
-import React, { useState, useMemo } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import { Search, X, Flame, Star, Percent, Leaf, ChevronLeft } from 'lucide-react';
 import ProductCard from '@/Components/Tenant/Gastronomy/Public/Menu/ProductCard';
 import ProductDetailDrawer from '@/Components/Tenant/Gastronomy/Public/ProductDetailDrawer';
 
+interface TenantProps {
+    slug: string;
+    name: string;
+    logo_url?: string;
+    store_description?: string;
+    brand_colors?: { bg_color?: string; name_color?: string; description_color?: string };
+}
+
 interface Product {
     id: number;
     name: string;
+    slug?: string;
     short_description: string | null;
     price: string;
     original_price?: string | null;
@@ -30,25 +39,40 @@ interface Category {
 }
 
 interface Props {
-    tenant: any;
+    tenant: TenantProps;
     category: Category;
     categories: Category[];
 }
 
+/** Tags de producto que pueden venir en BD (slug o label) para filtrar "Vegetariano" */
+const VEGGIE_TAG_VARIANTS = ['Vegetariano', 'vegetariano', 'veggie', 'Veggie'];
+
 export default function CategoryShow({ tenant, category, categories }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTag, setActiveTag] = useState('Todos');
-    const [selectedProduct, setSelectedProduct] = useState<any>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    const { bg_color, name_color } = tenant.brand_colors;
+    const brandColors = tenant.brand_colors ?? { bg_color: '#f8fafc', name_color: '#1e293b', description_color: '#64748b' };
+    const { bg_color, name_color } = brandColors;
+
+    // Abrir el producto si viene ?product=slug (ej. desde un short promocional)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const productSlug = params.get('product');
+        if (!productSlug || !category.products?.length) return;
+        const product = category.products.find((p) => p.slug === productSlug);
+        if (product) {
+            setSelectedProduct(product);
+            setIsDrawerOpen(true);
+        }
+    }, [category.products]);
 
     const handleBack = () => {
         if (window.history.length > 1) {
             window.history.back();
         } else {
-            // Fallback if no history
-            window.location.href = route('tenant.menu', [tenant.slug]);
+            router.visit(route('tenant.menu', tenant.slug));
         }
     };
 
@@ -68,12 +92,15 @@ export default function CategoryShow({ tenant, category, categories }: Props) {
                 p.name.toLowerCase().includes(query) ||
                 (p.short_description && p.short_description.toLowerCase().includes(query));
 
-            const matchesTag = activeTag === 'Todos' ||
+            const tagMatch =
+                activeTag === 'Todos' ||
                 (activeTag === 'Destacados' && p.is_featured) ||
+                (activeTag === 'Populares' && p.is_featured) ||
                 (activeTag === 'Ofertas' && p.original_price && parseFloat(p.original_price) > parseFloat(p.price)) ||
+                (activeTag === 'Vegetariano' && p.tags && p.tags.some(t => VEGGIE_TAG_VARIANTS.includes(String(t)))) ||
                 (p.tags && p.tags.includes(activeTag));
 
-            return matchesSearch && matchesTag;
+            return matchesSearch && tagMatch;
         });
     }, [category.products, searchQuery, activeTag]);
 
@@ -93,6 +120,7 @@ export default function CategoryShow({ tenant, category, categories }: Props) {
                     description={tenant.store_description}
                     bgColor={bg_color}
                     textColor={name_color}
+                    descriptionColor={brandColors.description_color}
                 />
 
                 {/* Back Link & Category Header */}
@@ -225,7 +253,7 @@ export default function CategoryShow({ tenant, category, categories }: Props) {
 
                 {selectedProduct && (
                     <ProductDetailDrawer
-                        product={selectedProduct}
+                        product={selectedProduct as unknown as React.ComponentProps<typeof ProductDetailDrawer>['product']}
                         isOpen={isDrawerOpen}
                         onClose={() => setIsDrawerOpen(false)}
                     />

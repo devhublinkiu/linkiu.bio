@@ -1,13 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/Components/ui/button";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { Input } from "@/Components/ui/input";
-import { Search, Upload, Image as ImageIcon, Trash2, Loader2, Folder, FolderPlus, ArrowLeft } from "lucide-react";
+import { Label } from "@/Components/ui/label";
+import { Search, Upload, Image as ImageIcon, Trash2, Loader2, Folder, FolderPlus, ArrowLeft, Download } from "lucide-react";
 import { usePage, router } from "@inertiajs/react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/Components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/Components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/Components/ui/empty";
 
 export interface MediaFile {
     id: number;
@@ -39,77 +51,71 @@ export function MediaManager({
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [showPermissionModal, setShowPermissionModal] = useState(false);
-
-    // Folder State
+    const [fileToDelete, setFileToDelete] = useState<number | null>(null);
+    const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+    const [newFolderName, setNewFolderName] = useState("");
+    const [paginationLinks, setPaginationLinks] = useState<{ url: string | null; label: string; active: boolean }[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
-
-    // Upload State
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [creatingFolder, setCreatingFolder] = useState(false);
 
-    const fetchFiles = async () => {
+    const { auth, currentTenant, currentUserRole } = usePage().props;
+    const isTenant = !!currentTenant;
+    const routeParams = route().params as Record<string, string | undefined>;
+
+    const getListUrl = useCallback(() => {
+        if (apiRoute) return apiRoute;
+        if (isTenant && routeParams.tenant) return route("tenant.media.list", routeParams.tenant);
+        return route("media.list");
+    }, [apiRoute, isTenant, routeParams.tenant]);
+
+    const fetchFiles = useCallback(async (page = 1) => {
         setLoading(true);
         try {
-            const params: any = {};
-            // Using route().current() is safe, but determining context via prefix is robust for our app structure
-            const currentRoute = route().current();
-            const isTenant = currentRoute?.startsWith('tenant.');
-
+            const params: Record<string, string | number | boolean | undefined> = {};
             if (!isTenant) params.global = true;
-
             if (currentFolder) params.folder = currentFolder;
+            if (page > 1) params.page = page;
 
-            let url = apiRoute;
-
-            // If apiRoute is not provided, determine it automatically
-            if (!url) {
-                if (isTenant && route().params.tenant) {
-                    // Ensure we pass the tenant slug/id parameter
-                    url = route('tenant.media.list', route().params.tenant);
-                } else {
-                    url = route('media.list');
-                }
-            }
-
-            const response = await axios.get(url, { params });
-            const allItems = response.data.data || response.data;
-            setFiles(allItems);
-        } catch (error) {
-            console.error("Error fetching files:", error);
+            const response = await axios.get(getListUrl(), { params });
+            const data = response.data?.data ?? response.data;
+            const items = Array.isArray(data) ? data : [];
+            setFiles(items);
+            if (response.data?.links) setPaginationLinks(response.data.links);
+            else setPaginationLinks([]);
+            setCurrentPage(response.data?.meta?.current_page ?? 1);
+            setLastPage(response.data?.meta?.last_page ?? 1);
+        } catch (err) {
+            console.error("Error fetching files:", err);
             toast.error("Error cargando archivos");
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentFolder, getListUrl, isTenant]);
 
     useEffect(() => {
-        fetchFiles();
-    }, [currentFolder]);
+        fetchFiles(1);
+    }, [currentFolder, fetchFiles]);
 
-    const handleCreateFolder = async () => {
-        const name = prompt("Nombre de la carpeta:");
-        if (!name) return;
-
+    const handleCreateFolder = async (name: string) => {
+        if (!name.trim()) return;
         setCreatingFolder(true);
         try {
-            const isTenant = route().current()?.startsWith('tenant.');
-            const routeName = isTenant ? 'tenant.media.folder.create' : 'media.folder.create';
-            // @ts-ignore
-            const params = isTenant ? { tenant: route().params.tenant } : {};
+            const routeName = isTenant ? "tenant.media.folder.create" : "media.folder.create";
+            const params = isTenant ? { tenant: routeParams.tenant } : {};
+            const endpoint = route(routeName, params as Record<string, string>);
 
-            const endpoint = route(routeName, params);
-
-            await axios.post(endpoint, {
-                name,
-                parent_folder: currentFolder
-            });
+            await axios.post(endpoint, { name: name.trim(), parent_folder: currentFolder });
             toast.success("Carpeta creada");
-            fetchFiles();
-        } catch (error: any) {
-            console.error("Folder creation error:", error);
-            const msg = error.response?.data?.message || "Error creando carpeta";
+            setShowNewFolderModal(false);
+            setNewFolderName("");
+            fetchFiles(1);
+        } catch (err) {
+            const msg = (err as AxiosError<{ message?: string }>)?.response?.data?.message ?? "Error creando carpeta";
             toast.error(msg);
         } finally {
             setCreatingFolder(false);
@@ -123,11 +129,9 @@ export function MediaManager({
 
         setUploading(true);
         try {
-            const isTenant = route().current()?.startsWith('tenant.');
-            const routeName = isTenant ? 'tenant.media.store' : 'media.store';
-            // @ts-ignore
-            const params = isTenant ? { tenant: route().params.tenant } : {};
-            const endpoint = route(routeName, params);
+            const routeName = isTenant ? "tenant.media.store" : "media.store";
+            const params = isTenant ? { tenant: routeParams.tenant } : {};
+            const endpoint = route(routeName, params as Record<string, string>);
 
             await axios.post(endpoint, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
@@ -139,15 +143,15 @@ export function MediaManager({
                 },
             });
             toast.success("Archivo subido");
-            fetchFiles();
-        } catch (error) {
-            console.error(error);
+            fetchFiles(currentPage);
+        } catch (err) {
+            console.error(err);
             toast.error("Error al subir archivo");
         } finally {
             setUploading(false);
             setUploadProgress(0);
         }
-    }
+    };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = event.target.files;
@@ -156,20 +160,19 @@ export function MediaManager({
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("¿Eliminar este elemento?")) return;
         try {
-            const isTenant = route().current()?.startsWith('tenant.');
-            const routeName = isTenant ? 'tenant.media.destroy' : 'media.destroy';
-            // @ts-ignore
-            const params = isTenant ? { tenant: route().params.tenant, id } : { id };
+            const routeName = isTenant ? "tenant.media.destroy" : "media.destroy";
+            const params = isTenant ? { tenant: routeParams.tenant, id } : { id };
 
-            await axios.delete(route(routeName, params));
+            await axios.delete(route(routeName, params as Record<string, string | number>));
             toast.success("Eliminado");
-            setFiles(prev => prev.filter(f => f.id !== id));
-        } catch (error) {
+            setFileToDelete(null);
+            setFiles((prev) => prev.filter((f) => f.id !== id));
+        } catch (err) {
             toast.error("Error al eliminar");
+            setFileToDelete(null);
         }
-    }
+    };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -185,15 +188,12 @@ export function MediaManager({
         f.alt_text?.toLowerCase().includes(search.toLowerCase())
     );
 
-    const { auth, currentTenant } = usePage<any>().props;
-    const isTenant = !!currentTenant;
-
     // For Tenant context, use currentUserRole. For SuperAdmin context, use auth.permissions.
     const userPermissions = isTenant
-        ? (auth.currentUserRole?.permissions || [])
+        ? (currentUserRole?.permissions || [])
         : (auth.permissions || []);
 
-    const isOwner = isTenant ? auth.currentUserRole?.is_owner : auth.user?.is_super_admin;
+    const isOwner = isTenant ? currentUserRole?.is_owner : auth.user?.is_super_admin;
 
     const canUpload = isOwner || userPermissions.includes('*') || (isTenant ? userPermissions.includes('media.upload') : userPermissions.includes('sa.media.upload'));
     const canDelete = isOwner || userPermissions.includes('*') || (isTenant ? userPermissions.includes('media.delete') : userPermissions.includes('sa.media.delete'));
@@ -253,7 +253,7 @@ export function MediaManager({
                         variant="secondary"
                         size="sm"
                         onClick={() => {
-                            if (canUpload) handleCreateFolder();
+                            if (canUpload) setShowNewFolderModal(true);
                             else setShowPermissionModal(true);
                         }}
                         disabled={creatingFolder}
@@ -294,7 +294,7 @@ export function MediaManager({
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                         {filteredFiles.map((file) => {
                             const isFolder = file.type === 'folder';
                             return (
@@ -310,7 +310,11 @@ export function MediaManager({
                                             if (isFolder) {
                                                 setCurrentFolder(file.name || null);
                                             } else {
-                                                if (onSelect) onSelect(file);
+                                                if (onSelect) {
+                                                    onSelect(file);
+                                                } else if (isTenant && routeParams.tenant) {
+                                                    router.visit(route('tenant.media.show', { tenant: routeParams.tenant, id: file.id }));
+                                                }
                                             }
                                         }}
                                     >
@@ -339,13 +343,19 @@ export function MediaManager({
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-6 w-6 text-white hover:bg-white/20 hover:text-white"
-                                                        title="Ver detalles"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            window.open(file.url, '_blank');
-                                                        }}
+                                                        title="Descargar"
+                                                        asChild
+                                                        onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        <ImageIcon className="h-3 w-3" />
+                                                        <a
+                                                            href={isTenant && routeParams.tenant
+                                                                ? route('tenant.media.download', { tenant: routeParams.tenant, id: file.id })
+                                                                : file.url
+                                                            }
+                                                            {...(isTenant && routeParams.tenant ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                                                        >
+                                                            <Download className="h-3 w-3" />
+                                                        </a>
                                                     </Button>
                                                 )}
                                                 <Button
@@ -355,7 +365,7 @@ export function MediaManager({
                                                     title="Eliminar"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (canDelete) handleDelete(file.id);
+                                                        if (canDelete) setFileToDelete(file.id);
                                                         else setShowPermissionModal(true);
                                                     }}
                                                 >
@@ -376,14 +386,89 @@ export function MediaManager({
                     </div>
                 )}
                 {!loading && filteredFiles.length === 0 && (
-                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
-                        <div className="bg-slate-100 p-4 rounded-full">
-                            <ImageIcon className="w-8 h-8 text-slate-300" />
+                    <Empty className="col-span-full border-0">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <ImageIcon className="size-8 text-slate-400" />
+                            </EmptyMedia>
+                            <EmptyTitle>Sin archivos</EmptyTitle>
+                            <EmptyDescription>
+                                {currentFolder ? "Esta carpeta está vacía." : "Sube tu primer archivo o crea una carpeta para organizar."}
+                            </EmptyDescription>
+                        </EmptyHeader>
+                        <div className="flex flex-wrap gap-2 justify-center mt-2">
+                            {canUpload && (
+                                <>
+                                    <Button size="sm" onClick={() => document.getElementById("manager-file-upload")?.click()} className="gap-1">
+                                        <Upload className="w-4 h-4" />
+                                        Subir archivo
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => setShowNewFolderModal(true)} className="gap-1">
+                                        <FolderPlus className="w-4 h-4" />
+                                        Nueva carpeta
+                                    </Button>
+                                </>
+                            )}
                         </div>
-                        <p>Carpeta vacía</p>
+                    </Empty>
+                )}
+                {lastPage > 1 && (
+                    <div className="col-span-full mt-4 flex items-center justify-center gap-2">
+                        <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => fetchFiles(currentPage - 1)}>
+                            Anterior
+                        </Button>
+                        <span className="text-sm text-slate-600">Página {currentPage} de {lastPage}</span>
+                        <Button variant="outline" size="sm" disabled={currentPage >= lastPage} onClick={() => fetchFiles(currentPage + 1)}>
+                            Siguiente
+                        </Button>
                     </div>
                 )}
             </ScrollArea>
+
+            <AlertDialog open={fileToDelete !== null} onOpenChange={(open) => !open && setFileToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar este elemento?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Se eliminará el archivo o carpeta de forma permanente. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={() => fileToDelete != null && handleDelete(fileToDelete)}>
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <Dialog open={showNewFolderModal} onOpenChange={setShowNewFolderModal}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Nueva carpeta</DialogTitle>
+                        <DialogDescription>Escribe el nombre de la carpeta.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="new-folder-name">Nombre</Label>
+                            <Input
+                                id="new-folder-name"
+                                value={newFolderName}
+                                onChange={(e) => setNewFolderName(e.target.value)}
+                                placeholder="Ej: Marketing"
+                                onKeyDown={(e) => e.key === "Enter" && handleCreateFolder(newFolderName)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setShowNewFolderModal(false); setNewFolderName(""); }}>Cancelar</Button>
+                        <Button disabled={!newFolderName.trim() || creatingFolder} onClick={() => handleCreateFolder(newFolderName)} className="gap-2">
+                            {creatingFolder ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Crear
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

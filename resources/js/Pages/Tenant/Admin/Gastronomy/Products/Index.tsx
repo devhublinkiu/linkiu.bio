@@ -35,7 +35,9 @@ import {
     Star,
     Clock,
     Flame,
-    Eye
+    Eye,
+    MapPin,
+    Loader2
 } from "lucide-react";
 import ProductViewDrawer from '@/Components/Tenant/Admin/Gastronomy/Products/ProductViewDrawer';
 import {
@@ -55,10 +57,22 @@ import {
     AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
 import { toast } from 'sonner';
+import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 
 interface Category {
     id: number;
     name: string;
+}
+
+interface LocationPivot {
+    id: number;
+    name: string;
+}
+
+interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
 }
 
 interface Product {
@@ -71,7 +85,9 @@ interface Product {
     cost?: string | number;
     sku?: string;
     image: string;
+    image_url?: string | null;
     gallery?: string[];
+    gallery_urls?: string[];
     is_available: boolean;
     is_featured: boolean;
     status: 'active' | 'inactive';
@@ -80,25 +96,48 @@ interface Product {
     calories?: number | string;
     allergens?: string[];
     tags?: string[];
+    locations?: LocationPivot[];
 }
 
 interface Props {
     products: {
         data: Product[];
-        links: any[];
+        links: PaginationLink[];
     };
     categories: Category[];
+    locations: LocationPivot[];
+    products_limit: number | null;
+    products_count: number;
 }
 
-export default function Index({ products, categories }: Props) {
-    const { currentTenant } = usePage<PageProps>().props;
+export default function Index({ products, categories, locations, products_limit, products_count }: Props) {
+    const { currentTenant, currentUserRole } = usePage<PageProps>().props;
+    const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [search, setSearch] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [productToToggle, setProductToToggle] = useState<Product | null>(null);
     const [productToView, setProductToView] = useState<Product | null>(null);
     const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
 
+    const checkPermission = (permission: string) => {
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner === true ||
+            (Array.isArray(currentUserRole.permissions) && currentUserRole.permissions.includes('*')) ||
+            (Array.isArray(currentUserRole.permissions) && currentUserRole.permissions.includes(permission));
+    };
+
+    const handleActionWithPermission = (permission: string, action: () => void) => {
+        if (checkPermission(permission)) {
+            action();
+        } else {
+            setShowPermissionModal(true);
+        }
+    };
+    const [togglingId, setTogglingId] = useState<number | null>(null);
+
+    const limitReached = products_limit !== null && products_count >= products_limit;
 
     const handleDelete = () => {
         if (!productToDelete) return;
@@ -111,20 +150,36 @@ export default function Index({ products, categories }: Props) {
         });
     };
 
-    const toggleAvailability = (product: Product) => {
-        router.patch(route('tenant.admin.products.update', [currentTenant?.slug, product.id]), {
-            is_available: !product.is_available,
-            // We need to send other required fields if the StoreRequest is strict
-            // But since this is a partial update, we might need a separate endpoint or loose request
-            // For now, let's assume update handles it if we send name/price/category etc too
-            name: product.name,
-            price: product.price,
-            category_id: product.category_id,
-            status: product.status
-        }, {
-            preserveScroll: true,
-            onSuccess: () => toast.success('Estado actualizado'),
-        });
+    const confirmToggleAvailability = () => {
+        if (!productToToggle) return;
+        setTogglingId(productToToggle.id);
+
+        router.patch(
+            route('tenant.admin.products.toggle-availability', [currentTenant?.slug, productToToggle.id]),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success(
+                        productToToggle.is_available
+                            ? 'Producto marcado como agotado'
+                            : 'Producto disponible nuevamente'
+                    );
+                    setProductToToggle(null);
+                    setTogglingId(null);
+                },
+                onError: () => {
+                    toast.error('Error al cambiar disponibilidad');
+                    setTogglingId(null);
+                },
+            }
+        );
+    };
+
+    const getProductImageUrl = (product: Product): string => {
+        if (product.image_url) return product.image_url;
+        if (product.image) return `/media/${product.image}`;
+        return '';
     };
 
     const filteredProducts = products.data.filter(p => {
@@ -142,13 +197,26 @@ export default function Index({ products, categories }: Props) {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Productos</h1>
-                        <p className="text-sm text-muted-foreground">Gestiona los platos y bebidas de tu menú digital.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Gestiona los platos y bebidas de tu menú digital.
+                            <span className="ml-2 font-medium text-foreground">
+                                {products_limit !== null
+                                    ? `(${products_count} / ${products_limit} usados)`
+                                    : `(${products_count} productos)`}
+                            </span>
+                        </p>
                     </div>
-                    <Link href={route('tenant.admin.products.create', currentTenant?.slug)}>
-                        <Button className="cursor-pointer gap-2">
-                            <Plus className="w-4 h-4" /> Nuevo Producto
-                        </Button>
-                    </Link>
+                    <Button
+                        className="cursor-pointer gap-2"
+                        disabled={limitReached}
+                        title={limitReached ? `Has alcanzado el máximo de ${products_limit} productos en tu plan.` : ''}
+                        onClick={() => handleActionWithPermission('products.create', () => {
+                            if (!limitReached) router.visit(route('tenant.admin.products.create', currentTenant?.slug));
+                        })}
+                    >
+                        <Plus className="w-4 h-4" />
+                        {limitReached ? 'Límite alcanzado' : 'Nuevo Producto'}
+                    </Button>
                 </div>
 
                 {/* Filters & View Toggle */}
@@ -205,7 +273,7 @@ export default function Index({ products, categories }: Props) {
                             <Card key={product.id} className="overflow-hidden group hover:shadow-lg transition-all duration-300">
                                 <div className="relative aspect-square overflow-hidden bg-muted">
                                     <img
-                                        src={`/media/${product.image}`}
+                                        src={getProductImageUrl(product)}
                                         alt={product.name}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
@@ -245,12 +313,32 @@ export default function Index({ products, categories }: Props) {
                                         </div>
                                     </div>
 
+                                    {/* Location badges */}
+                                    {product.locations && product.locations.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mb-2">
+                                            {product.locations.slice(0, 2).map(loc => (
+                                                <Badge key={loc.id} variant="outline" className="text-[10px] h-5 gap-1">
+                                                    <MapPin className="w-2.5 h-2.5" /> {loc.name}
+                                                </Badge>
+                                            ))}
+                                            {product.locations.length > 2 && (
+                                                <Badge variant="outline" className="text-[10px] h-5">
+                                                    +{product.locations.length - 2}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
                                         <div className="flex items-center gap-2">
-                                            <Switch
-                                                checked={product.is_available}
-                                                onCheckedChange={() => toggleAvailability(product)}
-                                            />
+                                            {togglingId === product.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                            ) : (
+                                                <Switch
+                                                    checked={product.is_available}
+                                                    onCheckedChange={() => handleActionWithPermission('products.update', () => setProductToToggle(product))}
+                                                />
+                                            )}
                                             <span className="text-xs font-medium">
                                                 {product.is_available ? 'Disponible' : 'Agotado'}
                                             </span>
@@ -267,11 +355,14 @@ export default function Index({ products, categories }: Props) {
                                             >
                                                 <Eye className="w-4 h-4" />
                                             </Button>
-                                            <Link href={route('tenant.admin.products.edit', [currentTenant?.slug, product.id])}>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-muted">
-                                                    <Edit className="w-4 h-4" />
-                                                </Button>
-                                            </Link>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 hover:bg-muted"
+                                                onClick={() => handleActionWithPermission('products.update', () => router.visit(route('tenant.admin.products.edit', [currentTenant?.slug, product.id])))}
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button size="icon" variant="ghost" className="h-8 w-8">
@@ -279,7 +370,7 @@ export default function Index({ products, categories }: Props) {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem className="text-red-600 focus:text-red-700 cursor-pointer" onClick={() => setProductToDelete(product)}>
+                                                    <DropdownMenuItem className="text-red-600 focus:text-red-700 cursor-pointer" onClick={() => handleActionWithPermission('products.delete', () => setProductToDelete(product))}>
                                                         <Trash2 className="w-4 h-4 mr-2" /> Eliminar
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
@@ -299,6 +390,7 @@ export default function Index({ products, categories }: Props) {
                                         <TableHead className="w-[100px]">Imagen</TableHead>
                                         <TableHead>Producto</TableHead>
                                         <TableHead>Categoría</TableHead>
+                                        <TableHead>Sedes</TableHead>
                                         <TableHead>Precio</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
@@ -310,7 +402,7 @@ export default function Index({ products, categories }: Props) {
                                             <TableCell>
                                                 <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden">
                                                     <img
-                                                        src={`/media/${product.image}`}
+                                                        src={getProductImageUrl(product)}
                                                         alt={product.name}
                                                         className="w-full h-full object-cover"
                                                     />
@@ -323,13 +415,35 @@ export default function Index({ products, categories }: Props) {
                                                 </div>
                                             </TableCell>
                                             <TableCell>{product.category?.name}</TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {product.locations && product.locations.length > 0 ? (
+                                                        product.locations.slice(0, 2).map(loc => (
+                                                            <Badge key={loc.id} variant="outline" className="text-[10px] h-5">
+                                                                {loc.name}
+                                                            </Badge>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">Todas</span>
+                                                    )}
+                                                    {product.locations && product.locations.length > 2 && (
+                                                        <Badge variant="outline" className="text-[10px] h-5">
+                                                            +{product.locations.length - 2}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="font-bold text-primary">{formatPrice(product.price)}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <Switch
-                                                        checked={product.is_available}
-                                                        onCheckedChange={() => toggleAvailability(product)}
-                                                    />
+                                                    {togglingId === product.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                                    ) : (
+                                                        <Switch
+                                                            checked={product.is_available}
+                                                            onCheckedChange={() => handleActionWithPermission('products.update', () => setProductToToggle(product))}
+                                                        />
+                                                    )}
                                                     <Badge variant={product.is_available ? 'default' : 'secondary'}>
                                                         {product.is_available ? 'Disponible' : 'Agotado'}
                                                     </Badge>
@@ -348,12 +462,14 @@ export default function Index({ products, categories }: Props) {
                                                     >
                                                         <Eye className="w-4 h-4" />
                                                     </Button>
-                                                    <Link href={route('tenant.admin.products.edit', [currentTenant?.slug, product.id])}>
-                                                        <Button size="icon" variant="ghost">
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                    </Link>
-                                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setProductToDelete(product)}>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        onClick={() => handleActionWithPermission('products.update', () => router.visit(route('tenant.admin.products.edit', [currentTenant?.slug, product.id])))}
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleActionWithPermission('products.delete', () => setProductToDelete(product))}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
@@ -378,9 +494,14 @@ export default function Index({ products, categories }: Props) {
                                 ? 'No hay resultados para los filtros aplicados. Intenta con otros términos.'
                                 : 'Comienza agregando tu primer producto al menú para que tus clientes puedan verlo.'}
                         </p>
-                        <Link href={route('tenant.admin.products.create', currentTenant?.slug)} className="mt-6">
-                            <Button>Crear Producto</Button>
-                        </Link>
+                        {!limitReached && (
+                            <Button
+                                className="mt-6 cursor-pointer"
+                                onClick={() => handleActionWithPermission('products.create', () => router.visit(route('tenant.admin.products.create', currentTenant?.slug)))}
+                            >
+                                Crear Producto
+                            </Button>
+                        )}
                     </div>
                 )}
 
@@ -392,6 +513,7 @@ export default function Index({ products, categories }: Props) {
                 )}
             </div>
 
+            {/* Delete Confirmation */}
             <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -409,10 +531,37 @@ export default function Index({ products, categories }: Props) {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Toggle Availability Confirmation */}
+            <AlertDialog open={!!productToToggle} onOpenChange={(open) => !open && setProductToToggle(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {productToToggle?.is_available ? '¿Marcar como agotado?' : '¿Marcar como disponible?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {productToToggle?.is_available
+                                ? `"${productToToggle?.name}" dejará de ser visible en tu menú público.`
+                                : `"${productToToggle?.name}" volverá a ser visible para tus clientes.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmToggleAvailability}>
+                            {productToToggle?.is_available ? 'Sí, marcar agotado' : 'Sí, habilitar'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <ProductViewDrawer
                 product={productToView}
                 open={isViewDrawerOpen}
                 onOpenChange={setIsViewDrawerOpen}
+            />
+
+            <PermissionDeniedModal
+                open={showPermissionModal}
+                onOpenChange={setShowPermissionModal}
             />
         </AdminLayout>
     );

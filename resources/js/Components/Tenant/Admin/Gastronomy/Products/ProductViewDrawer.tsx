@@ -19,11 +19,17 @@ import {
     Calendar,
     Tag,
     Info,
-    Layers
+    Layers,
+    MapPin
 } from "lucide-react";
 import { formatPrice } from '@/lib/utils';
 
 interface Category {
+    id: number;
+    name: string;
+}
+
+interface LocationPivot {
     id: number;
     name: string;
 }
@@ -38,7 +44,9 @@ interface Product {
     cost?: string | number;
     sku?: string;
     image: string;
+    image_url?: string | null;
     gallery?: string[];
+    gallery_urls?: string[];
     is_available: boolean;
     is_featured: boolean;
     status: 'active' | 'inactive';
@@ -48,7 +56,8 @@ interface Product {
     allergens?: string[];
     tags?: string[];
     variant_groups?: VariantGroup[];
-    variantGroups?: VariantGroup[]; // Support both conventions
+    variantGroups?: VariantGroup[];
+    locations?: LocationPivot[];
 }
 
 interface VariantOption {
@@ -76,8 +85,11 @@ export default function ProductViewDrawer({ product, open, onOpenChange }: Props
     if (!product) return null;
 
     const getImageUrl = (img: string) => {
+        if (!img) return '';
         return img.startsWith('http') || img.startsWith('/') ? img : `/media/${img}`;
     };
+
+    const heroImageUrl = product.image_url || getImageUrl(product.image);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -86,7 +98,7 @@ export default function ProductViewDrawer({ product, open, onOpenChange }: Props
                     {/* Hero Image Section */}
                     <div className="relative aspect-video w-full bg-muted overflow-hidden">
                         <img
-                            src={getImageUrl(product.image)}
+                            src={heroImageUrl}
                             alt={product.name}
                             className="w-full h-full object-cover"
                         />
@@ -148,15 +160,18 @@ export default function ProductViewDrawer({ product, open, onOpenChange }: Props
                                     <ChevronRight className="w-3 h-3 text-primary" /> Galería Adicional
                                 </h4>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {product.gallery.map((img, i) => (
-                                        <div key={i} className="aspect-square rounded-lg overflow-hidden border bg-muted group cursor-zoom-in">
-                                            <img
-                                                src={getImageUrl(img)}
-                                                alt={`Gallery ${i}`}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                            />
-                                        </div>
-                                    ))}
+                                    {product.gallery.map((img, i) => {
+                                        const galleryUrl = product.gallery_urls?.[i] || getImageUrl(img);
+                                        return (
+                                            <div key={i} className="aspect-square rounded-lg overflow-hidden border bg-muted group cursor-zoom-in">
+                                                <img
+                                                    src={galleryUrl}
+                                                    alt={`Gallery ${i}`}
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -233,6 +248,22 @@ export default function ProductViewDrawer({ product, open, onOpenChange }: Props
                                 </div>
                             </div>
                         </div>
+
+                        {/* Locations */}
+                        {product.locations && product.locations.length > 0 && (
+                            <div className="space-y-3">
+                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <MapPin className="w-3 h-3 text-primary" /> Sedes
+                                </h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {product.locations.map((loc) => (
+                                        <Badge key={loc.id} variant="outline" className="text-[10px] font-bold gap-1">
+                                            <MapPin className="w-2.5 h-2.5" /> {loc.name}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Admin Info */}
                         <div className="rounded-xl border bg-muted/20 p-4 space-y-3 mt-4">

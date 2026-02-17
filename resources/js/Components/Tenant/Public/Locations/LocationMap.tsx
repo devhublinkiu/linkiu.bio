@@ -20,12 +20,16 @@ interface LocationMapProps {
     longitude: number;
 }
 
+const hasValidCoords = (lat: number, lng: number) =>
+    lat != null && lng != null && !Number.isNaN(lat) && !Number.isNaN(lng) && (lat !== 0 || lng !== 0);
+
 export default function LocationMap({ latitude, longitude }: LocationMapProps) {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<L.Map | null>(null);
+    const valid = hasValidCoords(latitude, longitude);
 
     useEffect(() => {
-        if (!mapContainerRef.current) return;
+        if (!valid || !mapContainerRef.current) return;
 
         // Initialize map if not already present
         if (!mapInstance.current) {
@@ -66,7 +70,15 @@ export default function LocationMap({ latitude, longitude }: LocationMapProps) {
                 mapInstance.current = null;
             }
         };
-    }, [latitude, longitude]);
+    }, [latitude, longitude, valid]);
+
+    if (!valid) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-500 text-sm font-medium" aria-label="Ubicación no disponible">
+                Ubicación no disponible
+            </div>
+        );
+    }
 
     return (
         <div ref={mapContainerRef} className="w-full h-full z-0 pointer-events-none grayscale-[20%]" />

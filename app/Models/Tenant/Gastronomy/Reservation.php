@@ -4,12 +4,13 @@ namespace App\Models\Tenant\Gastronomy;
 
 use App\Models\Table;
 use App\Models\Tenant;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Reservation extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant;
 
     protected $table = 'gastronomy_reservations';
 
@@ -28,6 +29,7 @@ class Reservation extends Model
         'notes',
         'admin_notes',
         'payment_proof',
+        'payment_proof_storage_disk',
         'payment_method',
         'payment_reference',
     ];
@@ -35,6 +37,25 @@ class Reservation extends Model
     protected $casts = [
         'reservation_date' => 'date:Y-m-d',
     ];
+
+    protected $appends = ['payment_proof_url'];
+
+    /**
+     * Accessor para obtener la URL completa del comprobante de pago (Bunny, no S3).
+     */
+    public function getPaymentProofUrlAttribute(): ?string
+    {
+        if (!$this->payment_proof) {
+            return null;
+        }
+
+        $disk = $this->payment_proof_storage_disk ?? 'bunny';
+        if ($disk !== 'bunny') {
+            return null;
+        }
+
+        return \Storage::disk('bunny')->url($this->payment_proof);
+    }
 
     public function tenant()
     {
@@ -53,7 +74,7 @@ class Reservation extends Model
 
     public function location()
     {
-        return $this->belongsTo(\App\Models\Location::class);
+        return $this->belongsTo(\App\Models\Tenant\Locations\Location::class);
     }
 
     // Scopes

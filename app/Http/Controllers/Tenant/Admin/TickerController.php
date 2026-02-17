@@ -3,63 +3,88 @@
 namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenant\Admin\StoreTickerRequest;
+use App\Http\Requests\Tenant\Admin\UpdateTickerRequest;
+use App\Models\Tenant\All\Ticker;
 use Illuminate\Http\Request;
-use App\Models\Ticker;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class TickerController extends Controller
 {
     public function index()
     {
-        Gate::authorize("tickers.view");
+        Gate::authorize('tickers.view');
 
-        return Inertia::render("Tenant/Admin/Tickers/Index", [
-            "tickers" => Ticker::latest()->get()
+        $tenant = app('currentTenant');
+        $tickers = Ticker::select(['id', 'content', 'link', 'background_color', 'text_color', 'order', 'is_active', 'created_at'])
+            ->orderBy('order', 'asc')
+            ->paginate(15);
+
+        $tickersLimit = $tenant->getLimit('tickers');
+        $tickersCount = Ticker::count();
+
+        return Inertia::render('Tenant/Admin/Tickers/Index', [
+            'tickers' => $tickers,
+            'tickers_limit' => $tickersLimit,
+            'tickers_count' => $tickersCount,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreTickerRequest $request, $tenant)
     {
-        Gate::authorize("tickers.create");
+        Gate::authorize('tickers.create');
 
-        $validated = $request->validate([
-            "content" => "required|string|max:255",
-            "link" => "nullable|url|max:255",
-            "background_color" => "required|string|max:10",
-            "is_active" => "boolean"
-        ]);
+        $tenant = app('currentTenant');
+        $maxTickers = $tenant->getLimit('tickers');
+        if ($maxTickers !== null && Ticker::count() >= $maxTickers) {
+            return back()->withErrors([
+                'limit' => "Has alcanzado el máximo de {$maxTickers} tickers permitidos en tu plan.",
+            ]);
+        }
 
-        Ticker::create($validated);
+        Ticker::create($request->validated());
 
-        return redirect()->route("tenant.admin.tickers.index", ["tenant" => app("currentTenant")->slug])
-            ->with("success", "Ticker creado correctamente");
+        return redirect()
+            ->route('tenant.admin.tickers.index', ['tenant' => $tenant->slug])
+            ->with('success', 'Ticker creado correctamente');
     }
 
-    public function update(Request $request, Ticker $ticker)
+    public function update(UpdateTickerRequest $request, $tenant, Ticker $ticker)
     {
-        Gate::authorize("tickers.update");
+        Gate::authorize('tickers.update');
 
-        $validated = $request->validate([
-            "content" => "required|string|max:255",
-            "link" => "nullable|url|max:255",
-            "background_color" => "required|string|max:10",
-            "is_active" => "boolean"
-        ]);
+        $ticker->update($request->validated());
 
-        $ticker->update($validated);
-
-        return redirect()->route("tenant.admin.tickers.index", ["tenant" => app("currentTenant")->slug])
-            ->with("success", "Ticker actualizado correctamente");
+        return redirect()
+            ->route('tenant.admin.tickers.index', ['tenant' => app('currentTenant')->slug])
+            ->with('success', 'Ticker actualizado correctamente');
     }
 
-    public function destroy(Ticker $ticker)
+    public function destroy($tenant, Ticker $ticker)
     {
-        Gate::authorize("tickers.delete");
+        Gate::authorize('tickers.delete');
 
         $ticker->delete();
 
-        return redirect()->route("tenant.admin.tickers.index", ["tenant" => app("currentTenant")->slug])
-            ->with("success", "Ticker eliminado correctamente");
+        return redirect()
+            ->route('tenant.admin.tickers.index', ['tenant' => app('currentTenant')->slug])
+            ->with('success', 'Ticker eliminado correctamente');
+    }
+
+    public function reorder(Request $request)
+    {
+        Gate::authorize('tickers.update');
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:tickers,id',
+        ]);
+
+        foreach ($request->ids as $index => $id) {
+            Ticker::where('id', $id)->update(['order' => $index]);
+        }
+
+        return response()->json(['message' => 'Orden actualizado']);
     }
 }

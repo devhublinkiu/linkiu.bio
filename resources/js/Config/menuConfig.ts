@@ -37,7 +37,8 @@ import {
     BarChart3,
     Monitor,
     ShoppingBag as ShoppingBagIcon,
-    ConciergeBell
+    ConciergeBell,
+    Video
 } from 'lucide-react';
 
 export const MODULE_ICONS: Record<string, any> = {
@@ -50,6 +51,7 @@ export const MODULE_ICONS: Record<string, any> = {
     files: FolderOpen,
     sliders: Images,
     inventory: Boxes,
+    warehouse: Boxes,
     linkiupay: CreditCard,
     buildiu: LayoutTemplate,
     whatsapp: MessageCircle,
@@ -77,7 +79,8 @@ export const MODULE_ICONS: Record<string, any> = {
     reservations: CalendarClock,
     kitchen: ChefHat,
     waiters: ConciergeBell,
-    statistics: BarChart3
+    statistics: BarChart3,
+    shorts: Video
 };
 
 export const MODULE_LABELS: Record<string, string> = {
@@ -90,6 +93,7 @@ export const MODULE_LABELS: Record<string, string> = {
     files: 'Mis Archivos',
     sliders: 'Sliders',
     inventory: 'Inventario',
+    warehouse: 'Bodega',
     linkiupay: 'LinkiuPay',
     buildiu: 'Buildiu',
     whatsapp: 'Notificaciones whatsapp', // Lowercase w as requested
@@ -116,7 +120,8 @@ export const MODULE_LABELS: Record<string, string> = {
     reservations: 'Reservas',
     kitchen: 'Cocina',
     waiters: 'Meseros',
-    statistics: 'Estadísticas'
+    statistics: 'Estadísticas',
+    shorts: 'Shorts'
 };
 
 // Map module keys to route names (if they exist, otherwise '#')
@@ -129,7 +134,8 @@ export const MODULE_ROUTES: Record<string, string> = {
     variables: '#',
     files: 'tenant.media.index',
     sliders: 'tenant.sliders.index',
-    inventory: '#',
+    inventory: 'tenant.admin.inventory.index',
+    warehouse: '#',
     linkiupay: '#',
     buildiu: '#',
     whatsapp: 'tenant.whatsapp.edit',
@@ -155,7 +161,8 @@ export const MODULE_ROUTES: Record<string, string> = {
     reservations: 'tenant.admin.reservations.index',
     kitchen: 'tenant.admin.kitchen.index',
     waiters: 'tenant.admin.waiters.index',
-    statistics: '#'
+    statistics: '#',
+    shorts: 'tenant.shorts.index'
 };
 
 // Sub-items configuration (optional, for modules with children)
@@ -198,14 +205,15 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'variables',
         'files',
         'sliders',
-        'inventory',
+        'warehouse',
         'linkiupay',
         'buildiu',
         'whatsapp',
         'linkiulab',
         'integrations',
         'shipping',
-        'support'
+        'support',
+        'shorts'
     ],
     'ecommerce': [
         'dashboard',
@@ -215,7 +223,7 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'variables',
         'files',
         'sliders',
-        'inventory',
+        'warehouse',
         'whatsapp',
         'integrations',
         'shipping',
@@ -223,7 +231,8 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'locations',
         'coupons',
         'tickers',
-        'support'
+        'support',
+        'shorts'
     ],
     'gastronomia': [
         'dashboard',
@@ -241,6 +250,7 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'shipping', // Zonas de envio
         'payment_methods',
         'locations',
+        'shorts',
         'whatsapp',
         'sliders',
         'tickers',
@@ -263,12 +273,32 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'files',
         'support',
         'whatsapp',
-        'locations'
+        'locations',
+        'shorts'
     ],
     'default': [
         'dashboard',
         'settings'
     ]
+};
+
+// Modules that support numeric limits per plan (key → label del input)
+// Se agregan módulos a medida que se auditan
+export const MODULE_HAS_LIMIT: Record<string, string> = {
+    'tickers': 'Máx. tickers',
+    'sliders': 'Máx. sliders',
+    'locations': 'Máx. sedes',
+    'payment_methods': 'Máx. cuentas bancarias',
+    'digital_menu': 'Máx. productos',
+    'shorts': 'Máx. shorts',
+};
+
+// En vertical gastronomía el módulo es "digital_menu" pero el backend usa getLimit('products')
+export const LIMIT_FORM_KEY_TO_BACKEND: Record<string, string> = {
+    digital_menu: 'products',
+};
+export const LIMIT_BACKEND_KEY_TO_FORM: Record<string, string> = {
+    products: 'digital_menu',
 };
 
 // Helper to differentiate features per vertical (e.g. Integrations list)

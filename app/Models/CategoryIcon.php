@@ -24,7 +24,7 @@ class CategoryIcon extends Model
 
     public function getIconUrlAttribute()
     {
-        return $this->path ? \Illuminate\Support\Facades\Storage::disk('s3')->url($this->path) : null;
+        return $this->path ? \Illuminate\Support\Facades\Storage::disk('bunny')->url($this->path) : null;
     }
 
     public function vertical()

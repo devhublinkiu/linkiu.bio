@@ -19,7 +19,7 @@ import { Checkbox } from "@/Components/ui/checkbox";
 import { Badge } from "@/Components/ui/badge";
 import { Separator } from "@/Components/ui/separator";
 import { MediaManagerModal, MediaFile } from "@/Components/Shared/MediaManager/MediaManagerModal";
-import { Info, DollarSign, Image as ImageIcon, UtensilsCrossed, Settings, AlertCircle, Save, Plus, X, Upload, Folder, Layers, Trash2, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { Info, DollarSign, Image as ImageIcon, UtensilsCrossed, Settings, AlertCircle, Save, Plus, X, Upload, Folder, Layers, Trash2, ArrowUp, ArrowDown, MapPin } from "lucide-react";
 import { formatPrice } from '@/lib/utils';
 import {
     Accordion,
@@ -29,6 +29,11 @@ import {
 } from "@/Components/ui/accordion";
 
 interface Category {
+    id: number;
+    name: string;
+}
+
+interface LocationItem {
     id: number;
     name: string;
 }
@@ -62,8 +67,10 @@ interface Product {
     cost?: number | string;
     sku?: string;
     image?: string;
+    image_url?: string | null;
     image_file?: File | null;
     gallery?: string[];
+    gallery_urls?: string[];
     gallery_files?: File[];
     preparation_time?: number;
     calories?: number;
@@ -76,11 +83,13 @@ interface Product {
     tax_name?: string;
     tax_rate?: number;
     price_includes_tax?: boolean;
+    locations?: LocationItem[];
 }
 
 interface Props {
     product?: Product;
     categories: Category[];
+    locations?: LocationItem[];
     submitRoute: string;
     method?: 'post' | 'put' | 'patch';
 }
@@ -129,18 +138,20 @@ interface ProductFormData {
     tax_name: string;
     tax_rate: string | number;
     price_includes_tax: boolean;
+    location_ids: number[];
 }
 
-export default function ProductForm({ product, categories, submitRoute, method = 'post' }: Props) {
+export default function ProductForm({ product, categories, locations = [], submitRoute, method = 'post' }: Props) {
     const [galleryModalOpen, setGalleryModalOpen] = React.useState(false);
-    const ensureArray = (val: any) => {
+
+    const ensureArray = (val: unknown): string[] => {
         if (!val) return [];
-        if (Array.isArray(val)) return val;
+        if (Array.isArray(val)) return val as string[];
         if (typeof val === 'string') {
             try {
                 const parsed = JSON.parse(val);
                 return Array.isArray(parsed) ? parsed : [val];
-            } catch (e) {
+            } catch {
                 return [val];
             }
         }
@@ -171,6 +182,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
         tax_name: product?.tax_name || '',
         tax_rate: product?.tax_rate ? Number(product.tax_rate).toString() : '',
         price_includes_tax: product?.price_includes_tax ?? false,
+        location_ids: product?.locations?.map(l => l.id) || [],
     });
 
     const addVariantGroup = () => {
@@ -196,7 +208,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
         setData('variant_groups', newGroups);
     };
 
-    const updateVariantGroup = (index: number, field: keyof VariantGroup, value: any) => {
+    const updateVariantGroup = (index: number, field: keyof VariantGroup, value: string | number | boolean) => {
         const newGroups = [...data.variant_groups];
         newGroups[index] = { ...newGroups[index], [field]: value };
         setData('variant_groups', newGroups);
@@ -219,7 +231,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
         setData('variant_groups', newGroups);
     };
 
-    const updateOption = (groupIndex: number, optionIndex: number, field: keyof VariantOption, value: any) => {
+    const updateOption = (groupIndex: number, optionIndex: number, field: keyof VariantOption, value: string | number | boolean) => {
         const newGroups = [...data.variant_groups];
         newGroups[groupIndex].options[optionIndex] = {
             ...newGroups[groupIndex].options[optionIndex],
@@ -248,7 +260,6 @@ export default function ProductForm({ product, categories, submitRoute, method =
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Since we are uploading files, we must use POST even for updates with _method spoofing
         post(submitRoute, {
             forceFormData: true,
             preserveScroll: true,
@@ -264,6 +275,15 @@ export default function ProductForm({ product, categories, submitRoute, method =
         }
     };
 
+    const toggleLocation = (locationId: number) => {
+        const current = data.location_ids;
+        if (current.includes(locationId)) {
+            setData('location_ids', current.filter(id => id !== locationId));
+        } else {
+            setData('location_ids', [...current, locationId]);
+        }
+    };
+
     const imageInputRef = React.useRef<HTMLInputElement>(null);
     const galleryInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -271,7 +291,16 @@ export default function ProductForm({ product, categories, submitRoute, method =
         if (!img) return '';
         if (img instanceof File) return URL.createObjectURL(img);
         if (typeof img !== 'string') return '';
-        return img.startsWith('http') || img.startsWith('/') ? img : `/media/${img}`;
+        if (img.startsWith('http') || img.startsWith('/')) return img;
+        return `/media/${img}`;
+    };
+
+    // For the main image preview, prefer image_url from backend (BunnyCDN)
+    const getMainImagePreview = (): string => {
+        if (data.image_file) return URL.createObjectURL(data.image_file);
+        if (product?.image_url) return product.image_url;
+        if (data.image) return getImageUrl(data.image);
+        return '';
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +321,14 @@ export default function ProductForm({ product, categories, submitRoute, method =
                 setData('gallery_files', [...(data.gallery_files || []), ...toAdd]);
             }
         }
+    };
+
+    // Build gallery preview URLs: prefer gallery_urls from backend (BunnyCDN)
+    const getGalleryPreviewUrl = (img: string, index: number): string => {
+        if (product?.gallery_urls && product.gallery_urls[index]) {
+            return product.gallery_urls[index];
+        }
+        return getImageUrl(img);
     };
 
     return (
@@ -487,18 +524,20 @@ export default function ProductForm({ product, categories, submitRoute, method =
                             </CardContent>
                         </Card>
 
-                        {/* Implement Tax Configuration */}
+                        {/* Tax Configuration */}
                         <Card className="border-none shadow-sm">
                             <CardHeader>
                                 <CardTitle className="text-lg">Impuestos</CardTitle>
                                 <CardDescription>Configuración específica de impuestos para este producto (sobrescribe la configuración global).</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex items-center space-x-2 border p-3 rounded-lg bg-muted/20">
+                                    <div className="flex items-center space-x-2 border p-3 rounded-lg bg-muted/20">
                                     <Switch
                                         id="price_includes_tax"
-                                        checked={data.price_includes_tax}
-                                        onCheckedChange={(checked) => setData('price_includes_tax', checked)}
+                                        checked={!!data.price_includes_tax}
+                                        onCheckedChange={(checked) => {
+                                            if (Boolean(data.price_includes_tax) !== checked) setData('price_includes_tax', checked);
+                                        }}
                                     />
                                     <Label htmlFor="price_includes_tax" className="cursor-pointer">El precio de venta incluye impuestos</Label>
                                 </div>
@@ -552,9 +591,9 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                                 className="relative w-full md:w-64 aspect-square rounded-2xl border-2 border-dashed border-muted-foreground/20 bg-muted/5 flex items-center justify-center overflow-hidden group cursor-pointer hover:border-primary/50 transition-colors shrink-0"
                                                 onClick={() => imageInputRef.current?.click()}
                                             >
-                                                {(data.image || data.image_file) ? (
+                                                {(data.image || data.image_file || product?.image_url) ? (
                                                     <img
-                                                        src={getImageUrl(data.image_file || data.image || '')}
+                                                        src={getMainImagePreview()}
                                                         className="w-full h-full object-cover"
                                                         alt="Principal"
                                                     />
@@ -627,7 +666,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                             {data.gallery.map((img, i) => (
                                                 <div key={`path-${i}`} className="relative aspect-square rounded-lg overflow-hidden border group">
                                                     <img
-                                                        src={getImageUrl(img)}
+                                                        src={getGalleryPreviewUrl(img, i)}
                                                         alt={`Gallery ${i}`}
                                                         className="w-full h-full object-cover"
                                                     />
@@ -764,7 +803,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                                 size="icon"
                                                 className="text-muted-foreground hover:text-destructive shrink-0 ml-2"
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent accordion toggle
+                                                    e.stopPropagation();
                                                     removeVariantGroup(gIndex);
                                                 }}
                                             >
@@ -813,8 +852,10 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                                         <Label>Configuración</Label>
                                                         <div className="flex items-center gap-2 border rounded-md p-2 bg-muted/20">
                                                             <Switch
-                                                                checked={group.is_required}
-                                                                onCheckedChange={val => updateVariantGroup(gIndex, 'is_required', val)}
+                                                                checked={!!group.is_required}
+                                                                onCheckedChange={val => {
+                                                                    if (Boolean(group.is_required) !== val) updateVariantGroup(gIndex, 'is_required', val);
+                                                                }}
                                                             />
                                                             <Label className="text-xs uppercase font-bold text-muted-foreground cursor-pointer" onClick={() => updateVariantGroup(gIndex, 'is_required', !group.is_required)}>
                                                                 Obligatorio
@@ -859,7 +900,7 @@ export default function ProductForm({ product, categories, submitRoute, method =
 
                                                     <div className="space-y-2">
                                                         {group.options.map((option, oIndex) => (
-                                                            <div key={`opt-${gIndex}-${oIndex}`} className="flex items-start gap-2 p-2 rounded-lg border bg-white group/option hover:border-primary/30 transition-colors items-center">
+                                                            <div key={`opt-${gIndex}-${oIndex}`} className="flex items-center gap-2 p-2 rounded-lg border bg-white group/option hover:border-primary/30 transition-colors">
                                                                 <div className="flex flex-col gap-1 mt-0.5">
                                                                     <Button
                                                                         type="button"
@@ -912,8 +953,10 @@ export default function ProductForm({ product, categories, submitRoute, method =
 
                                                                 <div className="flex items-center gap-1 mt-0.5">
                                                                     <Switch
-                                                                        checked={option.is_available}
-                                                                        onCheckedChange={val => updateOption(gIndex, oIndex, 'is_available', val)}
+                                                                        checked={!!option.is_available}
+                                                                        onCheckedChange={val => {
+                                                                            if (Boolean(option.is_available) !== val) updateOption(gIndex, oIndex, 'is_available', val);
+                                                                        }}
                                                                     />
                                                                     <Button
                                                                         type="button"
@@ -1039,8 +1082,10 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                             {data.is_available ? 'Disponible' : 'Agotado'}
                                         </span>
                                         <Switch
-                                            checked={data.is_available}
-                                            onCheckedChange={val => setData('is_available', val)}
+                                            checked={!!data.is_available}
+                                            onCheckedChange={val => {
+                                                if (Boolean(data.is_available) !== val) setData('is_available', val);
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -1049,13 +1094,15 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                     <div className="space-y-0.5">
                                         <div className="flex items-center gap-2">
                                             <Label className="text-base">Producto Destacado</Label>
-                                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-none">⭐ VIP</Badge>
+                                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-none">VIP</Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground">Aparecerá en los primeros lugares y con un diseño especial en el menú.</p>
                                     </div>
                                     <Switch
-                                        checked={data.is_featured}
-                                        onCheckedChange={val => setData('is_featured', val)}
+                                        checked={!!data.is_featured}
+                                        onCheckedChange={val => {
+                                            if (Boolean(data.is_featured) !== val) setData('is_featured', val);
+                                        }}
                                     />
                                 </div>
 
@@ -1066,12 +1113,74 @@ export default function ProductForm({ product, categories, submitRoute, method =
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="active" className="text-green-600 font-medium">● Activo</SelectItem>
-                                            <SelectItem value="inactive" className="text-slate-400 font-medium">● Inactivo</SelectItem>
+                                            <SelectItem value="active" className="text-green-600 font-medium">Activo</SelectItem>
+                                            <SelectItem value="inactive" className="text-slate-400 font-medium">Inactivo</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground italic">Los productos inactivos están ocultos totalmente del menú público.</p>
                                 </div>
+
+                                {/* Location Selector */}
+                                {locations.length > 0 && (
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="space-y-1">
+                                            <Label className="flex items-center gap-2 text-base">
+                                                <MapPin className="w-4 h-4 text-primary" />
+                                                Disponibilidad por Sede
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Selecciona en qué sedes estará disponible este producto.
+                                                Si no seleccionas ninguna, estará disponible en <strong>todas</strong>.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {locations.map(loc => {
+                                                const isChecked = data.location_ids.includes(loc.id);
+                                                return (
+                                                <div
+                                                    key={loc.id}
+                                                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                                                        isChecked ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'
+                                                    }`}
+                                                >
+                                                    <Checkbox
+                                                        id={`location-${loc.id}`}
+                                                        checked={isChecked}
+                                                        onCheckedChange={(checked) => {
+                                                            const next = checked === true;
+                                                            if (isChecked !== next) toggleLocation(loc.id);
+                                                        }}
+                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                                                        <span className="text-sm font-medium">{loc.name}</span>
+                                                    </div>
+                                                </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {data.location_ids.length > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {data.location_ids.length} sede{data.location_ids.length !== 1 ? 's' : ''} seleccionada{data.location_ids.length !== 1 ? 's' : ''}
+                                                </Badge>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-xs h-6"
+                                                    onClick={() => setData('location_ids', [])}
+                                                >
+                                                    Limpiar selección
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {errors.location_ids && <p className="text-xs text-red-500 font-medium">{errors.location_ids}</p>}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>

@@ -19,7 +19,9 @@ import {
     AlertCircle,
     Copy,
     Building2,
-    Globe
+    Globe,
+    Loader2,
+    Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -50,14 +52,18 @@ import {
     AlertDialogTitle,
     AlertDialogTitle as AlertDialogTitleComp,
 } from "@/Components/ui/alert-dialog";
+import SharedPagination from '@/Components/Shared/Pagination';
+
+type LocationOption = { id: number; name: string };
+type PaginationLink = { url: string | null; label: string; active: boolean };
 
 interface PaymentMethod {
     id: number;
     type: string;
     is_active: boolean;
-    settings: any;
+    settings: Record<string, unknown>;
     location_id: number | null;
-    location?: any;
+    location?: LocationOption | null;
 }
 
 interface BankAccount {
@@ -69,17 +75,25 @@ interface BankAccount {
     holder_id?: string;
     is_active: boolean;
     location_id: number | null;
-    location?: any;
+    location?: LocationOption | null;
 }
 
 interface Props {
-    tenant: any;
+    tenant: { id: number; slug: string; name: string; logo_url?: string };
     paymentMethods: PaymentMethod[];
-    bankAccounts: BankAccount[];
-    locations: any[];
+    bankAccounts: {
+        data: BankAccount[];
+        links: PaginationLink[];
+        current_page: number;
+        last_page: number;
+        total: number;
+    };
+    bank_accounts_limit: number | null;
+    bank_accounts_count: number;
+    locations: LocationOption[];
 }
 
-export default function Index({ tenant, paymentMethods, bankAccounts, locations }: Props) {
+export default function Index({ tenant, paymentMethods, bankAccounts, bank_accounts_limit, bank_accounts_count, locations }: Props) {
     const { currentUserRole } = usePage<PageProps>().props;
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(null);
@@ -87,8 +101,14 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
     const [accountToEdit, setAccountToEdit] = useState<BankAccount | null>(null);
 
     const hasPermission = (permission: string) => {
-        return currentUserRole?.permissions?.includes(permission);
+        if (!currentUserRole) return false;
+        return currentUserRole.is_owner === true
+            || currentUserRole.permissions?.includes('*') === true
+            || currentUserRole.permissions?.includes(permission) === true;
     };
+
+    const atLimit = bank_accounts_limit !== null && bank_accounts_count >= bank_accounts_limit;
+    const bankAccountsList = bankAccounts.data;
 
     const handleProtectedAction = (e: React.MouseEvent | null, permission: string, callback: () => void) => {
         if (e) {
@@ -114,11 +134,12 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
             return;
         }
 
-        router.put(route('tenant.payment-methods.update.method', { tenant: tenant.slug, method: method.id }), {
+        const payload = {
             is_active: isActive,
-            settings: method.settings,
+            settings: method.settings ?? {},
             location_id: method.location_id
-        }, {
+        };
+        router.put(route('tenant.payment-methods.update.method', { tenant: tenant.slug, method: method.id }), payload as Record<string, import('@inertiajs/core').FormDataConvertible>, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => toast.success(isActive ? 'Método activado' : 'Método desactivado'),
@@ -126,17 +147,18 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
         });
     };
 
-    const updateSettings = (method: PaymentMethod, newSettings: any) => {
+    const updateSettings = (method: PaymentMethod, newSettings: Record<string, boolean>) => {
         if (!hasPermission('payment_methods.update')) {
             setShowPermissionModal(true);
             return;
         }
 
-        router.put(route('tenant.payment-methods.update.method', { tenant: tenant.slug, method: method.id }), {
+        const payload = {
             is_active: method.is_active,
             location_id: method.location_id,
-            settings: { ...method.settings, ...newSettings }
-        }, {
+            settings: { ...(method.settings ?? {}), ...newSettings }
+        };
+        router.put(route('tenant.payment-methods.update.method', { tenant: tenant.slug, method: method.id }), payload as Record<string, import('@inertiajs/core').FormDataConvertible>, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => toast.success('Configuración actualizada'),
@@ -159,10 +181,17 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
         <AdminLayout title="Métodos de Pago">
             <Head title="Métodos de Pago - Linkiu.Bio" />
 
-            <div className="max-w-5xl mx-auto py-8 text-slate-900">
+            <div className="max-w-7xl mx-auto py-8 text-slate-900">
                 <div className="mb-8">
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Métodos de Pago</h1>
-                    <p className="text-slate-500 font-medium">Define cómo quieres recibir el dinero de tus clientes.</p>
+                    <p className="text-slate-500 font-medium">
+                        Define cómo quieres recibir el dinero de tus clientes.
+                        {bank_accounts_limit !== null && (
+                            <span className="ml-1 font-medium text-foreground">
+                                ({bank_accounts_count} / {bank_accounts_limit} cuentas bancarias)
+                            </span>
+                        )}
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -186,35 +215,58 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
                                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                                     <Label className="text-xs font-bold uppercase text-slate-500">Exigir Comprobante</Label>
                                     <Switch
-                                        checked={transferMethod.settings?.require_proof ?? true}
+                                        checked={transferMethod.settings?.require_proof !== false}
                                         onCheckedChange={(checked) => updateSettings(transferMethod, { require_proof: checked })}
                                     />
                                 </div>
                                 <div className="pt-2">
                                     <div className="flex justify-between items-center mb-3">
-                                        <h4 className="text-sm font-bold">Cuentas ({bankAccounts.length})</h4>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 text-xs gap-1"
-                                            onClick={(e) => handleProtectedAction(e, 'payment_methods.create', () => setShowAddModal(true))}
-                                        >
-                                            <Plus className="w-3 h-3" /> Agregar
-                                        </Button>
-                                    </div>
-                                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                                        {bankAccounts.map(account => (
-                                            <AccountItem
-                                                key={account.id}
-                                                account={account}
-                                                onDelete={(a) => handleProtectedAction(null, 'payment_methods.delete', () => setAccountToDelete(a))}
-                                                onEdit={(a) => handleProtectedAction(null, 'payment_methods.update', () => setAccountToEdit(a))}
-                                            />
-                                        ))}
-                                        {bankAccounts.length === 0 && (
-                                            <p className="text-xs text-slate-400 text-center py-4 italic" >No tienes cuentas registradas.</p>
+                                        <h4 className="text-sm font-bold">Cuentas ({bankAccounts.total})</h4>
+                                        {atLimit ? (
+                                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled title="Has alcanzado el máximo de cuentas bancarias permitidas en tu plan">
+                                                <Plus className="w-3 h-3" /> Agregar
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 text-xs gap-1 cursor-pointer"
+                                                onClick={(e) => handleProtectedAction(e, 'payment_methods.create', () => setShowAddModal(true))}
+                                            >
+                                                <Plus className="w-3 h-3" /> Agregar
+                                            </Button>
                                         )}
                                     </div>
+                                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                        {bankAccountsList.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-8 px-4 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                                                <div className="rounded-full bg-primary/10 p-3 mb-3">
+                                                    <Wallet className="size-8 text-primary" />
+                                                </div>
+                                                <p className="text-sm font-medium text-slate-600 mb-1">No tienes cuentas registradas</p>
+                                                <p className="text-xs text-slate-500 mb-3">Agrega una cuenta para recibir transferencias.</p>
+                                                {!atLimit && (
+                                                    <Button size="sm" className="cursor-pointer" onClick={() => handleProtectedAction(null, 'payment_methods.create', () => setShowAddModal(true))}>
+                                                        <Plus className="w-3.5 h-3.5 mr-1" /> Agregar primera cuenta
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            bankAccountsList.map(account => (
+                                                <AccountItem
+                                                    key={account.id}
+                                                    account={account}
+                                                    onDelete={(a) => handleProtectedAction(null, 'payment_methods.delete', () => setAccountToDelete(a))}
+                                                    onEdit={(a) => handleProtectedAction(null, 'payment_methods.update', () => setAccountToEdit(a))}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
+                                    {bankAccounts.last_page > 1 && (
+                                        <div className="mt-3 pt-3 border-t border-slate-100">
+                                            <SharedPagination links={bankAccounts.links} />
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         )}
@@ -240,7 +292,7 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
                                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                                     <Label className="text-xs font-bold uppercase text-slate-500">Preguntar cuánto devuelta necesita</Label>
                                     <Switch
-                                        checked={cashMethod.settings?.ask_change ?? true}
+                                        checked={cashMethod.settings?.ask_change !== false}
                                         onCheckedChange={(checked) => updateSettings(cashMethod, { ask_change: checked })}
                                     />
                                 </div>
@@ -271,7 +323,7 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
                 />
 
                 <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="border-red-100">
                         <AlertDialogHeader>
                             <AlertDialogTitleComp>¿Seguro que deseas eliminar esta cuenta?</AlertDialogTitleComp>
                             <AlertDialogDescription>
@@ -279,8 +331,8 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={confirmDeleteAccount} className="bg-red-600 hover:bg-red-700">
+                            <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction variant="destructive" onClick={confirmDeleteAccount} className="cursor-pointer">
                                 Eliminar Cuenta
                             </AlertDialogAction>
                         </AlertDialogFooter>
@@ -292,6 +344,7 @@ export default function Index({ tenant, paymentMethods, bankAccounts, locations 
                     onClose={() => setShowAddModal(false)}
                     locations={locations}
                     tenant={tenant}
+                    atLimit={atLimit}
                 />
 
                 {accountToEdit && (
@@ -343,10 +396,10 @@ function AccountItem({ account, onDelete, onEdit }: { account: BankAccount, onDe
     );
 }
 
-function AddAccountModal({ isOpen, onClose, locations, tenant }: { isOpen: boolean, onClose: () => void, locations: any[], tenant: any }) {
+function AddAccountModal({ isOpen, onClose, locations, tenant, atLimit }: { isOpen: boolean; onClose: () => void; locations: LocationOption[]; tenant: Props['tenant']; atLimit?: boolean }) {
     const { data, setData, post, processing, reset, errors } = useForm({
         bank_name: '',
-        account_type: 'Ahorros', // 'Ahorros', 'Corriente', 'Depósito Electrónico'
+        account_type: 'Ahorros',
         account_number: '',
         account_holder: '',
         holder_id: '',
@@ -361,7 +414,8 @@ function AddAccountModal({ isOpen, onClose, locations, tenant }: { isOpen: boole
                 toast.success('Cuenta agregada');
                 onClose();
                 reset();
-            }
+            },
+            onError: () => toast.error('Revisa los campos del formulario'),
         });
     };
 
@@ -370,7 +424,7 @@ function AddAccountModal({ isOpen, onClose, locations, tenant }: { isOpen: boole
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Nueva Cuenta Bancaria</DialogTitle>
-                    <DialogDescription>Aqué cuenta deben transferir tus clientes?</DialogDescription>
+                    <DialogDescription>¿A qué cuenta deben transferir tus clientes?</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={submit} className="space-y-4 pt-2">
                     <div className="grid grid-cols-2 gap-4">
@@ -441,7 +495,10 @@ function AddAccountModal({ isOpen, onClose, locations, tenant }: { isOpen: boole
                         <p className="text-[10px] text-slate-400">Si seleccionas una sede, esta cuenta solo aparecerá en pedidos de esa sede.</p>
                     </div>
                     <DialogFooter>
-                        <Button type="submit" disabled={processing}>Guardar Cuenta</Button>
+                        <Button type="submit" disabled={processing || atLimit} className="cursor-pointer">
+                            {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                            Guardar Cuenta
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -449,27 +506,25 @@ function AddAccountModal({ isOpen, onClose, locations, tenant }: { isOpen: boole
     );
 }
 
-function EditAccountModal({ isOpen, onClose, account, locations, tenant }: { isOpen: boolean, onClose: () => void, account: BankAccount, locations: any[], tenant: any }) {
+function EditAccountModal({ isOpen, onClose, account, locations, tenant }: { isOpen: boolean; onClose: () => void; account: BankAccount; locations: LocationOption[]; tenant: Props['tenant'] }) {
     const { data, setData, put, processing, errors } = useForm({
         bank_name: account.bank_name,
         account_type: account.account_type,
         account_number: account.account_number,
         account_holder: account.account_holder,
         holder_id: account.holder_id || '',
-        location_id: (account.location_id || 'all') as string | number,
+        location_id: (account.location_id ?? 'all') as string | number,
         is_active: account.is_active
     });
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        router.put(route('tenant.payment-methods.accounts.update', { tenant: tenant.slug, account: account.id }), {
-            ...data,
-            location_id: data.location_id === 'all' ? null : data.location_id
-        }, {
+        put(route('tenant.payment-methods.accounts.update', { tenant: tenant.slug, account: account.id }), {
             onSuccess: () => {
                 toast.success('Cuenta actualizada');
                 onClose();
-            }
+            },
+            onError: () => toast.error('Revisa los campos del formulario'),
         });
     };
 
@@ -545,7 +600,10 @@ function EditAccountModal({ isOpen, onClose, account, locations, tenant }: { isO
                         <p className="text-[10px] text-slate-400">Si seleccionas una sede, esta cuenta solo aparecerá en pedidos de esa sede.</p>
                     </div>
                     <DialogFooter>
-                        <Button type="submit" disabled={processing}>Guardar Cambios</Button>
+                        <Button type="submit" disabled={processing} className="cursor-pointer">
+                            {processing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                            Guardar Cambios
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

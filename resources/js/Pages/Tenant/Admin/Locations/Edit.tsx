@@ -19,8 +19,8 @@ interface Location {
     address: string | null;
     latitude: number | null;
     longitude: number | null;
-    opening_hours: any | null;
-    social_networks: any | null;
+    opening_hours: Record<string, { open: string; close: string }[]> | null;
+    social_networks: { facebook?: string; instagram?: string; tiktok?: string } | null;
     is_active: boolean;
 }
 

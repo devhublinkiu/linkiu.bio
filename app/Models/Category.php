@@ -36,4 +36,10 @@ class Category extends Model
     {
         return $this->hasMany(Product::class)->where('is_available', true)->where('status', 'active')->orderBy('sort_order', 'asc');
     }
+
+    /** Todos los productos de la categoría (sin filtrar). Para validar eliminación. */
+    public function allProducts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
 }

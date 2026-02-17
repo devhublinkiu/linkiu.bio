@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Scopes\TenantScope;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,7 +26,7 @@ class Table extends Model
 
     public function location(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Location::class);
+        return $this->belongsTo(\App\Models\Tenant\Locations\Location::class);
     }
 
     /**
@@ -42,11 +43,14 @@ class Table extends Model
         });
     }
 
-    public static function generateUniqueToken()
+    /**
+     * Genera un token único a nivel global (la tabla tiene unique en token).
+     */
+    public static function generateUniqueToken(): string
     {
         do {
-            $token = Str::random(8); // Alphanumeric, case sensitive
-        } while (static::where('token', $token)->exists());
+            $token = Str::random(8);
+        } while (static::withoutGlobalScope(TenantScope::class)->where('token', $token)->exists());
 
         return $token;
     }
@@ -62,11 +66,12 @@ class Table extends Model
     }
 
     /**
-     * Get the current active order for this table
+     * Get the current active order for this table.
+     * Incluye todos los estados activos: desde que se crea hasta que se despacha.
      */
     public function activeOrder(): HasOne
     {
         return $this->hasOne(Order::class)->latestOfMany()
-            ->whereIn('status', ['pending', 'in_progress', 'ready']);
+            ->whereIn('status', ['pending', 'confirmed', 'preparing', 'in_progress', 'ready']);
     }
 }

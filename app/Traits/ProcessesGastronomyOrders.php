@@ -7,18 +7,31 @@ use App\Models\Tenant\Gastronomy\OrderItem;
 use App\Models\Tenant\Gastronomy\OrderStatusHistory;
 use App\Models\Product;
 use App\Models\Table;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 trait ProcessesGastronomyOrders
 {
     /**
-     * Re-using original method name for backward compatibility.
+     * Crea o actualiza una orden gastronómica a partir del request validado.
+     *
+     * @param  Request|FormRequest  $request
+     * @param  string               $defaultStatus
+     * @param  string               $source
+     * @return Order
+     *
+     * @throws \Exception
      */
-    public function storeGastronomyOrder(Request $request, $defaultStatus = 'pending', $source = 'POS')
+    public function storeGastronomyOrder(Request $request, string $defaultStatus = 'pending', string $source = 'POS'): Order
     {
+        /** @var \App\Models\Tenant $tenant */
         $tenant = app('currentTenant');
-        $validated = $request->all();
+
+        // CRITICAL: usar validated() para respetar las reglas del FormRequest
+        $validated = $request instanceof FormRequest
+            ? $request->validated()
+            : $request->all();
 
         try {
             DB::beginTransaction();
@@ -41,6 +54,12 @@ trait ProcessesGastronomyOrders
             $items = $validated['items'] ?? [];
             foreach ($items as $item) {
                 $product = Product::find($item['product_id']);
+
+                // IDOR: verificar que el producto pertenece al tenant actual
+                if (!$product || (int) $product->tenant_id !== (int) $tenant->id) {
+                    throw new \Exception("Producto #{$item['product_id']} no pertenece a este negocio.");
+                }
+
                 $unitPrice = floatval($product->price);
 
                 $variants = $item['variant_options'] ?? [];
@@ -81,6 +100,7 @@ trait ProcessesGastronomyOrders
                     'price' => $unitPrice,
                     'total' => $lineTotal,
                     'variant_options' => $variants,
+                    'notes' => $item['notes'] ?? null,
                     'tax_amount' => $itemTaxAmount,
                 ];
             }
@@ -89,15 +109,18 @@ trait ProcessesGastronomyOrders
             $finalTotal = $orderTotal + $deliveryCost;
 
             $initialStatus = $defaultStatus;
-            if (isset($validated['payment_method']) && $validated['payment_method']) {
-                $initialStatus = 'completed';
-            }
 
             $order = null;
             $isNewOrder = false;
             if ($validated['service_type'] === 'dine_in' && $validated['table_id']) {
                 $table = Table::find($validated['table_id']);
                 $order = $table->activeOrder;
+            }
+
+            // Si la orden existente ya fue despachada/preparándose, marcar items actuales como 'served' y resetear
+            if ($order && in_array($order->status, ['ready', 'preparing'])) {
+                $order->items()->where('status', 'active')->update(['status' => 'served']);
+                $order->update(['status' => 'confirmed']);
             }
 
             if (!$order) {
@@ -108,11 +131,11 @@ trait ProcessesGastronomyOrders
                     'location_id' => $validated['location_id'],
                     'status' => $initialStatus,
                     'service_type' => $validated['service_type'],
-                    'table_id' => $validated['service_type'] === 'dine_in' ? $validated['table_id'] : null,
+                    'table_id' => $validated['service_type'] === 'dine_in' ? ($validated['table_id'] ?? null) : null,
                     'customer_id' => $validated['customer_id'] ?? null,
-                    'customer_name' => $validated['customer_name'],
-                    'customer_phone' => $validated['customer_phone'],
-                    'delivery_address' => $validated['service_type'] === 'delivery' ? $validated['delivery_address'] : null,
+                    'customer_name' => $validated['customer_name'] ?? 'Cliente',
+                    'customer_phone' => $validated['customer_phone'] ?? null,
+                    'delivery_address' => $validated['service_type'] === 'delivery' ? ($validated['delivery_address'] ?? null) : null,
                     'delivery_cost' => $validated['service_type'] === 'delivery' ? $deliveryCost : null,
                     'total' => 0,
                     'subtotal' => 0,
@@ -175,25 +198,63 @@ trait ProcessesGastronomyOrders
                 'notes' => "Pedido creado desde $source",
             ]);
 
-            // Real-time Kitchen logic
+            // Real-time Kitchen logic — preparar datos pero NO emitir aún
             $sendToKitchen = filter_var($validated['send_to_kitchen'] ?? false, FILTER_VALIDATE_BOOLEAN);
-            \Illuminate\Support\Facades\Log::info("Kitchen Dispatch Check", [
-                'order_id' => $order->id,
-                'initialStatus' => $initialStatus,
-                'sendToKitchen' => $sendToKitchen,
-                'orderStatus' => $order->status
-            ]);
+            $order->refresh(); // Asegurar estado actualizado en memoria
+            $shouldNotifyKitchen = (($initialStatus === 'confirmed' || $sendToKitchen) && $order->status !== 'completed');
 
-            if (($initialStatus === 'confirmed' || $sendToKitchen) && $order->status !== 'completed') {
-                // Ensure status is at least 'confirmed' to be visible in KDS
-                if ($order->status === 'pending') {
-                    $order->update(['status' => 'confirmed']);
-                }
-                \Illuminate\Support\Facades\Log::info("Dispatching OrderSentToKitchen", ['order_id' => $order->id]);
-                \App\Events\OrderSentToKitchen::dispatch($order->fresh(['items.product', 'table', 'creator']));
+            if ($shouldNotifyKitchen && $order->status === 'pending') {
+                $order->update(['status' => 'confirmed']);
             }
 
             DB::commit();
+
+            // Notificación en tiempo real al admin (toast + sonido en vista Pedidos)
+            if ($isNewOrder) {
+                \App\Events\OrderCreated::dispatch($order->fresh(['items']));
+            }
+
+            // Emitir evento a cocina DESPUÉS del commit para que Ably tenga datos persistidos
+            if ($shouldNotifyKitchen) {
+                \App\Events\OrderSentToKitchen::dispatch($order->fresh(['items.product', 'table', 'creator']));
+            }
+
+            // WhatsApp: alerta admin (PE-01) y confirmación cliente (PE-02)
+            if ($isNewOrder && $tenant->hasFeature('whatsapp')) {
+                $infobip = app(\App\Services\InfobipService::class);
+                $totalFormatted = number_format((float) $order->total, 0, ',', '.');
+
+                $adminPhone = $tenant->settings['whatsapp_admin_phone'] ?? null;
+                if ($adminPhone) {
+                    $infobip->sendTemplate(
+                        $adminPhone,
+                        'linkiu_order_alert_v1',
+                        [
+                            (string) $order->id,
+                            $order->customer_name ?? 'Cliente',
+                            $totalFormatted,
+                        ],
+                        null
+                    );
+                }
+
+                // PE-02: confirmación al cliente (pedido recibido)
+                $customerPhone = $order->customer_phone ? trim((string) $order->customer_phone) : null;
+                if ($customerPhone) {
+                    $infobip->sendTemplate(
+                        $customerPhone,
+                        'linkiu_order_received_v1',
+                        [
+                            $order->customer_name ?? 'Cliente',
+                            (string) $order->id,
+                            $tenant->name,
+                            $totalFormatted,
+                        ],
+                        "{$tenant->slug}/sedes"
+                    );
+                }
+            }
+
             return $order;
 
         } catch (\Exception $e) {

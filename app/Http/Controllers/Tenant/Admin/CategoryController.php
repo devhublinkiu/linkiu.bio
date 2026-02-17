@@ -3,25 +3,34 @@
 namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenant\Admin\StoreCategoryRequest;
+use App\Http\Requests\Tenant\Admin\UpdateCategoryRequest;
 use App\Models\Category;
 use App\Models\CategoryIcon;
 use App\Models\IconRequest;
+use App\Traits\StoresImageAsWebp;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class CategoryController extends Controller
 {
+    use StoresImageAsWebp;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        Gate::authorize('categories.view');
+
         $tenant = app('currentTenant');
 
         $categories = Category::where('tenant_id', $tenant->id)
             ->with(['icon', 'parent'])
-            ->withCount(['products', 'children'])
+            ->withCount(['products', 'children', 'allProducts'])
             ->latest()
             ->paginate(20);
 
@@ -65,24 +74,12 @@ class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request): RedirectResponse
     {
         $tenant = app('currentTenant');
+        $validated = $request->validated();
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'category_icon_id' => 'required|exists:category_icons,id', // Should validate if icon is actually available to tenant?
-            'parent_id' => 'nullable|exists:categories,id', // Should enforce tenant ownership of parent
-        ]);
-
-        // Simple security check for parent ownership
-        if ($request->parent_id && !Category::where('id', $request->parent_id)->where('tenant_id', $tenant->id)->exists()) {
-            return back()->with('error', 'La categoría padre no es válida.');
-        }
-
-        // Generate Slug
-        $slug = Str::slug($request->name);
-        // Ensure uniqueness per tenant
+        $slug = Str::slug($validated['name']);
         $count = Category::where('tenant_id', $tenant->id)->where('slug', 'like', $slug . '%')->count();
         if ($count > 0) {
             $slug = $slug . '-' . ($count + 1);
@@ -90,10 +87,10 @@ class CategoryController extends Controller
 
         Category::create([
             'tenant_id' => $tenant->id,
-            'name' => $request->name,
+            'name' => $validated['name'],
             'slug' => $slug,
-            'category_icon_id' => $request->category_icon_id,
-            'parent_id' => $request->parent_id,
+            'category_icon_id' => $validated['category_icon_id'],
+            'parent_id' => $validated['parent_id'] ?? null,
             'is_active' => true,
         ]);
 
@@ -103,39 +100,16 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $category)
+    public function update(UpdateCategoryRequest $request, $tenant, $category): RedirectResponse
     {
-        // Note: Route model binding might not automatically work with tenant scoping if not configured.
-        // Assuming $category is the ID or model. Let's find manually to be safe or rely on binding if set up.
-        // With 'tenant' prefix, explicit binding is safer.
-
-        $tenant = app('currentTenant');
-        $categoryModel = Category::where('tenant_id', $tenant->id)->findOrFail($category);
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'category_icon_id' => 'required|exists:category_icons,id',
-            'parent_id' => 'nullable|exists:categories,id',
-        ]);
-
-        if ($request->parent_id && $request->parent_id == $categoryModel->id) {
-            return back()->with('error', 'Una categoría no puede ser su propio padre.');
-        }
-
-        // Validate parent ownership
-        if ($request->parent_id && !Category::where('id', $request->parent_id)->where('tenant_id', $tenant->id)->exists()) {
-            return back()->with('error', 'La categoría padre no es válida.');
-        }
-
-        // Update slug if name changes? Often better to keep slug stable or ask user.
-        // For now, let's keep slug stable unless explicitly requested or just name update.
-        // Update: Implementation Plan said "name, slug". 
-        // Let's simpler: update name only. Slug remains.
+        $currentTenant = app('currentTenant');
+        $categoryModel = Category::where('tenant_id', $currentTenant->id)->findOrFail($category);
+        $validated = $request->validated();
 
         $categoryModel->update([
-            'name' => $request->name,
-            'category_icon_id' => $request->category_icon_id,
-            'parent_id' => $request->parent_id,
+            'name' => $validated['name'],
+            'category_icon_id' => $validated['category_icon_id'],
+            'parent_id' => $validated['parent_id'] ?? null,
         ]);
 
         return back()->with('success', 'Categoría actualizada correctamente.');
@@ -144,21 +118,20 @@ class CategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($category)
+    public function destroy($tenant, $category)
     {
-        $tenant = app('currentTenant');
-        $categoryModel = Category::where('tenant_id', $tenant->id)
-            ->withCount('products')
+        Gate::authorize('categories.delete');
+
+        $currentTenant = app('currentTenant');
+        $categoryModel = Category::where('tenant_id', $currentTenant->id)
+            ->withCount(['allProducts', 'children'])
             ->findOrFail($category);
 
-        // Handle children? 
-        // If has children, prevent or update them to root?
-        if ($categoryModel->children()->count() > 0) {
+        if ($categoryModel->children_count > 0) {
             return back()->with('error', 'No se puede eliminar una categoría que tiene subcategorías.');
         }
 
-        // New guard for products
-        if ($categoryModel->products_count > 0) {
+        if ($categoryModel->all_products_count > 0) {
             return back()->with('error', 'No se puede eliminar una categoría que tiene productos asociados.');
         }
 
@@ -172,30 +145,42 @@ class CategoryController extends Controller
      */
     public function requestIcon(Request $request)
     {
+        Gate::authorize('categories.create');
+
         $tenant = app('currentTenant');
 
         $request->validate([
             'requested_name' => 'required|string|max:255',
-            'reference_image' => 'required|image|max:2048', // 2MB
+            'reference_image' => 'required|image|max:2048',
         ]);
 
-        $path = $request->file('reference_image')->store('icon-requests', 's3');
+        $tenantSlug = preg_replace('/[^a-z0-9\-]/', '', strtolower($tenant->slug ?? ''));
+        $basePath = 'uploads/' . ($tenantSlug ?: 'tenant-' . $tenant->id) . '/icon-requests';
 
-        $iconRequest = IconRequest::create([
-            'tenant_id' => $tenant->id,
-            'requested_name' => $request->requested_name,
-            'reference_image_path' => $path,
-            'status' => 'pending',
-        ]);
+        try {
+            $path = $this->storeImageAsWebp($request->file('reference_image'), $basePath);
 
-        // Dispatch Real-time Event (Bypasses Queue)
-        \App\Events\IconRequested::dispatch($iconRequest);
+            $iconRequest = IconRequest::create([
+                'tenant_id' => $tenant->id,
+                'requested_name' => $request->requested_name,
+                'reference_image_path' => $path,
+                'status' => 'pending',
+            ]);
 
-        // Dispatch Notification (Database/Email)
-        \Illuminate\Support\Facades\Notification::send(
-            \App\Models\User::where('is_super_admin', true)->get(),
-            new \App\Notifications\IconRequestedNotification($iconRequest)
-        );
+            $this->registerMedia($path, 'bunny');
+            \App\Events\IconRequested::dispatch($iconRequest);
+
+            \Illuminate\Support\Facades\Notification::send(
+                \App\Models\User::where('is_super_admin', true)->get(),
+                new \App\Notifications\IconRequestedNotification($iconRequest)
+            );
+        } catch (\Throwable $e) {
+            if (isset($path)) {
+                Storage::disk('bunny')->delete($path);
+            }
+            report($e);
+            return back()->with('error', 'No se pudo enviar la solicitud. Intenta de nuevo más tarde.');
+        }
 
         return back()->with('success', 'Solicitud de icono enviada. Te avisaremos cuando sea aprobada.');
     }
@@ -204,6 +189,8 @@ class CategoryController extends Controller
      */
     public function toggleActive($tenantRaw, $category)
     {
+        Gate::authorize('categories.update');
+
         $tenant = app('currentTenant');
         $categoryModel = Category::where('tenant_id', $tenant->id)->findOrFail($category);
 

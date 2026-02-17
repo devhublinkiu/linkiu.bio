@@ -11,7 +11,7 @@ Este documento contiene el mandato técnico para la creación, modificación y a
 Toda implementación debe seguir estrictamente la jerarquía multi-tenant:
 - **Admin Backend**: `app/Http/Controllers/Tenant/Admin/[Modulo]/`
 - **Admin Frontend (Inertia)**: `resources/js/Pages/Tenant/Admin/[Modulo]/`
-- **Modelos**: `app/Models/Tenant/[Modulo]/` (Nombres en Singular y PascalCase).
+- **Modelos**: **Regla fija:** Los modelos con scope de tenant (BelongsToTenant) deben ubicarse en `app/Models/Tenant/[Modulo]/` (Singular, PascalCase), para no mezclarlos con los globales de SuperAdmin (`app/Models/`: Tenant, Plan, Subscription). Los que ya existan en `app/Models/` pueden permanecer hasta que se decida migrarlos para alinear.
 - **Componentes Locales**: Si son exclusivos del módulo, ubicarlos en `Components/` dentro de la ruta del frontend del módulo.
 - **Namespaces**: Deben ser un reflejo exacto de la ubicación física en el disco.
 
@@ -24,7 +24,7 @@ Toda implementación debe seguir estrictamente la jerarquía multi-tenant:
 
 ## 3. Lógica de Negocio y Código
 - **Validación**: Usar `FormRequests` dedicados. Prohibida la validación manual en controladores.
-- **Manejo de Errores**: Bloques `try-catch` en operaciones críticas devolviendo JSON estandarizado (422 para validación, 500 para sistema).
+- **Manejo de Errores**: Bloques `try-catch` en **operaciones críticas** (subida de archivos, APIs externas, transacciones DB, operaciones en lote), devolviendo JSON estandarizado (422 validación, 500 sistema). No es obligatorio en CRUD simple con FormRequest (Laravel ya devuelve 422/500 según corresponda).
 - **Desacoplamiento**: Lógica compleja en `Traits` o `Servicios`. Los controladores solo orquestan.
 - **Tipado**: Type hinting en PHP e Interfaces/Types claros en TypeScript (Prohibido el uso de `any`).
 

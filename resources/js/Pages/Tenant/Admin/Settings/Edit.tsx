@@ -7,6 +7,8 @@ import { Label } from '@/Components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/Components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Switch } from '@/Components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/Components/ui/accordion';
+import { RichTextEditor } from '@/Components/ui/rich-text-editor';
 import {
     Palette,
     Search,
@@ -20,14 +22,25 @@ import {
     Code,
     Gavel
 } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { PageProps } from '@/types';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 
-export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tenantSettings: any, tenant: any, slugChangePrice: number }) {
+interface LegalPageItem {
+    slug: string;
+    title: string;
+    content: string;
+}
+
+export default function Edit({ tenantSettings, tenant, slugChangePrice, legalPages = [] }: {
+    tenantSettings: any;
+    tenant: any;
+    slugChangePrice: number;
+    legalPages?: LegalPageItem[];
+}) {
     const { currentUserRole } = usePage<PageProps>().props;
 
     const canUpdate = currentUserRole?.is_owner ||
@@ -37,6 +50,29 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
     const [showPermissionModal, setShowPermissionModal] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
     const faviconInputRef = useRef<HTMLInputElement>(null);
+    const [legalDraft, setLegalDraft] = useState<Record<string, string>>(() =>
+        Object.fromEntries((legalPages || []).map((p) => [p.slug, p.content ?? '']))
+    );
+    const [legalSaving, setLegalSaving] = useState<string | null>(null);
+    useEffect(() => {
+        if (legalPages?.length) {
+            setLegalDraft((prev) => ({
+                ...prev,
+                ...Object.fromEntries(legalPages.map((p) => [p.slug, p.content ?? ''])),
+            }));
+        }
+    }, [legalPages]);
+    const saveLegalPage = (slug: string) => {
+        if (!canUpdate) return;
+        setLegalSaving(slug);
+        router.visit(route('tenant.settings.legal-pages.update', { tenant: tenant.slug }), {
+            method: 'post',
+            data: { slug, content: legalDraft[slug] ?? '' },
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Contenido legal guardado'); setLegalSaving(null); },
+            onError: () => { setLegalSaving(null); toast.error('Error al guardar'); },
+        });
+    };
 
     const checkPermissionAndExecute = (action: () => void) => {
         if (canUpdate) {
@@ -518,6 +554,46 @@ export default function Edit({ tenantSettings, tenant, slugChangePrice }: { tena
                                             disabled={!canUpdate}
                                         />
                                     </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Gavel className="size-5" />
+                                        Páginas legales
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Textos legales que se muestran en el footer. Cada uno tiene su vista pública individual.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Accordion type="single" collapsible className="w-full">
+                                        {(legalPages || []).map((page) => (
+                                            <AccordionItem key={page.slug} value={page.slug}>
+                                                <AccordionTrigger>{page.title}</AccordionTrigger>
+                                                <AccordionContent className="pt-2">
+                                                    <div className="space-y-3">
+                                                        <RichTextEditor
+                                                            value={legalDraft[page.slug] ?? ''}
+                                                            onChange={(html) => setLegalDraft((prev) => ({ ...prev, [page.slug]: html }))}
+                                                            placeholder={`Redacta el contenido de "${page.title}"…`}
+                                                            disabled={!canUpdate}
+                                                            minHeight="240px"
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            disabled={!canUpdate || legalSaving === page.slug}
+                                                            onClick={() => saveLegalPage(page.slug)}
+                                                        >
+                                                            {legalSaving === page.slug ? 'Guardando…' : 'Guardar esta página'}
+                                                        </Button>
+                                                    </div>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        ))}
+                                    </Accordion>
                                 </CardContent>
                             </Card>
                         </TabsContent>

@@ -46,6 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from "@/Components/ui/switch";
 import ReservationCalendar from '@/Components/Tenant/Admin/Gastronomy/Reservations/ReservationCalendar';
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/Components/ui/empty';
 
 interface Location {
     id: number;
@@ -71,6 +72,7 @@ interface Reservation {
     table?: { name: string };
     location?: { name: string };
     payment_proof?: string;
+    payment_proof_url?: string | null;
 }
 
 interface Table {
@@ -78,6 +80,7 @@ interface Table {
     name: string;
     status: string;
     capacity?: number;
+    location_id?: number;
     reservations?: {
         id: number;
         customer_name: string;
@@ -88,8 +91,18 @@ interface Table {
     }[];
 }
 
+interface Tenant {
+    id: number;
+    name: string;
+    slug: string;
+}
+
+interface CurrentUserRole {
+    is_owner: boolean;
+    permissions: string[];
+}
+
 interface Props {
-    auth: any;
     reservations: Reservation[];
     tables: Table[];
     locations: Location[];
@@ -98,22 +111,23 @@ interface Props {
 
 type ViewMode = 'day' | 'week' | 'month';
 
-export default function AdminReservationIndex({ auth, reservations, tables, locations, filters }: Props) {
-    const { currentTenant, currentUserRole } = usePage<PageProps & { currentTenant: any; currentUserRole: any }>().props;
+export default function AdminReservationIndex({ reservations, tables, locations, filters }: Props) {
+    const { currentTenant, currentUserRole } = usePage<PageProps & { currentTenant: Tenant; currentUserRole: CurrentUserRole }>().props;
 
     // Permission helpers
     const [showPermissionModal, setShowPermissionModal] = useState(false);
 
-    const checkPermission = (permission: string) => {
+    const hasPermission = (permission: string): boolean => {
         if (!currentUserRole) return false;
         return currentUserRole.is_owner ||
             currentUserRole.permissions.includes('*') ||
             currentUserRole.permissions.includes(permission);
     };
 
-    const handleActionWithPermission = (permission: string, action: () => void) => {
-        if (checkPermission(permission)) {
-            action();
+    const handleProtectedAction = (e: React.MouseEvent | null, permission: string, callback: () => void) => {
+        if (e) e.preventDefault();
+        if (hasPermission(permission)) {
+            callback();
         } else {
             setShowPermissionModal(true);
         }
@@ -183,24 +197,23 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
 
     // Real-time WebSocket listener
     React.useEffect(() => {
-        const tenant = auth.user?.tenant || auth.user?.current_tenant;
-        if (typeof window !== 'undefined' && window.Echo && tenant?.id) {
-            window.Echo.channel(`tenant.${tenant.id}.reservations`)
+        if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
+            window.Echo.channel(`tenant.${currentTenant.id}.reservations`)
                 .listen('.reservation.created', () => {
                     router.reload({ only: ['reservations'] });
                 });
         }
         return () => {
             try {
-                if (typeof window !== 'undefined' && window.Echo && tenant?.id) {
-                    const echo = window.Echo as any;
+                if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
+                    const echo = window.Echo;
                     if (echo.connector?.ably?.connection?.state === 'connected') {
-                        echo.leave(`tenant.${tenant.id}.reservations`);
+                        echo.leave(`tenant.${currentTenant.id}.reservations`);
                     }
                 }
             } catch { /* Silent */ }
         };
-    }, [auth.user]);
+    }, [currentTenant?.id]);
 
     // When clicking a reservation in the calendar
     const handleReservationClick = (reservation: Reservation) => {
@@ -226,7 +239,10 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                 toast.success('Reserva reagendada. Se notificó al cliente por WhatsApp.');
                 setIsRescheduling(false);
                 setDetailModalOpen(false);
-            }
+            },
+            onError: () => {
+                toast.error('No se pudo reagendar la reserva. Intenta de nuevo.');
+            },
         });
     };
 
@@ -240,7 +256,10 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                 onSuccess: () => {
                     toast.success('Reserva confirmada');
                     setDetailModalOpen(false);
-                }
+                },
+                onError: () => {
+                    toast.error('No se pudo confirmar la reserva. Intenta de nuevo.');
+                },
             });
             return;
         }
@@ -260,7 +279,10 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
             onSuccess: () => {
                 toast.success(`Reserva ${status === 'cancelled' ? 'cancelada' : 'actualizada'}`);
                 setDetailModalOpen(false);
-            }
+            },
+            onError: () => {
+                toast.error('No se pudo actualizar la reserva. Intenta de nuevo.');
+            },
         });
     };
 
@@ -273,7 +295,10 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
             onSuccess: () => {
                 setSeatModalOpen(false);
                 toast.success(targetStatus === 'seated' ? 'Cliente sentado. Mesa ocupada.' : 'Reserva confirmada.');
-            }
+            },
+            onError: () => {
+                toast.error('No se pudo completar la acción. Intenta de nuevo.');
+            },
         });
     };
 
@@ -307,15 +332,17 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
     };
 
     const saveSettings = () => {
-        const tenant = auth.user?.tenant || auth.user?.current_tenant || { slug: window.location.pathname.split('/')[1] };
         configForm.put(route('tenant.admin.reservations.settings.update', {
-            tenant: tenant.slug,
+            tenant: currentTenant.slug,
             location: editingConfigLocationId
         }), {
             onSuccess: () => {
                 setSettingsModalOpen(false);
                 toast.success('Configuración de sede actualizada');
-            }
+            },
+            onError: () => {
+                toast.error('No se pudo actualizar la configuración. Intenta de nuevo.');
+            },
         });
     };
 
@@ -357,20 +384,34 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                 </Select>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => handleActionWithPermission('reservations.update', openSettings)} className="gap-2">
+                        <Button variant="outline" size="sm" onClick={(e) => handleProtectedAction(e, 'reservations.update', openSettings)} className="gap-2">
                             <Settings className="w-4 h-4" /> Configuración
                         </Button>
                     </div>
 
                     {/* Calendar */}
-                    <ReservationCalendar
-                        reservations={reservations}
-                        currentDate={currentDate}
-                        viewMode={viewMode}
-                        onViewChange={handleViewChange}
-                        onDateChange={handleDateChange}
-                        onReservationClick={handleReservationClick}
-                    />
+                    {reservations.length === 0 && !selectedLocationId ? (
+                        <Empty className="border-2 border-dashed rounded-xl bg-white py-12">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <CalendarDays className="size-4" />
+                                </EmptyMedia>
+                                <EmptyTitle>No hay reservas registradas</EmptyTitle>
+                                <EmptyDescription>
+                                    Las reservas creadas por los clientes aparecerán aquí.
+                                </EmptyDescription>
+                            </EmptyHeader>
+                        </Empty>
+                    ) : (
+                        <ReservationCalendar
+                            reservations={reservations}
+                            currentDate={currentDate}
+                            viewMode={viewMode}
+                            onViewChange={handleViewChange}
+                            onDateChange={handleDateChange}
+                            onReservationClick={handleReservationClick}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -432,7 +473,7 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                     {!isRescheduling ? (
                                         <button
                                             type="button"
-                                            onClick={() => handleActionWithPermission('reservations.update', () => setIsRescheduling(true))}
+                                            onClick={(e) => handleProtectedAction(e, 'reservations.update', () => setIsRescheduling(true))}
                                             className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors w-full"
                                         >
                                             <CalendarDays className="w-4 h-4" />
@@ -469,7 +510,7 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                                 <Button size="sm" variant="ghost" onClick={() => setIsRescheduling(false)}>Cancelar</Button>
                                                 <Button
                                                     size="sm"
-                                                    onClick={() => handleActionWithPermission('reservations.update', handleReschedule)}
+                                                    onClick={(e) => handleProtectedAction(e, 'reservations.update', handleReschedule)}
                                                     disabled={!rescheduleDate || !rescheduleTime}
                                                     className="gap-1"
                                                 >
@@ -488,14 +529,14 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                 </div>
                             )}
 
-                            {selectedReservation.payment_proof && (
+                            {selectedReservation.payment_proof && selectedReservation.payment_proof_url && (
                                 <div className="mt-2 border rounded-lg p-2 bg-slate-50">
                                     <p className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
                                         <DollarSign className="w-3 h-3" /> Comprobante de Pago
                                     </p>
-                                    <a href={`/storage/${selectedReservation.payment_proof}`} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-md border border-slate-200">
+                                    <a href={selectedReservation.payment_proof_url} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-md border border-slate-200">
                                         <img
-                                            src={`/storage/${selectedReservation.payment_proof}`}
+                                            src={selectedReservation.payment_proof_url}
                                             alt="Comprobante"
                                             className="w-full h-auto max-h-[200px] object-cover transition-transform group-hover:scale-105"
                                         />
@@ -516,14 +557,14 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                             size="sm"
                                             variant="destructive"
                                             className="gap-1"
-                                            onClick={() => handleActionWithPermission('reservations.update', () => setCancelAlertOpen(true))}
+                                            onClick={(e) => handleProtectedAction(e, 'reservations.update', () => setCancelAlertOpen(true))}
                                         >
                                             <XCircle className="w-4 h-4" /> Cancelar
                                         </Button>
                                         <Button
                                             size="sm"
                                             className="gap-1 ml-auto"
-                                            onClick={() => handleActionWithPermission('reservations.update', () => updateStatus(selectedReservation, 'confirmed'))}
+                                            onClick={(e) => handleProtectedAction(e, 'reservations.update', () => updateStatus(selectedReservation, 'confirmed'))}
                                         >
                                             <CheckCircle className="w-4 h-4" /> Confirmar + Asignar Mesa
                                         </Button>
@@ -535,14 +576,14 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                             size="sm"
                                             variant="outline"
                                             className="gap-1"
-                                            onClick={() => handleActionWithPermission('reservations.update', () => setCancelAlertOpen(true))}
+                                            onClick={(e) => handleProtectedAction(e, 'reservations.update', () => setCancelAlertOpen(true))}
                                         >
                                             <XCircle className="w-4 h-4" /> Cancelar
                                         </Button>
                                         <Button
                                             size="sm"
                                             className="gap-1 ml-auto"
-                                            onClick={() => handleActionWithPermission('reservations.update', () => updateStatus(selectedReservation, 'seated'))}
+                                            onClick={(e) => handleProtectedAction(e, 'reservations.update', () => updateStatus(selectedReservation, 'seated'))}
                                         >
                                             <Armchair className="w-4 h-4" /> Sentar (Check-in)
                                         </Button>
@@ -597,7 +638,13 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-4 max-h-[400px] overflow-y-auto">
-                        {tables.map(table => {
+                        {tables
+                            .filter(table => {
+                                if (!selectedReservation?.location) return true;
+                                const reservationLocationId = locations.find(l => l.name === selectedReservation.location?.name)?.id;
+                                return !table.location_id || table.location_id === reservationLocationId;
+                            })
+                            .map(table => {
                             const tableReservations = table.reservations || [];
                             const hasReservations = tableReservations.length > 0;
                             const isSelected = selectedTableId === table.id;
@@ -698,6 +745,9 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                     value={configForm.data.reservation_min_anticipation}
                                     onChange={e => configForm.setData('reservation_min_anticipation', parseFloat(e.target.value))}
                                 />
+                                {configForm.errors.reservation_min_anticipation && (
+                                    <p className="text-xs text-red-600">{configForm.errors.reservation_min_anticipation}</p>
+                                )}
                                 <p className="text-[11px] text-slate-500 italic">Ej: 0.5 para permitir reservas con 30 min de antelación.</p>
                             </div>
 
@@ -711,6 +761,9 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                     value={configForm.data.reservation_slot_duration}
                                     onChange={e => configForm.setData('reservation_slot_duration', parseInt(e.target.value))}
                                 />
+                                {configForm.errors.reservation_slot_duration && (
+                                    <p className="text-xs text-red-600">{configForm.errors.reservation_slot_duration}</p>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -722,6 +775,9 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
                                     value={configForm.data.reservation_price_per_person}
                                     onChange={e => configForm.setData('reservation_price_per_person', parseFloat(e.target.value))}
                                 />
+                                {configForm.errors.reservation_price_per_person && (
+                                    <p className="text-xs text-red-600">{configForm.errors.reservation_price_per_person}</p>
+                                )}
                                 <p className="text-[11px] text-slate-500 italic">Monto informativo o garantía por comensal.</p>
                             </div>
 
@@ -740,7 +796,7 @@ export default function AdminReservationIndex({ auth, reservations, tables, loca
 
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setSettingsModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={() => handleActionWithPermission('reservations.update', saveSettings)} disabled={configForm.processing}>
+                        <Button onClick={(e) => handleProtectedAction(e, 'reservations.update', saveSettings)} disabled={configForm.processing}>
                             {configForm.processing ? 'Guardando...' : 'Guardar Configuración'}
                         </Button>
                     </DialogFooter>

@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import { Button } from '@/Components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription
-} from '@/Components/ui/card';
-// @ts-ignore
-import { CheckCircle2, MessageCircle, Clock, MapPin, ArrowLeft, Home, FileText, ThumbsUp } from 'lucide-react';
-import { Separator } from '@/Components/ui/separator';
 import { toast } from 'sonner';
+import { formatPrice } from '@/lib/utils';
+import { Ripple } from '@/Components/ui/ripple';
+// @ts-ignore
+import { CheckCircle2, Clock, MapPin, Home, FileText, ThumbsUp } from 'lucide-react';
 
 interface OrderProps {
     id: number;
@@ -35,35 +28,29 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
         setOrder(initialOrder);
     }, [initialOrder]);
 
-    // Real-time listener
+    // Real-time listener: actualizar estado y mostrar toast sin recargar la página
     useEffect(() => {
-        console.log('Listening to channel:', `tenant.${tenant.id}.orders.${order.id}`);
-        // @ts-ignore
-        window.Echo.channel(`tenant.${tenant.id}.orders.${order.id}`)
-            .listen('.order.status.updated', (e: any) => {
-                console.log('Order status updated event received:', e);
+        const echoInstance = (window as unknown as { Echo?: { channel: (n: string) => { listen: (e: string, cb: (e: unknown) => void) => void }; leave: (n: string) => void } }).Echo;
+        if (!echoInstance?.channel || !tenant?.id || !order?.id) return;
 
-                // Update local state immediately
-                setOrder((prev: OrderProps) => ({ ...prev, status: e.status }));
+        const channelName = `tenant.${tenant.id}.orders.${order.id}`;
+        const channel = echoInstance.channel(channelName);
+        channel.listen('.order.status.updated', (e: any) => {
+            setOrder((prev: OrderProps) => ({ ...prev, status: e.status }));
 
-                // Translate status messages
-                let message = e.message;
-                if (e.status === 'confirmed') message = '¡Tu pedido ha sido confirmado!';
-                if (e.status === 'preparing') message = '¡Están preparando tu pedido!';
-                if (e.status === 'ready') message = '¡Tu pedido está listo!';
-                if (e.status === 'completed') message = '¡Pedido entregado! Gracias por tu compra.';
-                if (e.status === 'cancelled') message = 'El pedido ha sido cancelado.';
+            let message = e.message;
+            if (e.status === 'confirmed') message = '¡Tu pedido ha sido confirmado!';
+            if (e.status === 'preparing') message = '¡Están preparando tu pedido!';
+            if (e.status === 'ready') message = '¡Tu pedido está listo!';
+            if (e.status === 'completed') message = '¡Pedido entregado! Gracias por tu compra.';
+            if (e.status === 'cancelled') message = 'El pedido ha sido cancelado.';
 
-                toast.success(message);
-
-                // Optional: Reload to sync other data if needed (e.g. items changed?), but for status, local update is enough for UX
-                router.reload({ only: ['order'] });
-            });
+            toast.success(message);
+        });
 
         return () => {
-            // @ts-ignore
-            window.Echo.leave(`tenant.${tenant.id}.orders.${order.id}`);
-        }
+            try { echoInstance.leave(channelName); } catch { /* ignore */ }
+        };
     }, [order.id, tenant.id]);
 
     if (order.status === 'cancelled') {
@@ -78,12 +65,26 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
                     <p className="text-slate-500 mb-8">
                         Este pedido ({order.ticket_number}) ha sido cancelado. Si tienes dudas, contáctanos.
                     </p>
-                    <a
-                        href={route('tenant.home', tenant.slug)}
-                        className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-slate-800 transition-all"
-                    >
-                        Volver al Menú
-                    </a>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+                        {tenant.whatsapp_number && (
+                            <a
+                                href={`https://wa.me/57${tenant.whatsapp_number}?text=${encodeURIComponent(`Hola, tengo una duda sobre mi pedido cancelado ${order.ticket_number}.`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-white border-2 border-green-500 text-green-600 font-bold py-3 px-6 rounded-xl hover:bg-green-50 transition-all text-center"
+                                aria-label="Contactar por WhatsApp sobre el pedido cancelado"
+                            >
+                                Contactar por WhatsApp
+                            </a>
+                        )}
+                        <a
+                            href={route('tenant.home', tenant.slug)}
+                            className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-slate-800 transition-all text-center"
+                            aria-label="Volver al menú"
+                        >
+                            Volver al Menú
+                        </a>
+                    </div>
                 </div>
             </PublicLayout>
         );
@@ -125,8 +126,9 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
 
     const activeStep = getVisualStep(order.status);
 
+    const hasWhatsApp = Boolean(tenant.whatsapp_number);
     const whatsappMessage = `Hola *${tenant.name}*, tengo una duda sobre mi pedido *${order.ticket_number}*.`;
-    const whatsappLink = `https://wa.me/57${tenant.whatsapp_number || '3000000000'}?text=${encodeURIComponent(whatsappMessage)}`;
+    const whatsappLink = hasWhatsApp ? `https://wa.me/57${tenant.whatsapp_number}?text=${encodeURIComponent(whatsappMessage)}` : '#';
 
     return (
         <PublicLayout bgColor="#f8fafc" showFloatingCart={false}>
@@ -134,14 +136,19 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
 
             <div className="max-w-lg mx-auto p-6 pb-24 min-h-[80vh] flex flex-col items-center pt-12">
 
-                {/* 1. Icon & Greeting */}
-                <div className="flex flex-col items-center text-center animate-in zoom-in-50 duration-500 mb-6">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 shadow-sm ring-4 ring-white">
-                        <CheckCircle2 className="w-10 h-10 text-green-600" />
+                    {/* 1. Icon & Greeting — Ripple detrás del check, sin encerrar (capa ancha, sin overflow-hidden) */}
+                    <div className="relative w-full flex flex-col items-center text-center animate-in zoom-in-50 duration-500 mb-6">
+                        {/* Capa del Ripple: centrada, overflow-visible para que los círculos no queden encerrados */}
+                        <div className="absolute -top-60 left-1/2 -translate-x-1/2 w-[560px] h-[560px] z-0 flex items-center justify-center pointer-events-none overflow-visible">
+                            <Ripple mainCircleSize={100} mainCircleOpacity={0.22} numCircles={5} />
+                        </div>
+                        {/* Check y texto por encima */}
+                        <div className="relative z-10 w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                            <CheckCircle2 className="w-10 h-10 text-green-600" />
+                        </div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">¡Pedido Recibido!</h1>
+                        <p className="text-slate-500 mt-1 font-medium">Gracias, {order.customer_name.split(' ')[0]}</p>
                     </div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">¡Pedido Recibido!</h1>
-                    <p className="text-slate-500 mt-1 font-medium">Gracias, {order.customer_name.split(' ')[0]}</p>
-                </div>
 
                 {/* 2. Time Info */}
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 w-full text-center mb-8 shadow-sm">
@@ -215,7 +222,7 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
                     </div>
                     <div className="text-right">
                         <p className="text-xs text-slate-500 font-medium">Valor Total</p>
-                        <p className="text-xl font-black text-slate-900">${parseFloat(order.total.toString()).toLocaleString()}</p>
+                        <p className="text-xl font-black text-slate-900">{formatPrice(order.total)}</p>
                     </div>
                 </div>
 
@@ -246,26 +253,29 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
                         <div>
                             <p className="text-sm font-bold text-slate-900">{order.items.length} Productos</p>
                             <p className="text-xs text-slate-500 line-clamp-1">
-                                {order.items.map((i: any) => i.product.name).join(', ')}
+                                {order.items.map((i: any) => i.product?.name ?? i.product_name ?? 'Producto').join(', ')}
                             </p>
                         </div>
                     </div>
                 </div>
 
                 {/* 6. Buttons */}
-                <div className="grid grid-cols-2 gap-3 w-full">
-                    <a
-                        href={whatsappLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="col-span-1 bg-white border border-green-500 text-green-600 font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-green-50 transition-all text-sm shadow-sm"
-                    >
-                        <span>Escribir al Rest.</span>
-                    </a>
-
+                <div className={`grid gap-3 w-full ${hasWhatsApp ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    {hasWhatsApp && (
+                        <a
+                            href={whatsappLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-white border border-green-500 text-green-600 font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-green-50 transition-all text-sm shadow-sm"
+                            aria-label="Contactar al restaurante por WhatsApp"
+                        >
+                            <span>Contactar por WhatsApp</span>
+                        </a>
+                    )}
                     <a
                         href={route('tenant.home', tenant.slug)}
-                        className="col-span-1 bg-slate-900 text-white font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all text-sm shadow-lg"
+                        className="bg-slate-900 text-white font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all text-sm shadow-lg"
+                        aria-label="Volver al inicio"
                     >
                         <span>Volver al Inicio</span>
                     </a>

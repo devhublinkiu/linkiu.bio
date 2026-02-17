@@ -3,52 +3,21 @@
 namespace App\Http\Controllers\Tenant\Gastronomy;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenant\Admin\Gastronomy\UpdateLocationReservationSettingsRequest;
+use App\Http\Requests\Tenant\Admin\Gastronomy\UpdateReservationRequest;
 use App\Models\Tenant\Gastronomy\Reservation;
 use App\Models\Table;
-use App\Models\Location;
+use App\Models\Tenant\Locations\Location;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 
 class AdminReservationController extends Controller
 {
-    /**
-     * Check if current user has a specific tenant permission.
-     * Owners bypass all checks. Non-owners must have the explicit permission in their role.
-     */
-    private function checkTenantPermission(string $permission): void
-    {
-        $user = auth()->user();
-        $tenant = app('currentTenant');
-
-        $pivot = $user->tenants()->where('tenant_id', $tenant->id)->first()?->pivot;
-
-        if (!$pivot) {
-            abort(403, 'No tienes acceso a este negocio.');
-        }
-
-        // Owner bypasses all permission checks
-        if ($pivot->role === 'owner') {
-            return;
-        }
-
-        // Check role permissions
-        if ($pivot->role_id) {
-            $role = \App\Models\Role::with('permissions')->find($pivot->role_id);
-            if ($role && ($role->permissions->contains('name', '*') || $role->permissions->contains('name', $permission))) {
-                return;
-            }
-        }
-
-        abort(403, 'No tienes permiso para realizar esta accion.');
-    }
-
-    /**
-     * Display a listing of the reservations.
-     */
     public function index(Request $request)
     {
-        $this->checkTenantPermission('reservations.view');
+        Gate::authorize('reservations.view');
 
         $tenant = app('currentTenant');
 
@@ -98,19 +67,11 @@ class AdminReservationController extends Controller
     /**
      * Update the specified reservation in storage.
      */
-    public function update(Request $request, $tenant, Reservation $reservation, \App\Services\InfobipService $infobip)
+    public function update(UpdateReservationRequest $request, $tenant, Reservation $reservation, \App\Services\InfobipService $infobip)
     {
-        $this->checkTenantPermission('reservations.update');
-
         $tenantModel = app('currentTenant');
 
-        $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,seated,cancelled,no_show',
-            'table_id' => 'nullable|exists:tables,id',
-            'admin_notes' => 'nullable|string',
-            'reservation_date' => 'nullable|date',
-            'reservation_time' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $previousStatus = $reservation->status;
         $table = Table::find($reservation->table_id);
@@ -126,14 +87,14 @@ class AdminReservationController extends Controller
 
         // 1. If table changed or reservation moved to a non-active status, free previous table
         if ($previousTableId && ($previousTableId != $newTableId || in_array($newStatus, ['cancelled', 'no_show']))) {
-            Table::where('id', $previousTableId)->update(['status' => 'active']);
+            Table::where('id', $previousTableId)->update(['status' => 'available']);
         }
 
         // 2. Set new table status (ONLY IF RESERVATION IS FOR TODAY)
         $isToday = Carbon::parse($reservation->reservation_date)->isToday();
 
         if ($newTableId && $isToday) {
-            $tableStatus = 'active';
+            $tableStatus = 'available';
             if ($newStatus === 'seated') {
                 $tableStatus = 'occupied';
             }
@@ -141,7 +102,7 @@ class AdminReservationController extends Controller
                 $tableStatus = 'reserved';
             }
 
-            if ($tableStatus !== 'active') {
+            if ($tableStatus !== 'available') {
                 Table::where('id', $newTableId)->update(['status' => $tableStatus]);
             }
         }
@@ -151,17 +112,22 @@ class AdminReservationController extends Controller
         if ($previousStatus !== 'confirmed' && $newStatus === 'confirmed') {
             $formattedDate = Carbon::parse($reservation->reservation_date)->format('d/m/Y');
 
-            $infobip->sendTemplate(
-                $reservation->customer_phone,
-                'linkiu_approved_v1',
-            [
-                $reservation->customer_name,
-                $tenantModel->name,
-                $formattedDate,
-                $reservation->reservation_time
-            ],
-                "{$tenantModel->slug}/sedes"
-            );
+            try {
+                $infobip->sendTemplate(
+                    $reservation->customer_phone,
+                    'linkiu_approved_v1',
+                [
+                    $reservation->customer_name,
+                    $tenantModel->name,
+                    $formattedDate,
+                    $reservation->reservation_time
+                ],
+                    "{$tenantModel->slug}/sedes"
+                );
+            } catch (\Throwable $e) {
+                report($e);
+                // No bloqueamos el flujo si falla el WhatsApp
+            }
         }
 
         // Logic for Rescheduled -> Send WhatsApp notification
@@ -171,17 +137,22 @@ class AdminReservationController extends Controller
         if (($dateChanged || $timeChanged) && $newStatus !== 'cancelled') {
             $formattedDate = Carbon::parse($reservation->reservation_date)->format('d/m/Y');
 
-            $infobip->sendTemplate(
-                $reservation->customer_phone,
-                'linkiu_confirmed_v1',
-            [
-                $reservation->customer_name,
-                $tenantModel->name,
-                $formattedDate,
-                $reservation->reservation_time
-            ],
-                "{$tenantModel->slug}/sedes"
-            );
+            try {
+                $infobip->sendTemplate(
+                    $reservation->customer_phone,
+                    'linkiu_confirmed_v1',
+                [
+                    $reservation->customer_name,
+                    $tenantModel->name,
+                    $formattedDate,
+                    $reservation->reservation_time
+                ],
+                    "{$tenantModel->slug}/sedes"
+                );
+            } catch (\Throwable $e) {
+                report($e);
+                // No bloqueamos el flujo si falla el WhatsApp
+            }
         }
 
         return redirect()->back()->with('success', 'Reserva actualizada correctamente.');
@@ -190,22 +161,9 @@ class AdminReservationController extends Controller
     /**
      * Update reservation settings for a location.
      */
-    public function updateLocationSettings(Request $request, $tenant, Location $location)
+    public function updateLocationSettings(UpdateLocationReservationSettingsRequest $request, $tenant, Location $location)
     {
-        $this->checkTenantPermission('reservations.update');
-
-        $tenantModel = app('currentTenant');
-
-        if ($location->tenant_id !== $tenantModel->id) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'reservation_price_per_person' => 'required|numeric|min:0',
-            'reservation_min_anticipation' => 'required|numeric|min:0',
-            'reservation_slot_duration' => 'required|integer|min:15',
-            'reservation_payment_proof_required' => 'required|boolean',
-        ]);
+        $validated = $request->validated();
 
         $location->update($validated);
 

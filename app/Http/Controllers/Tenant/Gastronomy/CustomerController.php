@@ -3,18 +3,26 @@
 namespace App\Http\Controllers\Tenant\Gastronomy;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenant\Gastronomy\StoreCustomerRequest;
 use App\Models\Tenant\Gastronomy\Customer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 class CustomerController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Busca clientes del tenant actual (AJAX para el selector del POS).
+     */
+    public function index(Request $request): JsonResponse
     {
-        $tenantId = app('currentTenant')->id;
+        Gate::authorize('pos.view');
+
+        /** @var \App\Models\Tenant $tenant */
+        $tenant = app('currentTenant');
         $search = $request->input('search');
 
-        $query = Customer::where('tenant_id', $tenantId);
+        $query = Customer::where('tenant_id', $tenant->id);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -24,26 +32,25 @@ class CustomerController extends Controller
             });
         }
 
-        // Limit results for performance if searching via dropdown
-        return response()->json($query->limit(20)->get());
+        return response()->json(
+            $query->select(['id', 'name', 'phone', 'email', 'identification_number', 'address', 'notes'])
+                  ->limit(20)
+                  ->get()
+        );
     }
 
-    public function store(Request $request)
+    /**
+     * Crea un nuevo cliente para el tenant actual.
+     */
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
-        $tenantId = app('currentTenant')->id;
+        Gate::authorize('pos.create');
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'identification_type' => 'nullable|string',
-            'identification_number' => 'nullable|string',
-            'address' => 'nullable|string', // Simple string for now, or array if frontend sends object
-            'city' => 'nullable|string',
-            'notes' => 'nullable|string',
-        ]);
+        /** @var \App\Models\Tenant $tenant */
+        $tenant = app('currentTenant');
 
-        $validated['tenant_id'] = $tenantId;
+        $validated = $request->validated();
+        $validated['tenant_id'] = $tenant->id;
 
         $customer = Customer::create($validated);
 

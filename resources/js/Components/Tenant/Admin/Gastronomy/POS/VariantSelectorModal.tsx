@@ -10,18 +10,20 @@ interface VariantSelectorModalProps {
     product: Product | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onAddToCart: (product: Product, quantity: number, variants: any, total: number) => void;
+    onAddToCart: (product: Product, quantity: number, variants: Record<number, number[]>, total: number, notes?: string) => void;
 }
 
 export default function VariantSelectorModal({ product, open, onOpenChange, onAddToCart }: VariantSelectorModalProps) {
     const [quantity, setQuantity] = useState(1);
     const [selectedVariants, setSelectedVariants] = useState<Record<number, number[]>>({});
+    const [notes, setNotes] = useState('');
 
     // Reset state when product changes
     useEffect(() => {
         if (open && product) {
             setQuantity(1);
             setSelectedVariants({});
+            setNotes('');
         }
     }, [open, product]);
 
@@ -89,25 +91,7 @@ export default function VariantSelectorModal({ product, open, onOpenChange, onAd
             }
         }
 
-        // Prepare variant options for display/saving
-        const variantOptionsFormatted: any[] = [];
-        if (product.variant_groups) {
-            product.variant_groups.forEach(group => {
-                const selectedList = selectedVariants[group.id] || [];
-                selectedList.forEach(optId => {
-                    const opt = group.options.find(o => o.id === optId);
-                    if (opt) {
-                        variantOptionsFormatted.push({
-                            group_name: group.name,
-                            option_name: opt.name,
-                            price: Number(opt.price_adjustment)
-                        });
-                    }
-                });
-            });
-        }
-
-        onAddToCart(product, quantity, selectedVariants, totalPrice);
+        onAddToCart(product, quantity, selectedVariants, totalPrice, notes.trim() || undefined);
     };
 
     if (!product) return null;
@@ -180,10 +164,24 @@ export default function VariantSelectorModal({ product, open, onOpenChange, onAd
                     ))}
 
                     {(!product.variant_groups || product.variant_groups.length === 0) && (
-                        <div className="text-center py-8 text-slate-400 text-sm">
+                        <div className="text-center py-4 text-slate-400 text-sm">
                             Este producto no tiene opciones adicionales.
                         </div>
                     )}
+
+                    {/* Notas / Instrucciones especiales */}
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-slate-800 text-sm">Notas especiales</h3>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Ej: Sin cebolla, extra queso, término medio..."
+                            maxLength={200}
+                            rows={2}
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        />
+                        <div className="text-[10px] text-slate-400 text-right">{notes.length}/200</div>
+                    </div>
                 </div>
 
                 <DialogFooter className="p-4 border-t border-slate-100 bg-slate-50 flex-col sm:flex-row gap-3">

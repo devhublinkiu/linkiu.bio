@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\MediaFile;
+use App\Models\Tenant\MediaFile;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -11,6 +12,7 @@ use Inertia\Inertia;
 
 class MediaController extends Controller
 {
+    use StoresImageAsWebp;
     public function __construct()
     {
         $this->middleware('sa.permission:sa.media.view')->only(['index']);
@@ -23,8 +25,12 @@ class MediaController extends Controller
      */
     public function index(Request $request)
     {
-        // Exclude system files like .keep AND ensure we only see SuperAdmin (global) files
+        // Solo archivos de SuperAdmin: tenant_id null Y ruta bajo uploads/superadmin/
         $query = MediaFile::whereNull('tenant_id')
+            ->where(function ($q) {
+                $q->where('path', 'like', 'uploads/superadmin/%')
+                  ->orWhere('folder', 'like', 'uploads/superadmin/%');
+            })
             ->where('name', '!=', '.keep')
             ->with('uploader:id,name,email')
             ->orderBy('created_at', 'desc');
@@ -46,11 +52,15 @@ class MediaController extends Controller
 
         $files = $query->paginate(24)->withQueryString();
 
-        // Get statistics (excluding hidden files)
+        $saBase = function ($q) {
+            $q->where('path', 'like', 'uploads/superadmin/%')->orWhere('folder', 'like', 'uploads/superadmin/%');
+        };
+
+        // Get statistics (solo SuperAdmin)
         $stats = [
-            'total' => MediaFile::whereNull('tenant_id')->where('name', '!=', '.keep')->count(),
-            'total_size' => MediaFile::whereNull('tenant_id')->where('name', '!=', '.keep')->sum('size'),
-            'by_type' => MediaFile::whereNull('tenant_id')->where('name', '!=', '.keep')
+            'total' => MediaFile::whereNull('tenant_id')->where($saBase)->where('name', '!=', '.keep')->count(),
+            'total_size' => MediaFile::whereNull('tenant_id')->where($saBase)->where('name', '!=', '.keep')->sum('size'),
+            'by_type' => MediaFile::whereNull('tenant_id')->where($saBase)->where('name', '!=', '.keep')
                 ->selectRaw('type, count(*) as count')
                 ->groupBy('type')
                 ->pluck('count', 'type'),
@@ -80,7 +90,7 @@ class MediaController extends Controller
             'name' => 'required|string|max:255|regex:/^[a-zA-Z0-9_-]+$/',
         ]);
 
-        $folderName = Str::slug($request->name);
+        $folderName = 'uploads/superadmin/' . Str::slug($request->name);
 
         // Check if folder already exists in DB
         if (MediaFile::whereNull('tenant_id')->where('folder', $folderName)->exists()) {
@@ -92,15 +102,15 @@ class MediaController extends Controller
             $filename = '.keep';
             $path = $folderName . '/' . $filename;
 
-            // Create empty file in S3
-            Storage::disk('s3')->put($path, '');
+            // Create empty file in Bunny
+            Storage::disk('bunny')->put($path, '');
 
             // Register in DB so the folder appears in queries
             MediaFile::create([
                 'tenant_id' => null, // Explicitly set as global file
                 'name' => $filename,
                 'path' => $path,
-                'disk' => 's3',
+                'disk' => 'bunny',
                 'mime_type' => 'application/x-empty',
                 'size' => 0,
                 'extension' => '',
@@ -108,7 +118,7 @@ class MediaController extends Controller
                 'folder' => $folderName, // This is key for it to appear in the list
                 'description' => 'System file to keep folder',
                 'uploaded_by' => auth()->id(),
-                'url' => Storage::disk('s3')->url($path),
+                'url' => Storage::disk('bunny')->url($path),
                 'is_public' => false,
             ]);
 
@@ -135,16 +145,16 @@ class MediaController extends Controller
 
         try {
             // Copy file to new location in S3
-            Storage::disk('s3')->copy($oldPath, $newPath);
+            Storage::disk('bunny')->copy($oldPath, $newPath);
 
             // Delete old file
-            Storage::disk('s3')->delete($oldPath);
+            Storage::disk('bunny')->delete($oldPath);
 
             // Update database record
             $mediaFile->update([
                 'folder' => $newFolder,
                 'path' => $newPath,
-                'url' => Storage::disk('s3')->url($newPath),
+                'url' => Storage::disk('bunny')->url($newPath),
             ]);
 
             return back()->with('success', 'Archivo movido correctamente.');
@@ -197,41 +207,45 @@ class MediaController extends Controller
             'description' => 'nullable|string|max:255',
         ]);
 
-        $folder = $request->folder ?? 'uploads';
+        $folder = $request->folder ?? 'uploads/superadmin/media';
         $uploadedFiles = [];
 
         try {
             if ($request->hasFile('files')) {
                 foreach ($request->file('files') as $file) {
                     $originalName = $file->getClientOriginalName();
-                    $extension = $file->getClientOriginalExtension();
-
-                    // Generate unique filename
-                    $filename = pathinfo($originalName, PATHINFO_FILENAME) . '-' . uniqid() . '.' . $extension;
-                    $path = $folder . '/' . $filename;
-
-                    // Upload to S3
-                    Storage::disk('s3')->put($path, file_get_contents($file));
-
-                    // Determine file type
                     $mimeType = $file->getMimeType();
+                    $isImage = str_starts_with($mimeType ?? '', 'image/') && ($mimeType !== 'image/svg+xml');
+
+                    if ($isImage) {
+                        $path = $this->storeImageAsWebp($file, $folder, 'bunny', 1920, 85);
+                        $extension = 'webp';
+                        $mimeType = 'image/webp';
+                        $size = Storage::disk('bunny')->exists($path) ? Storage::disk('bunny')->size($path) : 0;
+                    } else {
+                        $extension = $file->getClientOriginalExtension();
+                        $filename = pathinfo($originalName, PATHINFO_FILENAME) . '-' . uniqid() . '.' . $extension;
+                        $path = $folder . '/' . $filename;
+                        Storage::disk('bunny')->put($path, file_get_contents($file));
+                        $size = $file->getSize();
+                    }
+
                     $type = MediaFile::determineType($mimeType);
 
-                    // Create DB record
-                    $mediaFile = MediaFile::create([
-                        'tenant_id' => null, // Explicitly null for SuperAdmin
+                    $mediaFile = MediaFile::withoutGlobalScopes()->create([
+                        'tenant_id' => null,
                         'name' => $originalName,
                         'path' => $path,
-                        'disk' => 's3',
+                        'disk' => 'bunny',
                         'mime_type' => $mimeType,
-                        'size' => $file->getSize(),
+                        'size' => $size,
                         'extension' => $extension,
                         'type' => $type,
                         'folder' => $folder,
                         'description' => $request->description,
                         'uploaded_by' => auth()->id(),
-                        'url' => Storage::disk('s3')->url($path),
-                        'is_public' => true, // Default to true for easy access? Or false? Let's check Shared. Usually true.
+                        'url' => Storage::disk('bunny')->url($path),
+                        'is_public' => true,
                     ]);
 
                     $uploadedFiles[] = $mediaFile;

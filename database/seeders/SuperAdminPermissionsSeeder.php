@@ -75,7 +75,7 @@ class SuperAdminPermissionsSeeder extends Seeder
             ['name' => 'sa.settings.upload', 'label' => 'Subir Archivos de Configuración', 'module' => 'Setting'],
 
             // Permisos de Tenant (Categorías)
-            ['name' => 'tenant.categories.manage', 'label' => 'Gestionar Categorías', 'module' => 'Categorías de negocios'],
+            // Removed: tenant.categories.manage (conflicto con categories.* del PermissionSeeder)
         ];
 
         foreach ($permissions as $perm) {

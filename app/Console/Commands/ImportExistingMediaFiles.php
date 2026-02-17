@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\MediaFile;
+use App\Models\Tenant\MediaFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 

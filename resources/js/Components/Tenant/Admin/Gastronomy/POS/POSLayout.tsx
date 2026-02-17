@@ -2,8 +2,24 @@ import { PropsWithChildren } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, User } from 'lucide-react';
 import { Toaster } from '@/Components/ui/sonner';
+import { Tenant } from '@/types/pos';
 
-export default function POSLayout({ children, title, tenant, user }: PropsWithChildren<{ title: string; tenant: any; user?: any }>) {
+interface UserRole {
+    label: string;
+    is_owner: boolean;
+    permissions: string[];
+}
+
+interface POSLayoutProps {
+    title: string;
+    tenant: Tenant;
+    user?: UserRole | null;
+}
+
+export default function POSLayout({ children, title, tenant, user }: PropsWithChildren<POSLayoutProps>) {
+    // Detectar waiter por label del rol o por permiso específico
+    const isWaiter = user?.label === 'waiter' || user?.permissions?.includes('pos.waiter_mode');
+
     return (
         <div className="h-screen bg-slate-100 flex flex-col font-outfit overflow-hidden">
             <Head title={`POS - ${title}`} />
@@ -12,7 +28,7 @@ export default function POSLayout({ children, title, tenant, user }: PropsWithCh
             <header className="h-14 bg-slate-900 flex items-center justify-between px-4 shrink-0 z-50 shadow-md border-b border-slate-800">
                 <div className="flex items-center gap-4">
                     {/* Hide Dashboard Link for Waiters */}
-                    {user?.card_brand !== 'waiter' && !user?.roles?.some((r: any) => r.name === 'waiter') && (
+                    {!isWaiter && (
                         <Link
                             href={route('tenant.dashboard', tenant.slug)}
                             className="p-2 -ml-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-all"
@@ -30,7 +46,7 @@ export default function POSLayout({ children, title, tenant, user }: PropsWithCh
 
                 {/* Right side actions */}
                 <div className="flex items-center gap-4">
-                    {/* Status Indicator (Online/Offline eventually) */}
+                    {/* Status Indicator */}
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">En Línea</span>

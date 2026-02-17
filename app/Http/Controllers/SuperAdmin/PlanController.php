@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Vertical;
+use App\Traits\StoresImageAsWebp;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,7 @@ use Illuminate\Validation\Rule;
 
 class PlanController extends Controller
 {
+    use StoresImageAsWebp;
     public function __construct()
     {
         $this->middleware('sa.permission:sa.plans.view')->only(['index', 'show']);
@@ -65,6 +67,7 @@ class PlanController extends Controller
             'highlight_text' => 'nullable|string|max:50',
             'sort_order' => 'integer',
             'features' => 'nullable|array',
+            'limits' => 'nullable|array',
 
             'cover' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'cover_path' => 'nullable|string', // Support for Media Manager
@@ -73,14 +76,7 @@ class PlanController extends Controller
         if ($request->has('cover_path') && $request->cover_path) {
             $validated['cover_path'] = $request->cover_path;
         } elseif ($request->hasFile('cover')) {
-            $validated['cover_path'] = $request->file('cover')->store('plans', ['disk' => 'public', 'visibility' => 'public']);
-            // Note: Changed disk to public for simplicity as MediaController uses public. 
-            // If staying with S3, need to ensure MediaController uses S3 or handle cross-disk.
-            // For now, assuming consistent disk usage is preferred.
-            // Reverting to S3 from original? Original was S3. MediaController created with 'public'.
-            // User did not specify disk preference. I will stick to 'public' for consistency with MediaManager logic I just wrote.
-            // Original code used S3. I should probably respect that if configured, but MediaManager uses 'public'.
-            // I'll stick to 'public' here to match MediaManager.
+            $validated['cover_path'] = $this->storeImageAsWebp($request->file('cover'), 'uploads/superadmin/plan-covers', 'bunny', 1200, 85);
         }
 
         Plan::create($validated);
@@ -131,6 +127,7 @@ class PlanController extends Controller
             'highlight_text' => 'nullable|string|max:50',
             'sort_order' => 'integer',
             'features' => 'nullable|array',
+            'limits' => 'nullable|array',
 
             'cover' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'cover_path' => 'nullable|string',
@@ -142,10 +139,10 @@ class PlanController extends Controller
             // For now just update the reference.
             $validated['cover_path'] = $request->cover_path;
         } elseif ($request->hasFile('cover')) {
-            if ($plan->cover_path && Storage::disk('public')->exists($plan->cover_path)) {
-                Storage::disk('public')->delete($plan->cover_path);
+            if ($plan->cover_path && Storage::disk('bunny')->exists($plan->cover_path)) {
+                Storage::disk('bunny')->delete($plan->cover_path);
             }
-            $validated['cover_path'] = $request->file('cover')->store('plans', ['disk' => 'public', 'visibility' => 'public']);
+            $validated['cover_path'] = $this->storeImageAsWebp($request->file('cover'), 'uploads/superadmin/plan-covers', 'bunny', 1200, 85);
         }
 
         $plan->update($validated);
@@ -156,7 +153,7 @@ class PlanController extends Controller
     public function destroy(Plan $plan)
     {
         if ($plan->cover_path) {
-            Storage::disk('s3')->delete($plan->cover_path);
+            Storage::disk('bunny')->delete($plan->cover_path);
         }
         $plan->delete();
 

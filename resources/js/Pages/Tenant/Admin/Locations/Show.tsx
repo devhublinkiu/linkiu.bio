@@ -46,8 +46,8 @@ interface Location {
     address: string | null;
     latitude: number | null;
     longitude: number | null;
-    opening_hours: any | null;
-    social_networks: any | null;
+    opening_hours: Record<string, { open: string; close: string }[]> | null;
+    social_networks: { facebook?: string; instagram?: string; tiktok?: string } | null;
     is_active: boolean;
 }
 
@@ -250,8 +250,8 @@ export default function Show({ location }: Props) {
                                         <div key={day.key} className="flex justify-between items-center py-2 border-b border-slate-50 last:border-0">
                                             <span className="text-sm font-bold text-slate-600">{day.label}</span>
                                             <div className="text-right">
-                                                {location.opening_hours?.[day.key]?.length > 0 ? (
-                                                    location.opening_hours[day.key].map((slot: any, idx: number) => (
+                                                {(location.opening_hours?.[day.key] ?? []).length > 0 ? (
+                                                    (location.opening_hours?.[day.key] ?? []).map((slot, idx) => (
                                                         <div key={idx} className="text-xs font-medium text-slate-800">
                                                             {slot.open} - {slot.close}
                                                         </div>

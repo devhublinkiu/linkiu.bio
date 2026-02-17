@@ -3,12 +3,13 @@
 namespace App\Models\Tenant\Gastronomy;
 
 use App\Models\Tenant;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use BelongsToTenant, HasFactory;
 
     protected $table = 'gastronomy_customers';
 
