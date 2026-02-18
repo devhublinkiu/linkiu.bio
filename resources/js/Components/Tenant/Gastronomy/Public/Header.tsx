@@ -118,23 +118,23 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                     </div>
                 </div>
 
-                {/* Lower Section: Navigation Pills — iconos y nombre más pequeños en móvil, sin scroll */}
+                {/* Lower Section: Navigation Pills — 5 columnas iguales para espacios uniformes */}
                 <div className="bg-slate-100 py-3 sm:py-4 px-4">
-                    <nav className="relative flex md:items-center md:justify-between justify-start gap-0.5 px-2 sm:px-4" aria-label="Navegación principal">
+                    <nav className="grid grid-cols-5 gap-2 px-2 sm:px-4" aria-label="Navegación principal">
                         {menuItems.map((item) => {
                             const isActive = activeTab === item.id;
                             const isLink = item.href && item.href !== '#';
 
                             const itemContent = (
-                                <div className="relative flex flex-col items-center justify-center gap-0.5 transition-all duration-300 flex-1 min-w-0">
+                                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-300">
                                     {isActive ? (
                                         <div className="bg-slate-900 text-white md:px-4 px-3 py-2 md:py-3 rounded-full shadow-lg shadow-slate-900/20 flex items-center gap-1 justify-center">
                                             <item.icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" aria-hidden />
                                             <span className="text-xs md:text-xs font-bold whitespace-nowrap">{item.label}</span>
                                         </div>
                                     ) : (
-                                        <div className="rounded-full text-slate-500 flex items-center justify-start md:justify-center w-10 h-10">
-                                            <item.icon className="w-5 h-5" aria-hidden />
+                                        <div className="rounded-full text-slate-500 flex items-center justify-center w-10 h-10 shrink-0">
+                                            <item.icon className="w-5 h-5 shrink-0" aria-hidden />
                                         </div>
                                     )}
                                 </div>
@@ -144,13 +144,13 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                                 <Link
                                     key={item.id}
                                     href={item.href!}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-[1.25rem] sm:rounded-[1.5rem] flex-1 min-w-0 flex justify-center"
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-[1.25rem] sm:rounded-[1.5rem] flex justify-center items-center"
                                     aria-current={isActive ? 'page' : undefined}
                                 >
                                     {itemContent}
                                 </Link>
                             ) : (
-                                <div key={item.id} className="cursor-not-allowed opacity-80 flex-1 min-w-0 flex justify-center" aria-disabled>
+                                <div key={item.id} className="cursor-not-allowed opacity-80 flex justify-center items-center" aria-disabled>
                                     {itemContent}
                                 </div>
                             );

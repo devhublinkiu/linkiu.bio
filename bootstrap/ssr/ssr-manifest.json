@@ -1,7 +1,7 @@
 {
   "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
   "node_modules/leaflet/dist/images/marker-icon.png": [
-    "/build/assets/Index-BryFdJSN.js",
+    "/build/assets/Index-D40aG4eB.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -9,7 +9,7 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "node_modules/leaflet/dist/images/marker-shadow.png": [
-    "/build/assets/Index-BryFdJSN.js",
+    "/build/assets/Index-D40aG4eB.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -22,11 +22,32 @@
   "resources/js/Components/Dropdown.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
   ],
+  "resources/js/Components/Landing/AnimatedBeamDemo.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/CTASection.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/FAQSection.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
   "resources/js/Components/Landing/FeaturesSection.tsx": [
-    "/build/assets/Welcome-DnYFwPRY.js"
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/FooterSection.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/Components/Landing/HowItWorksSection.tsx": [
-    "/build/assets/Welcome-DnYFwPRY.js"
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/NosotrosSection.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/TestimonialsSection.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
+  "resources/js/Components/Landing/TrustedBy.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/Components/NavLink.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -35,13 +56,13 @@
     "/build/assets/dropdown-menu-BCxMx_rd.js"
   ],
   "resources/js/Components/Public/Footer.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/Public/ReportBusinessStrip.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/Public/ReportModal.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/ResponsiveNavLink.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -120,31 +141,31 @@
     "/build/assets/Success-DKF3lNKg.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/BannerSlider.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/CategoryGrid.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/FloatingCart.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/Header.tsx": [
-    "/build/assets/Header-7g29WzYU.js"
+    "/build/assets/Header-CDUqNXGd.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/Menu/ProductCard.tsx": [
-    "/build/assets/ProductCard-CWG5Cu4f.js"
+    "/build/assets/ProductCard-C_ZUuIiH.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/ProductDetailDrawer.tsx": [
-    "/build/assets/ProductDetailDrawer-D4cex1D4.js"
+    "/build/assets/ProductDetailDrawer-DP7yEYKQ.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/ProductList.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/PublicLayout.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/Tenant/Public/Locations/LocationCard.tsx": [
-    "/build/assets/Index-BryFdJSN.js",
+    "/build/assets/Index-D40aG4eB.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -152,7 +173,7 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "resources/js/Components/Tenant/Public/Locations/LocationMap.tsx": [
-    "/build/assets/Index-BryFdJSN.js",
+    "/build/assets/Index-D40aG4eB.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -160,7 +181,7 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "resources/js/Components/Tenant/Public/PromotionalTicker.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Components/nav-main.tsx": [
     "/build/assets/SuperAdminLayout-rjkAJMgZ.js"
@@ -177,11 +198,17 @@
   "resources/js/Components/ui/alert.tsx": [
     "/build/assets/alert-NB8JTTvo.js"
   ],
+  "resources/js/Components/ui/animated-beam.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
   "resources/js/Components/ui/animated-gradient-text.tsx": [
-    "/build/assets/Header-7g29WzYU.js"
+    "/build/assets/Header-CDUqNXGd.js"
   ],
   "resources/js/Components/ui/animated-shiny-text.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
+  ],
+  "resources/js/Components/ui/animated-tooltip.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/Components/ui/avatar.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -190,7 +217,7 @@
     "/build/assets/badge-C_PGNHO8.js"
   ],
   "resources/js/Components/ui/bento-grid.tsx": [
-    "/build/assets/Welcome-DnYFwPRY.js"
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/Components/ui/breadcrumb.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -217,7 +244,7 @@
     "/build/assets/dialog-QdU9y0pO.js"
   ],
   "resources/js/Components/ui/dot-pattern.tsx": [
-    "/build/assets/Welcome-DnYFwPRY.js"
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/Components/ui/drawer.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -240,6 +267,9 @@
   "resources/js/Components/ui/label.tsx": [
     "/build/assets/label-L_u-fyc1.js"
   ],
+  "resources/js/Components/ui/marquee.tsx": [
+    "/build/assets/Welcome-rGqtNDDv.js"
+  ],
   "resources/js/Components/ui/multi-select.tsx": [
     "/build/assets/Index-Dz1lM6hU.js"
   ],
@@ -253,16 +283,16 @@
     "/build/assets/progress-BW8YadT0.js"
   ],
   "resources/js/Components/ui/promo-carousel.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Components/ui/radio-group.tsx": [
-    "/build/assets/Index-uNpYz91q.js"
+    "/build/assets/Index-BrD3ITTj.js"
   ],
   "resources/js/Components/ui/rich-text-editor.tsx": [
     "/build/assets/Edit-CBmS52XZ.js"
   ],
   "resources/js/Components/ui/ripple.tsx": [
-    "/build/assets/Success-27ZTjbc7.js"
+    "/build/assets/Success-GNWjED5v.js"
   ],
   "resources/js/Components/ui/scroll-area.tsx": [
     "/build/assets/scroll-area-iVmBTZv4.js"
@@ -304,7 +334,7 @@
     "/build/assets/menuConfig-rtCrEhXP.js"
   ],
   "resources/js/Contexts/CartContext.tsx": [
-    "/build/assets/PublicLayout-SbrFcTnr.js"
+    "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Layouts/AuthenticatedLayout.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -592,31 +622,31 @@
     "/build/assets/Settings-CGUh08Tj.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Cart/Index.tsx": [
-    "/build/assets/Index-BTPIDxkd.js"
+    "/build/assets/Index-DPDqafZm.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Checkout/Index.tsx": [
-    "/build/assets/Index-uNpYz91q.js"
+    "/build/assets/Index-BrD3ITTj.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Checkout/Success.tsx": [
-    "/build/assets/Success-27ZTjbc7.js"
+    "/build/assets/Success-GNWjED5v.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Favorites/Index.tsx": [
-    "/build/assets/Index-CHQFkCJF.js"
+    "/build/assets/Index-Y4jo4DVn.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Home.tsx": [
-    "/build/assets/Home-Xyx-SqNC.js"
+    "/build/assets/Home-Vtqmi_9K.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/MagicUpload.tsx": [
     "/build/assets/MagicUpload-D64XdxMt.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Menu/CategoryShow.tsx": [
-    "/build/assets/CategoryShow-DSCanuXx.js"
+    "/build/assets/CategoryShow-DuIFUZi3.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Menu/Index.tsx": [
-    "/build/assets/Index-Dw5rYoXo.js"
+    "/build/assets/Index-D99T-Lr9.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Reservations/Index.tsx": [
-    "/build/assets/Index-CDhUphVn.js"
+    "/build/assets/Index-DovNj5i4.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Shorts/Index.tsx": [
     "/build/assets/Index-HOHs_RYi.js"
@@ -625,7 +655,7 @@
     "/build/assets/Show-BvzYYpKF.js"
   ],
   "resources/js/Pages/Tenant/Public/Locations/Index.tsx": [
-    "/build/assets/Index-BryFdJSN.js",
+    "/build/assets/Index-D40aG4eB.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -636,7 +666,7 @@
     "/build/assets/Unavailable-im_RuW28.js"
   ],
   "resources/js/Pages/Welcome.tsx": [
-    "/build/assets/Welcome-DnYFwPRY.js"
+    "/build/assets/Welcome-rGqtNDDv.js"
   ],
   "resources/js/hooks/use-mobile.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -645,7 +675,7 @@
     "/build/assets/Index-Dz1lM6hU.js"
   ],
   "resources/js/hooks/useFavorites.tsx": [
-    "/build/assets/ProductDetailDrawer-D4cex1D4.js"
+    "/build/assets/ProductDetailDrawer-DP7yEYKQ.js"
   ],
   "resources/js/lib/utils.ts": [
     "/build/assets/utils-B0hQsrDj.js"

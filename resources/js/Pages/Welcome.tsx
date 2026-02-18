@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import Spline from '@splinetool/react-spline';
 import { Menu } from 'lucide-react';
 import { DotPattern } from '@/Components/ui/dot-pattern';
+import { AnimatedBeamDemo } from '@/Components/Landing/AnimatedBeamDemo';
 import { FeaturesSection } from '@/Components/Landing/FeaturesSection';
 import { HowItWorksSection } from '@/Components/Landing/HowItWorksSection';
+import { CTASection } from '@/Components/Landing/CTASection';
+import { NosotrosSection } from '@/Components/Landing/NosotrosSection';
+import { TestimonialsSection } from '@/Components/Landing/TestimonialsSection';
+import { FAQSection } from '@/Components/Landing/FAQSection';
+import { FooterSection } from '@/Components/Landing/FooterSection';
 import { Sheet, SheetContent, SheetTrigger } from '@/Components/ui/sheet';
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,9 +27,6 @@ const NAV_LINKS = [
 
 const linkClass = "rounded-md px-3 py-2 text-sm text-black/80 transition hover:text-black dark:text-white/80 dark:hover:text-white";
 const btnClass = "rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90";
-
-/** Escena Spline local (sin logo, desde public) */
-const SPLINE_SCENE_URL = '/scene-clean.splinecode';
 
 export default function Welcome({
     auth,
@@ -84,14 +86,14 @@ export default function Welcome({
                                 )}
                             />
                             <div className="relative z-10">
-                            <h1 className="text-6xl justify-start text-left md:text-center font-bold tracking-tight text-slate-900 dark:text-white md:text-7xl max-w-4xl mx-auto">
+                            <h1 className="text-6xl justify-start text-left md:text-center font-black tracking-tight text-slate-900 dark:text-white md:text-7xl max-w-4xl mx-auto">
                                 Tu negocio, un solo enlace
                             </h1>
                             <p className="mt-6 text-lg justify-start text-left md:text-center sm:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
                                 La herramienta digital que concentra tu negocio en un solo enlace: catálogo, pedidos, reservas, contacto y más. Adaptada a tu tipo de negocio.
                             </p>
-                            <div className="relative w-full max-w-4xl mx-auto h-[480px] overflow-hidden rounded-lg -mt-32">
-                                <Spline scene={SPLINE_SCENE_URL} className="size-full" style={{ width: '100%', height: '100%' }} />
+                            <div className="relative w-full max-w-4xl mx-auto min-h-[200px]">
+                                <AnimatedBeamDemo />
                             </div>
                             </div>
                         </section>
@@ -100,10 +102,13 @@ export default function Welcome({
 
                         <HowItWorksSection />
 
-                        <footer className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                            © {new Date().getFullYear()} Linkiu
-                        </footer>
+                        <CTASection />
+                        <NosotrosSection />
+                        <TestimonialsSection />
+                        <FAQSection />
                     </div>
+
+                    <FooterSection />
                 </div>
             </div>
         </>

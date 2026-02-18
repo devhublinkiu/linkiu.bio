@@ -17,7 +17,7 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
     const { selectedTable } = cart;
 
     return (
-        <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500">
+        <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500 bg-white">
             {/* 1. Base Image Layer (Deep back) */}
             <div className="fixed inset-0 -z-30 bg-[url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
 
