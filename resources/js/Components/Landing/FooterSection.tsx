@@ -60,7 +60,7 @@ export function FooterSection() {
                                 aria-hidden
                             />
                         </Link>*/}
-                        <h3 className="text-3xl font-bold pb-2 sm:text-5xl lg:text-6xl">Un solo enlace, <br /> infinitas oportunidades</h3>
+                        <h3 className="text-5xl font-bold pb-2 sm:text-5xl lg:text-6xl">Un solo enlace, <br /> infinitas oportunidades</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             © {year} Linkiu. Todos los derechos reservados.
                         </p>
@@ -92,7 +92,7 @@ export function FooterSection() {
 
                 {/* Marca grande abajo con espacio respecto a las secciones */}
                 <div
-                    className="pointer-events-none mt-10 flex justify-center -mb-12 sm:mt-16 sm:-mb-24"
+                    className="pointer-events-none mt-10 flex justify-center -mb-8 sm:mt-16 sm:-mb-24"
                     aria-hidden
                 >
                     <span className="select-none text-[clamp(10rem,45vw,48rem)] font-black leading-none tracking-tighter text-slate-100 dark:text-slate-800/50 sm:text-[clamp(20rem,20vw,48rem)]">

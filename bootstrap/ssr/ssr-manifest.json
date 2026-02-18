@@ -23,31 +23,31 @@
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
   ],
   "resources/js/Components/Landing/AnimatedBeamDemo.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/CTASection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/FAQSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/FeaturesSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/FooterSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/HowItWorksSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/NosotrosSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/TestimonialsSection.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/Landing/TrustedBy.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/NavLink.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -199,7 +199,7 @@
     "/build/assets/alert-NB8JTTvo.js"
   ],
   "resources/js/Components/ui/animated-beam.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/ui/animated-gradient-text.tsx": [
     "/build/assets/Header-CDUqNXGd.js"
@@ -208,7 +208,7 @@
     "/build/assets/PublicLayout-BPgzBK4n.js"
   ],
   "resources/js/Components/ui/animated-tooltip.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/ui/avatar.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -217,7 +217,7 @@
     "/build/assets/badge-C_PGNHO8.js"
   ],
   "resources/js/Components/ui/bento-grid.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/ui/breadcrumb.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -244,7 +244,7 @@
     "/build/assets/dialog-QdU9y0pO.js"
   ],
   "resources/js/Components/ui/dot-pattern.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/ui/drawer.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
@@ -268,7 +268,7 @@
     "/build/assets/label-L_u-fyc1.js"
   ],
   "resources/js/Components/ui/marquee.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/Components/ui/multi-select.tsx": [
     "/build/assets/Index-Dz1lM6hU.js"
@@ -666,7 +666,7 @@
     "/build/assets/Unavailable-im_RuW28.js"
   ],
   "resources/js/Pages/Welcome.tsx": [
-    "/build/assets/Welcome-rGqtNDDv.js"
+    "/build/assets/Welcome-C6dky6yk.js"
   ],
   "resources/js/hooks/use-mobile.tsx": [
     "/build/assets/dropdown-menu-BCxMx_rd.js"
