@@ -13,13 +13,39 @@ use App\Http\Controllers\PublicSite\InvoiceVerificationController as PublicInvoi
 
 // 1. Landing Page (Global)
 Route::get('/', function () {
+    $releaseNotes = \App\Models\ReleaseNote::published()
+        ->orderByDesc('published_at')
+        ->limit(3)
+        ->get()
+        ->map(function ($r) {
+            $coverUrl = $r->cover_path && \Illuminate\Support\Facades\Storage::disk('bunny')->exists($r->cover_path)
+                ? \Illuminate\Support\Facades\Storage::disk('bunny')->url($r->cover_path)
+                : null;
+            return [
+                'id' => (string) $r->id,
+                'slug' => $r->slug,
+                'type' => $r->type,
+                'date' => $r->published_at?->format('Y-m-d') ?? $r->created_at->format('Y-m-d'),
+                'title' => $r->title,
+                'snippet' => $r->snippet ?? '',
+                'cover_url' => $coverUrl,
+            ];
+        })
+        ->values()
+        ->all();
+
     return Inertia::render('Welcome', [
-    'canLogin' => Route::has('login'),
-    'canRegister' => Route::has('register'),
-    'laravelVersion' => Application::VERSION,
-    'phpVersion' => PHP_VERSION,
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+        'laravelVersion' => Application::VERSION,
+        'phpVersion' => PHP_VERSION,
+        'releaseNotes' => $releaseNotes,
     ]);
 })->name('welcome');
+
+// Release notes público (categorías + listado desde BD)
+Route::get('/release-notes', [\App\Http\Controllers\ReleaseNotesController::class, 'index'])->name('public.release-notes.index');
+Route::get('/release-notes/{slug}', [\App\Http\Controllers\ReleaseNotesController::class, 'show'])->name('public.release-notes.show');
 
 /* Route::get('/test-broadcast', function () {
  // Manually broadcast to check connection
@@ -164,6 +190,11 @@ Route::prefix('superlinkiu')->middleware(['auth', 'verified'])->group(function (
 
         // Plans
         Route::resource('plans', \App\Http\Controllers\SuperAdmin\PlanController::class);
+
+        // Release Notes (SuperAdmin)
+        Route::resource('release-note-categories', \App\Http\Controllers\SuperAdmin\ReleaseNoteCategoryController::class)->except(['show']);
+        Route::post('release-notes/upload-image', [\App\Http\Controllers\SuperAdmin\ReleaseNoteController::class, 'uploadImage'])->name('release-notes.upload-image');
+        Route::resource('release-notes', \App\Http\Controllers\SuperAdmin\ReleaseNoteController::class);
 
         // Billing
         Route::get('/subscriptions', [\App\Http\Controllers\SuperAdmin\SubscriptionController::class , 'index'])->name('subscriptions.index');

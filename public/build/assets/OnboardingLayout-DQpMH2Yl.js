@@ -1,0 +1,1 @@
+import{j as s,H as t}from"./app-Bo0l-nyL.js";function m({children:e,currentStep:n,siteSettings:r,title:a}){return s.jsxs("div",{className:"min-h-screen bg-white",children:[a&&s.jsx(t,{title:a}),s.jsx("main",{className:"max-w-5xl mx-auto px-6 py-8 md:py-16",children:e})]})}export{m as O};

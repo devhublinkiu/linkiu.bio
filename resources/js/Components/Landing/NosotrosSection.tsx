@@ -61,7 +61,7 @@ export function NosotrosSection() {
                         </div>
 
                         {/* Mini tarjeta. Móvil: debajo con margen. Desktop: absoluta */}
-                        <div className="mt-6 flex w-full max-w-[260px] rounded-xl border border-emerald-200 bg-white px-3 py-2 dark:border-emerald-800 dark:bg-slate-800/80 lg:absolute lg:bottom-8 lg:left-0 lg:mt-0 lg:max-w-none">
+                        <div className="mt-6 flex max-w-[160px] rounded-xl border border-emerald-200 bg-white px-3 py-2 dark:border-emerald-800 dark:bg-slate-800/80 lg:absolute lg:bottom-8 lg:left-0 lg:mt-0 lg:max-w-none">
                             <div className="flex items-center gap-2">
                                 <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                 <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Todo en un lugar</span>

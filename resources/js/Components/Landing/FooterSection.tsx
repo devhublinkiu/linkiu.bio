@@ -95,7 +95,7 @@ export function FooterSection() {
                     className="pointer-events-none mt-10 flex justify-center -mb-8 sm:mt-16 sm:-mb-24"
                     aria-hidden
                 >
-                    <span className="select-none text-[clamp(10rem,45vw,48rem)] font-black leading-none tracking-tighter text-slate-100 dark:text-slate-800/50 sm:text-[clamp(20rem,20vw,48rem)]">
+                    <span className="select-none text-[clamp(10rem,45vw,56rem)] font-black leading-none tracking-tighter text-slate-100 dark:text-slate-800/50 sm:text-[clamp(40rem,20vw,48rem)]">
                         Linkiu
                     </span>
                 </div>

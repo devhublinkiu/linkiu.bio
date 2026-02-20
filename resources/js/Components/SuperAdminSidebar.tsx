@@ -74,11 +74,15 @@ export function SuperAdminSidebar({ user, logo, ...props }: React.ComponentProps
                 title: "Contenido",
                 url: "#",
                 icon: LayoutGrid,
-                isActive: url.startsWith('/superlinkiu/categories') || url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/support/requests') || url.startsWith('/superlinkiu/media'),
+                isActive: url.startsWith('/superlinkiu/categories') || url.startsWith('/superlinkiu/category-icons') || url.startsWith('/superlinkiu/release-notes') || url.startsWith('/superlinkiu/release-note-categories') || url.startsWith('/superlinkiu/support/requests') || url.startsWith('/superlinkiu/media'),
                 items: [
                     {
                         title: "Categorías de negocio",
                         url: "/superlinkiu/categories",
+                    },
+                    {
+                        title: "Release Notes",
+                        url: "/superlinkiu/release-notes",
                     },
                     {
                         title: "Categorías e Iconos",

@@ -10,6 +10,7 @@ import { CTASection } from '@/Components/Landing/CTASection';
 import { NosotrosSection } from '@/Components/Landing/NosotrosSection';
 import { TestimonialsSection } from '@/Components/Landing/TestimonialsSection';
 import { FAQSection } from '@/Components/Landing/FAQSection';
+import { ReleaseNotesSection } from '@/Components/Landing/ReleaseNotesSection';
 import { FooterSection } from '@/Components/Landing/FooterSection';
 import { Sheet, SheetContent, SheetTrigger } from '@/Components/ui/sheet';
 import { Button } from '@/Components/ui/button';
@@ -21,7 +22,7 @@ const NAV_LINKS = [
     { href: '/#nosotros', label: 'Nosotros' },
     { href: '/#tutoriales', label: 'Tutoriales' },
     { href: '/#blogs', label: 'Blogs' },
-    { href: '/#release-notes', label: 'Release Notes' },
+    { href: '/release-notes', label: 'Release Notes' },
     { href: '/#contacto', label: 'Contacto' },
 ] as const;
 
@@ -32,7 +33,8 @@ export default function Welcome({
     auth,
     laravelVersion,
     phpVersion,
-}: PageProps<{ laravelVersion: string; phpVersion: string }>) {
+    releaseNotes = [],
+}: PageProps<{ laravelVersion: string; phpVersion: string; releaseNotes?: Array<{ id: string; slug: string; type: string; date: string; title: string; snippet: string; cover_url?: string | null }> }>) {
     const [menuOpen, setMenuOpen] = useState(false);
     return (
         <>
@@ -106,6 +108,7 @@ export default function Welcome({
                         <NosotrosSection />
                         <TestimonialsSection />
                         <FAQSection />
+                        <ReleaseNotesSection releaseNotes={releaseNotes} />
                     </div>
 
                     <FooterSection />
