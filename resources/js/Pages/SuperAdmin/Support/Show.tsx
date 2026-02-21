@@ -1,4 +1,5 @@
 import SuperAdminLayout from '@/Layouts/SuperAdminLayout';
+import { getEcho } from '@/echo';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import {
     ChevronLeft,
@@ -151,11 +152,10 @@ export default function Show({ ticket }: Props) {
 
     // Handle real-time updates (client-side echo registration)
     useEffect(() => {
-        // @ts-ignore
-        if (window.Echo) {
+        const echo = getEcho();
+        if (echo) {
             const channelName = 'superadmin-updates';
-            // @ts-ignore
-            window.Echo.channel(channelName)
+            echo.channel(channelName)
                 .listen('.ticket.replied', (e: any) => {
                     if (e.ticket_id === ticket.id) {
                         console.log('[Echo] Real-time reply received for this ticket:', e);
@@ -164,13 +164,12 @@ export default function Show({ ticket }: Props) {
                 });
 
             return () => {
-                // Simplified cleanup - just try to leave the channel
                 try {
-                    if ((window as any).Echo) {
-                        (window as any).Echo.leave(channelName);
+                    if (typeof (echo as any).leave === 'function') {
+                        (echo as any).leave(channelName);
                     }
-                } catch (e) {
-                    // Silent fail - channel cleanup is not critical
+                } catch {
+                    // Silent fail
                 }
             };
         }

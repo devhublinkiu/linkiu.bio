@@ -21,6 +21,7 @@ import { useEffect, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 
 interface Reply {
     id: number;
@@ -122,11 +123,10 @@ export default function Show({ ticket, currentTenant }: Props) {
 
     // Handle real-time updates (client-side echo registration)
     useEffect(() => {
-        // @ts-ignore
-        if (window.Echo) {
+        const echo = getEcho();
+        if (echo) {
             const channelName = `tenant-updates.${currentTenant.id}`;
-            // @ts-ignore
-            window.Echo.channel(channelName)
+            echo.channel(channelName)
                 .listen('.ticket.replied', (e: any) => {
                     if (e.ticket_id === ticket.id) {
                         console.log('[Echo] Real-time reply received for this ticket:', e);
@@ -135,13 +135,12 @@ export default function Show({ ticket, currentTenant }: Props) {
                 });
 
             return () => {
-                // Simplified cleanup - just try to leave the channel
                 try {
-                    if ((window as any).Echo) {
-                        (window as any).Echo.leave(channelName);
+                    if (typeof (echo as any).leave === 'function') {
+                        (echo as any).leave(channelName);
                     }
-                } catch (e) {
-                    // Silent fail - channel cleanup is not critical
+                } catch {
+                    // Silent fail
                 }
             };
         }

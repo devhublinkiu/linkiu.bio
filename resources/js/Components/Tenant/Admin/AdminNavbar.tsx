@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import React, { useState, useEffect, Fragment } from 'react';
+import { getEcho } from '@/echo';
 import { Button } from '@/Components/ui/button';
 import {
     DropdownMenu,
@@ -103,10 +104,9 @@ export default function AdminNavbar({ title, breadcrumbs }: AdminNavbarProps) {
     }, [auth?.notifications]);
 
     useEffect(() => {
-        // @ts-ignore
-        if (window.Echo && currentTenant?.id) {
-            // @ts-ignore
-            window.Echo.channel(`tenant-updates.${currentTenant.id}`)
+        const echo = getEcho();
+        if (echo && currentTenant?.id) {
+            echo.channel(`tenant-updates.${currentTenant.id}`)
                 .listen('.invoice.generated', (e: any) => {
                     toast.info(`¡Nueva factura generada!`, {
                         description: e.message

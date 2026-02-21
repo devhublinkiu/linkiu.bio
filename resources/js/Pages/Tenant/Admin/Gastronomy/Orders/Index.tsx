@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Card, CardContent, CardHeader, CardFooter } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -183,7 +184,7 @@ export default function OrdersIndex({ tenant, orders: paginatedOrders, isHistory
     // --- Echo: escuchar nuevos pedidos en tiempo real ---
     useEffect(() => {
         if (isHistory) return;
-        const echoInstance = (window as unknown as Record<string, unknown>).Echo as EchoInstance | undefined;
+        const echoInstance = getEcho() as EchoInstance | undefined;
         if (!echoInstance?.connector || !tenant.id) return;
 
         const channelName = `tenant.${tenant.id}.orders`;

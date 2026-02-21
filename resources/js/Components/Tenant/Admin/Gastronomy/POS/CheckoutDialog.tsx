@@ -11,6 +11,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { formatCurrency } from '@/utils/currency';
 
+import { getEcho } from '@/echo';
 import { Table, Tenant, CartItem, Customer } from '@/types/pos';
 
 export interface CheckoutResult {
@@ -71,7 +72,7 @@ export default function CheckoutDialog({ open, onOpenChange, total, items, onSuc
         let channel: EchoChannel | null = null;
 
         try {
-            const echoInstance = (window as unknown as Record<string, unknown>).Echo as {
+            const echoInstance = getEcho() as {
                 connector?: unknown;
                 private: (ch: string) => EchoChannel;
             } | undefined;

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
@@ -102,7 +103,7 @@ export default function KitchenIndex({ orders: initialOrders, tenant, currentLoc
     // --- Real-time Echo ---
 
     useEffect(() => {
-        const echoInstance = (window as unknown as Record<string, unknown>).Echo as EchoInstance | undefined;
+        const echoInstance = getEcho() as EchoInstance | undefined;
 
         if (!echoInstance?.connector || !tenant.id) {
             setIsEchoConnected(false);

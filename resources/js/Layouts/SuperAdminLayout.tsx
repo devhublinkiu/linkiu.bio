@@ -46,6 +46,7 @@ import {
 import { PermissionDeniedModal } from '@/Components/Shared/PermissionDeniedModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/Components/ui/sidebar';
@@ -124,11 +125,10 @@ export default function SuperAdminLayout({ children, header, breadcrumbs }: Supe
     };
 
     useEffect(() => {
-        // @ts-ignore
-        if (window.Echo) {
+        const echo = getEcho();
+        if (echo) {
             console.log('[Echo] Subscribing to superadmin-updates channel...');
-            // @ts-ignore
-            window.Echo.channel('superadmin-updates')
+            echo.channel('superadmin-updates')
                 .listen('.tenant.created', (e: any) => {
                     console.log('[Echo] Received .tenant.created event:', e);
                     toast.info(`¡Nueva tienda registrada!`, {
@@ -257,25 +257,21 @@ export default function SuperAdminLayout({ children, header, breadcrumbs }: Supe
 
             // Debug Connection
             console.log('[Echo] Listeners attached to superadmin-updates');
-            // @ts-ignore
-            if (window.Echo.connector.ably.connection.state === 'connected') {
+            const conn = (echo as any).connector?.ably?.connection;
+            if (conn?.state === 'connected') {
                 console.log('[Echo] Status: Connected');
-            } else {
-                console.log('[Echo] Status:', window.Echo.connector.ably.connection.state);
-                // @ts-ignore
-                window.Echo.connector.ably.connection.on('connected', () => console.log('[Echo] Connected!'));
+            } else if (conn) {
+                console.log('[Echo] Status:', conn.state);
+                conn.on('connected', () => console.log('[Echo] Connected!'));
             }
-
-            // Debug: spy on all messages on this channel
-            // @ts-ignore
-            if (window.Echo.connector.ably.channels.get('superadmin-updates')) {
-                // @ts-ignore
-                window.Echo.connector.ably.channels.get('superadmin-updates').subscribe((msg) => {
+            const ch = (echo as any).connector?.ably?.channels?.get('superadmin-updates');
+            if (ch) {
+                ch.subscribe((msg: { name: string; data: unknown }) => {
                     console.log('[Ably Raw] Message received:', msg.name, msg.data);
                 });
             }
         } else {
-            console.warn('[Echo] window.Echo not available');
+            console.warn('[Echo] Echo not available (no VITE_ABLY_KEY or init failed)');
         }
     }, []);
 

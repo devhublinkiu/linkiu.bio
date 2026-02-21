@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Head, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -171,7 +172,7 @@ export default function WaiterIndex({ categories, zones: initialZones, tenant, l
 
     // --- Echo/Ably: escuchar cambios de estado en órdenes activas ---
     useEffect(() => {
-        const echoInstance = (window as unknown as Record<string, unknown>).Echo as EchoInstance | undefined;
+        const echoInstance = getEcho() as EchoInstance | undefined;
         if (!echoInstance?.connector || !tenant.id || allActiveOrderIds.length === 0) return;
 
         const subscribedChannels: string[] = [];

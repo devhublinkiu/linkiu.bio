@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { getEcho } from '@/echo';
 import POSLayout from '@/Components/Tenant/Admin/Gastronomy/POS/POSLayout';
 import { ShoppingCart, CheckCircle, Clock, Construction, Armchair, Plus, Search, ChefHat, Package, Loader2, Image, CreditCard, Receipt, BadgeCheck, X } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
@@ -168,7 +169,7 @@ export default function POSIndex({ tenant, categories, zones = [], taxSettings, 
             stopListening: (event: string) => void;
         }
 
-        const echoInstance = (window as unknown as Record<string, unknown>).Echo as {
+        const echoInstance = getEcho() as {
             connector?: unknown;
             channel: (ch: string) => EchoChannel;
         } | undefined;

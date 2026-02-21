@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import AdminSidebar from '@/Components/Tenant/Admin/AdminSidebar';
 import AdminNavbar from '@/Components/Tenant/Admin/AdminNavbar';
 import AdminFooter from '@/Components/Tenant/Admin/AdminFooter';
@@ -47,8 +48,9 @@ export default function AdminLayout({
     }, [flash]);
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
-            window.Echo.channel(`tenant.${currentTenant.id}.reservations`)
+        const echo = getEcho();
+        if (echo && currentTenant?.id) {
+            echo.channel(`tenant.${currentTenant.id}.reservations`)
                 .listen('.reservation.created', (e: any) => {
                     toast.info(e.message, {
                         description: 'Nueva reserva recibida',
@@ -63,13 +65,11 @@ export default function AdminLayout({
 
         return () => {
             try {
-                if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
-                    const echo = window.Echo as any;
-                    if (echo.connector?.ably?.connection?.state === 'connected') {
-                        echo.leave(`tenant.${currentTenant.id}.reservations`);
-                    }
+                const echo = getEcho();
+                if (echo && currentTenant?.id && (echo as any).connector?.ably?.connection?.state === 'connected') {
+                    (echo as any).leave(`tenant.${currentTenant.id}.reservations`);
                 }
-            } catch (error) {
+            } catch {
                 // Silent catch
             }
         };

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Head, usePage, router, useForm } from '@inertiajs/react';
 import { PageProps } from '@/types';
+import { getEcho } from '@/echo';
 import AdminLayout from '@/Layouts/Tenant/AdminLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -197,19 +198,17 @@ export default function AdminReservationIndex({ reservations, tables, locations,
 
     // Real-time WebSocket listener
     React.useEffect(() => {
-        if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
-            window.Echo.channel(`tenant.${currentTenant.id}.reservations`)
+        const echo = getEcho();
+        if (echo && currentTenant?.id) {
+            echo.channel(`tenant.${currentTenant.id}.reservations`)
                 .listen('.reservation.created', () => {
                     router.reload({ only: ['reservations'] });
                 });
         }
         return () => {
             try {
-                if (typeof window !== 'undefined' && window.Echo && currentTenant?.id) {
-                    const echo = window.Echo;
-                    if (echo.connector?.ably?.connection?.state === 'connected') {
-                        echo.leave(`tenant.${currentTenant.id}.reservations`);
-                    }
+                if (echo && currentTenant?.id && (echo as any).connector?.ably?.connection?.state === 'connected') {
+                    (echo as any).leave(`tenant.${currentTenant.id}.reservations`);
                 }
             } catch { /* Silent */ }
         };

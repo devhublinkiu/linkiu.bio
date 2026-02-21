@@ -18,6 +18,7 @@ import {
     FileText
 } from 'lucide-react';
 import { route } from 'ziggy-js';
+import { getEcho } from '@/echo';
 import { toast } from 'sonner';
 import { Badge } from '@/Components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -45,32 +46,30 @@ export default function Success({ tenant, plan, invoice }: Props) {
 
     // Real-time listener for payment approval
     useEffect(() => {
-        if (invoice.status === 'pending_review' && window.Echo) {
-            const channel = `tenant-updates.${tenant.id}`;
-
-
-            try {
-                window.Echo.channel(channel)
-                    .listen('.payment.status_updated', (e: any) => {
-                        if (e.invoice_id === invoice.id && e.status === 'paid') {
-                            setShowConfetti(true);
-                            toast.success('¡Pago aprobado! Redirigiendo...');
-                            router.reload();
-                        }
-                    });
-
-                return () => {
-                    try {
-                        if (window.Echo && typeof window.Echo.leave === 'function') {
-                            window.Echo.leave(channel);
-                        }
-                    } catch (cleanupErr) {
-                        console.error('[Echo] Cleanup error:', cleanupErr);
+        const echo = getEcho();
+        if (invoice.status !== 'pending_review' || !echo) return;
+        const channel = `tenant-updates.${tenant.id}`;
+        try {
+            echo.channel(channel)
+                .listen('.payment.status_updated', (e: any) => {
+                    if (e.invoice_id === invoice.id && e.status === 'paid') {
+                        setShowConfetti(true);
+                        toast.success('¡Pago aprobado! Redirigiendo...');
+                        router.reload();
                     }
-                };
-            } catch (err) {
-                console.error('[Echo] Failed to subscribe:', err);
-            }
+                });
+
+            return () => {
+                try {
+                    if (typeof (echo as any).leave === 'function') {
+                        (echo as any).leave(channel);
+                    }
+                } catch (cleanupErr) {
+                    console.error('[Echo] Cleanup error:', cleanupErr);
+                }
+            };
+        } catch (err) {
+            console.error('[Echo] Failed to subscribe:', err);
         }
     }, [invoice.status, invoice.id, tenant.id]);
 

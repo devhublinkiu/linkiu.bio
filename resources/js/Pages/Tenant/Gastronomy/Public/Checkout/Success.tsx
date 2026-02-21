@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
+import { getEcho } from '@/echo';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { Ripple } from '@/Components/ui/ripple';
@@ -30,7 +31,7 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
 
     // Real-time listener: actualizar estado y mostrar toast sin recargar la página
     useEffect(() => {
-        const echoInstance = (window as unknown as { Echo?: { channel: (n: string) => { listen: (e: string, cb: (e: unknown) => void) => void }; leave: (n: string) => void } }).Echo;
+        const echoInstance = getEcho();
         if (!echoInstance?.channel || !tenant?.id || !order?.id) return;
 
         const channelName = `tenant.${tenant.id}.orders.${order.id}`;
