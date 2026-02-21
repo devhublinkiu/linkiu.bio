@@ -20,6 +20,12 @@ if (sentryDsn) {
         tracesSampleRate: 1.0,
         tracePropagationTargets: ['localhost', /^https:\/\/[^/]*\.?linkiu\.bio/],
     });
+    // Verificar envío: en la consola del navegador ejecuta: window.__sentryTest()
+    if (typeof window !== 'undefined') {
+        (window as Window & { __sentryTest?: () => void }).__sentryTest = () => {
+            Sentry.captureException(new Error('Test exception from linkiu.bio'));
+        };
+    }
 }
 
 createInertiaApp({
