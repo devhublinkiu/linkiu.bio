@@ -14,7 +14,10 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
     Sentry.init({
         dsn: sentryDsn,
+        integrations: [Sentry.browserTracingIntegration()],
         sendDefaultPii: true,
+        tracesSampleRate: 1.0,
+        tracePropagationTargets: ['localhost', /^https:\/\/[^/]*\.?linkiu\.bio/],
     });
 }
 
