@@ -14,6 +14,9 @@ export default defineConfig({
             maxParallelFileOps: 2,
         },
     },
+    ssr: {
+        noExternal: ['react-use'],
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, 'resources/js'),
