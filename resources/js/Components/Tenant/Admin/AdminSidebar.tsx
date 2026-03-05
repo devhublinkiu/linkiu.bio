@@ -72,7 +72,7 @@ const MODULE_PERMISSIONS: Record<string, string> = {
     'shipping': 'shipping_zones.view',
     'support': 'support.view',
     'services': 'services.view',
-    'agenda': 'agenda.view',
+    'devotionals': 'devotionals.view',
     'appointments': 'appointments.view',
     'customers': 'customers.view',
     'team': 'users.view',
@@ -94,6 +94,11 @@ const MODULE_PERMISSIONS: Record<string, string> = {
     'waiters': 'waiters.view',
     'statistics': 'statistics.view',
     'logout': 'dashboard.view', // Any auth user can logout
+    // Church
+    'collaborators': 'collaborators.view',
+    'donations': 'donations.view',
+    'audio_dosis': 'audio_dosis.view',
+    'feed': 'sermons.view',
 }
 
 export default function AdminSidebar(props: React.ComponentProps<typeof Sidebar>) {

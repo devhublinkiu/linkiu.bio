@@ -30,8 +30,9 @@ class CheckSubscriptionStatus
 
         // 1. ADMIN PANEL: Allow consistent access to prevent lockout
         if ($isAdminRoute) {
-            // Always allow invoices, settings, profile, logout, subscription
+            // Siempre permitir: login (para que invitados puedan ver la página), dashboard, invoices, settings, profile, subscription, logout
             if (
+                $request->is('*/admin/login') ||
                 $request->is('*/admin/dashboard') || // Explicitly allow dashboard during trial
                 $request->is('*/admin/invoices*') ||
                 $request->is('*/admin/settings*') ||
@@ -48,6 +49,10 @@ class CheckSubscriptionStatus
             }
 
             if (!$subscription) {
+                // Invitado: mandar a login para que pueda iniciar sesión; luego solo podrá llegar hasta facturación
+                if (!auth()->check()) {
+                    return redirect()->route('tenant.login', ['tenant' => $tenant->slug]);
+                }
                 return redirect()->route('tenant.invoices.index', ['tenant' => $tenant->slug])
                     ->withErrors(['error' => 'No tienes una suscripción activa o tu periodo de prueba ha expirado.']);
             }

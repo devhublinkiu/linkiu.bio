@@ -8,6 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+    // Base absoluta para que los chunks se carguen desde /build/ y no se resuelvan contra la URL del documento (evita "Importing a module script failed" en WebViews como Instagram)
+    base: '/build/',
     build: {
         sourcemap: false,
         rollupOptions: {

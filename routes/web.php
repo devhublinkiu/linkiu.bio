@@ -252,6 +252,9 @@ Route::prefix('{tenant}')->group(function () {
                 }
                 return app(\App\Http\Controllers\Tenant\Gastronomy\PublicController::class)->index(request());
 
+            case 'church':
+                return app(\App\Http\Controllers\Tenant\Church\PublicController::class)->index(request());
+
             case 'ecommerce':
                 // TODO: Implement E-commerce public controller
                 // return app(\App\Http\Controllers\Tenant\Ecommerce\PublicController::class)->index(request());
@@ -283,6 +286,33 @@ Route::prefix('{tenant}')->group(function () {
 
     // Public Locations (Sedes)
     Route::get('/locations', [\App\Http\Controllers\Tenant\PublicController::class , 'locations'])->name('tenant.public.locations');
+
+    // Church – públicas
+    Route::get('/servicios', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'services'])->name('tenant.public.services');
+    Route::get('/citas', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'appointmentForm'])->name('tenant.public.appointments.request');
+    Route::post('/citas', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'storeAppointment'])->name('tenant.public.appointments.store');
+    Route::get('/devocionales', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionals'])->name('tenant.public.devotionals');
+    Route::get('/devocionales/{devotional}/reactions-status', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionalReactionsStatus'])->name('tenant.public.devotionals.reactions-status');
+    Route::post('/devocionales/{devotional}/blessing', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionalBlessing'])->name('tenant.public.devotionals.blessing');
+    Route::post('/devocionales/{devotional}/prayer', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionalPrayer'])->name('tenant.public.devotionals.prayer');
+    Route::post('/devocionales/{devotional}/share', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionalShare'])->name('tenant.public.devotionals.share');
+    Route::get('/devocionales/{devotional}', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'devotionalShow'])->name('tenant.public.devotionals.show');
+    Route::get('/nuestro-equipo', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'team'])->name('tenant.public.team');
+    Route::get('/nuestro-equipo/{collaborator}', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'teamShow'])->name('tenant.public.team.show');
+    Route::get('/podcast', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'podcast'])->name('tenant.public.podcast');
+    Route::get('/predicas', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'sermons'])->name('tenant.public.sermons');
+    Route::get('/predicas/{sermon}', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'sermonShow'])->name('tenant.public.sermons.show');
+    Route::get('/predicas/{sermon}/chat', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'sermonChatMessages'])->name('tenant.public.sermons.chat');
+    Route::get('/donaciones', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'donations'])->name('tenant.public.donations');
+    Route::post('/donaciones', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'storeDonation'])->name('tenant.public.donations.store');
+    Route::get('/donaciones/gracias', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'donationsThankYou'])->name('tenant.public.donations.thank-you');
+    Route::get('/testimonios', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonials'])->name('tenant.public.testimonials');
+    Route::get('/testimonios/{testimonial}', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialShow'])->name('tenant.public.testimonials.show');
+    Route::get('/testimonios/{testimonial}/reactions-status', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialReactionsStatus'])->name('tenant.public.testimonials.reactions-status');
+    Route::post('/testimonios/{testimonial}/blessing', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialBlessing'])->name('tenant.public.testimonials.blessing');
+    Route::post('/testimonios/{testimonial}/prayer', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialPrayer'])->name('tenant.public.testimonials.prayer');
+    Route::post('/testimonios/{testimonial}/amen', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialAmen'])->name('tenant.public.testimonials.amen');
+    Route::post('/testimonios/{testimonial}/share', [\App\Http\Controllers\Tenant\Church\PublicController::class, 'testimonialShare'])->name('tenant.public.testimonials.share');
 
     // Reporte de problemas con el negocio (público, transversal)
     Route::post('/report', [\App\Http\Controllers\Tenant\StoreReportController::class , 'store'])->name('tenant.report.store');
@@ -381,6 +411,46 @@ Route::prefix('{tenant}')->group(function () {
                     Route::patch('tickers/reorder', [\App\Http\Controllers\Tenant\Admin\TickerController::class, 'reorder'])->name('tenant.admin.tickers.reorder');
                     Route::resource('tickers', \App\Http\Controllers\Tenant\Admin\TickerController::class)->names('tenant.admin.tickers');
 
+                    // Mis Servicios (Church)
+                    Route::resource('services', \App\Http\Controllers\Tenant\Admin\Church\ChurchServiceController::class)->names('tenant.admin.services')->except(['show']);
+
+                    // Devocionales (Church)
+                    Route::post('devotionals/upload-image', [\App\Http\Controllers\Tenant\Admin\Church\ChurchDevotionalController::class, 'uploadImage'])->name('tenant.admin.devotionals.upload-image');
+                    Route::resource('devotionals', \App\Http\Controllers\Tenant\Admin\Church\ChurchDevotionalController::class)->names('tenant.admin.devotionals')->except(['show']);
+                    Route::patch('devotionals/{devotional}/toggle-published', [\App\Http\Controllers\Tenant\Admin\Church\ChurchDevotionalController::class, 'togglePublished'])->name('tenant.admin.devotionals.toggle-published');
+
+                    // Citas (Church)
+                    Route::get('appointments', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAppointmentController::class, 'index'])->name('tenant.admin.appointments.index');
+                    Route::put('appointments/{church_appointment}', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAppointmentController::class, 'update'])->name('tenant.admin.appointments.update');
+
+                    // Colaboradores (Church)
+                    Route::resource('collaborators', \App\Http\Controllers\Tenant\Admin\Church\ChurchCollaboratorController::class)->names('tenant.admin.collaborators')->except(['show']);
+                    Route::patch('collaborators/{collaborator}/toggle-published', [\App\Http\Controllers\Tenant\Admin\Church\ChurchCollaboratorController::class, 'togglePublished'])->name('tenant.admin.collaborators.toggle-published');
+
+                    // Donaciones (Church)
+                    Route::get('donations', [\App\Http\Controllers\Tenant\Admin\Church\ChurchDonationController::class, 'index'])->name('tenant.admin.donations.index');
+                    Route::patch('donations/{donation}/confirm', [\App\Http\Controllers\Tenant\Admin\Church\ChurchDonationController::class, 'confirm'])->name('tenant.admin.donations.confirm');
+
+                    // Predicas / Sermones (Church - YouTube)
+                    Route::get('sermons', [\App\Http\Controllers\Tenant\Admin\Church\ChurchSermonController::class, 'index'])->name('tenant.admin.sermons.index');
+                    Route::get('sermons/config', [\App\Http\Controllers\Tenant\Admin\Church\ChurchSermonController::class, 'config'])->name('tenant.admin.sermons.config');
+                    Route::put('sermons/config', [\App\Http\Controllers\Tenant\Admin\Church\ChurchSermonController::class, 'updateConfig'])->name('tenant.admin.sermons.update-config');
+                    Route::post('sermons/sync', [\App\Http\Controllers\Tenant\Admin\Church\ChurchSermonController::class, 'sync'])->name('tenant.admin.sermons.sync');
+                    Route::put('sermons/{sermon}', [\App\Http\Controllers\Tenant\Admin\Church\ChurchSermonController::class, 'update'])->name('tenant.admin.sermons.update');
+
+                    // Testimonios (Church)
+                    Route::resource('testimonials', \App\Http\Controllers\Tenant\Admin\Church\ChurchTestimonialController::class)->names('tenant.admin.testimonials')->except(['show']);
+
+                    // Audio Dosis (Church)
+                    Route::get('audio-dosis', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'index'])->name('tenant.admin.audio-dosis.index');
+                    Route::put('audio-dosis/config', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'updateConfig'])->name('tenant.admin.audio-dosis.update-config');
+                    Route::get('audio-dosis/create', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'create'])->name('tenant.admin.audio-dosis.create');
+                    Route::post('audio-dosis', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'store'])->name('tenant.admin.audio-dosis.store');
+                    Route::get('audio-dosis/{episode}', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'edit'])->name('tenant.admin.audio-dosis.edit');
+                    Route::put('audio-dosis/{episode}', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'update'])->name('tenant.admin.audio-dosis.update');
+                    Route::delete('audio-dosis/{episode}', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'destroy'])->name('tenant.admin.audio-dosis.destroy');
+                    Route::patch('audio-dosis/{episode}/toggle-published', [\App\Http\Controllers\Tenant\Admin\Church\ChurchAudioEpisodeController::class, 'togglePublished'])->name('tenant.admin.audio-dosis.toggle-published');
+
                     // 4.7 Locations (Sedes)
                     Route::resource('locations', \App\Http\Controllers\Tenant\Admin\Locations\LocationController::class)->names('tenant.locations');
                     Route::patch('locations/{location}/toggle-active', [\App\Http\Controllers\Tenant\Admin\Locations\LocationController::class, 'toggleActive'])->name('tenant.locations.toggle-active');
@@ -460,6 +530,7 @@ Route::prefix('{tenant}')->group(function () {
                         Route::patch('/whatsapp', [\App\Http\Controllers\Tenant\Admin\WhatsApp\WhatsAppController::class, 'update'])->name('tenant.whatsapp.update');
 
                         Route::post('/logout', [\App\Http\Controllers\Auth\TenantAuthController::class , 'logout'])->name('tenant.logout');
+                        Route::get('/logout', [\App\Http\Controllers\Auth\TenantAuthController::class , 'logout'])->name('tenant.logout.get');
 
                         // Subscriptions & Plans
                         Route::get('/subscription', [\App\Http\Controllers\Tenant\Admin\SubscriptionController::class , 'index'])->name('tenant.subscription.index');

@@ -1,0 +1,52 @@
+<svg width="68" height="68" viewBox="0 0 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_2_568)">
+<rect width="68" height="68" rx="13.6" fill="#0F98B6"/>
+<rect opacity="0.31" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.24" x="13.6" y="-7.62939e-06" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.3" x="27.2" y="-7.62939e-06" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.44" x="40.8" y="-7.62939e-06" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.46" x="54.4" y="-7.62939e-06" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.43" x="3.05176e-05" y="13.6" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.33" x="13.6" y="13.6" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.28" x="27.2" y="13.6" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.33" x="40.8" y="13.6" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.21" x="54.4" y="13.6" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.46" x="3.05176e-05" y="27.2" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.32" x="3.05176e-05" y="40.8" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.41" x="3.05176e-05" y="54.4" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.48" x="13.6" y="27.2" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.31" x="13.6" y="40.8" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.38" x="13.6" y="54.4" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.33" x="27.2" y="27.2" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.15" x="27.2" y="40.8" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.26" x="27.2" y="54.4" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.23" x="40.8" y="27.2" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.16" x="40.8" y="40.8" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.23" x="40.8" y="54.4" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.29" x="54.4" y="27.2" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.41" x="54.4" y="40.8" width="13.6" height="13.6" fill="white"/>
+<rect opacity="0.29" x="54.4" y="54.4" width="13.6" height="13.6" fill="white"/>
+<g filter="url(#filter0_d_2_568)">
+<path d="M20.4 18.7H47.6C48.0509 18.7 48.4833 18.8791 48.8021 19.1979C49.1209 19.5167 49.3 19.9491 49.3 20.4V47.6C49.3 48.0509 49.1209 48.4833 48.8021 48.8021C48.4833 49.1209 48.0509 49.3 47.6 49.3H20.4C19.9491 49.3 19.5167 49.1209 19.1979 48.8021C18.8791 48.4833 18.7 48.0509 18.7 47.6V20.4C18.7 19.9491 18.8791 19.5167 19.1979 19.1979C19.5167 18.8791 19.9491 18.7 20.4 18.7V18.7ZM30.3773 39.1H37.6227L39.0167 42.5H42.7839L35.7 25.5H32.3L25.2161 42.5H28.985L30.379 39.1H30.3773ZM31.7713 35.7L34 30.26L36.2287 35.7H31.773H31.7713Z" fill="url(#paint0_radial_2_568)" shape-rendering="crispEdges"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_d_2_568" x="6.80001" y="11.9" width="54.4" height="54.4" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="5.1"/>
+<feGaussianBlur stdDeviation="5.95"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.18 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_2_568"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_2_568" result="shape"/>
+</filter>
+<radialGradient id="paint0_radial_2_568" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(34 17.2428) rotate(90) scale(53.1857)">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_2_568">
+<rect width="68" height="68" rx="13.6" fill="white"/>
+</clipPath>
+</defs>
+</svg>

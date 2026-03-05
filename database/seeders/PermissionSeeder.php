@@ -44,6 +44,50 @@ class PermissionSeeder extends Seeder
             ['profile.view', 'Ver Perfil', 'Mi Perfil'],
             ['profile.edit', 'Editar Perfil', 'Mi Perfil'],
 
+            // Mis Servicios (Church)
+            ['services.view', 'Ver Mis Servicios', 'Mis Servicios'],
+            ['services.create', 'Crear Servicios', 'Mis Servicios'],
+            ['services.update', 'Editar Servicios', 'Mis Servicios'],
+            ['services.delete', 'Eliminar Servicios', 'Mis Servicios'],
+
+            // Citas (Church)
+            ['appointments.view', 'Ver Citas', 'Citas'],
+            ['appointments.create', 'Crear Citas', 'Citas'],
+            ['appointments.update', 'Gestionar Citas', 'Citas'],
+            ['appointments.delete', 'Eliminar Citas', 'Citas'],
+
+            // Devocionales (Church)
+            ['devotionals.view', 'Ver Devocionales', 'Devocionales'],
+            ['devotionals.create', 'Crear Devocionales', 'Devocionales'],
+            ['devotionals.update', 'Editar Devocionales', 'Devocionales'],
+            ['devotionals.delete', 'Eliminar Devocionales', 'Devocionales'],
+
+            // Colaboradores (Church)
+            ['collaborators.view', 'Ver Colaboradores', 'Colaboradores'],
+            ['collaborators.create', 'Crear Colaboradores', 'Colaboradores'],
+            ['collaborators.update', 'Editar Colaboradores', 'Colaboradores'],
+            ['collaborators.delete', 'Eliminar Colaboradores', 'Colaboradores'],
+
+            // Donaciones (Church)
+            ['donations.view', 'Ver Donaciones', 'Donaciones'],
+            ['donations.update', 'Confirmar Donaciones', 'Donaciones'],
+
+            // Audio Dosis (Church)
+            ['audio_dosis.view', 'Ver Audio Dosis', 'Audio Dosis'],
+            ['audio_dosis.create', 'Crear episodios', 'Audio Dosis'],
+            ['audio_dosis.update', 'Editar Audio Dosis', 'Audio Dosis'],
+            ['audio_dosis.delete', 'Eliminar episodios', 'Audio Dosis'],
+
+            // Predicas / Sermones (Church - YouTube)
+            ['sermons.view', 'Ver Predicas', 'Predicas'],
+            ['sermons.update', 'Configurar y sincronizar Predicas', 'Predicas'],
+
+            // Testimonios (Church)
+            ['testimonials.view', 'Ver Testimonios', 'Testimonios'],
+            ['testimonials.create', 'Crear Testimonios', 'Testimonios'],
+            ['testimonials.update', 'Editar Testimonios', 'Testimonios'],
+            ['testimonials.delete', 'Eliminar Testimonios', 'Testimonios'],
+
             // Tickers
             ['tickers.view', 'Ver Tickers', 'Tickers'],
             ['tickers.create', 'Crear Tickers', 'Tickers'],

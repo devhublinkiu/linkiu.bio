@@ -38,7 +38,11 @@ import {
     Monitor,
     ShoppingBag as ShoppingBagIcon,
     ConciergeBell,
-    Video
+    Video,
+    Headphones,
+    LayoutGrid,
+    Quote,
+    Mic2
 } from 'lucide-react';
 
 export const MODULE_ICONS: Record<string, any> = {
@@ -60,11 +64,11 @@ export const MODULE_ICONS: Record<string, any> = {
     shipping: Truck,
     support: LifeBuoy,
     services: Briefcase,
-    agenda: Calendar,
+    devotionals: BookOpen,
     appointments: CalendarCheck,
     customers: Users,
     team: UserCog,
-    reviews: Star,
+    reviews: Quote,
     payment_methods: Banknote,
     coupons: Ticket,
     tickers: Megaphone,
@@ -80,7 +84,12 @@ export const MODULE_ICONS: Record<string, any> = {
     kitchen: ChefHat,
     waiters: ConciergeBell,
     statistics: BarChart3,
-    shorts: Video
+    shorts: Video,
+    // Church
+    collaborators: UserCog,
+    donations: Banknote,
+    audio_dosis: Headphones,
+    feed: Mic2
 };
 
 export const MODULE_LABELS: Record<string, string> = {
@@ -102,11 +111,11 @@ export const MODULE_LABELS: Record<string, string> = {
     shipping: 'Zonas de Envío', // As requested
     support: 'Soporte',
     services: 'Mis Servicios',
-    agenda: 'Mi Agenda',
+    devotionals: 'Devocionales',
     appointments: 'Citas',
     customers: 'Clientes',
     team: 'Mi Equipo',
-    reviews: 'Reseñas',
+    reviews: 'Testimonios',
     payment_methods: 'Métodos de pago', // Lowercase p as requested
     coupons: 'Cupones',
     tickers: 'Ticker promocionales', // Singular Ticker as requested
@@ -121,7 +130,12 @@ export const MODULE_LABELS: Record<string, string> = {
     kitchen: 'Cocina',
     waiters: 'Meseros',
     statistics: 'Estadísticas',
-    shorts: 'Shorts'
+    shorts: 'Shorts',
+    // Church
+    collaborators: 'Colaboradores',
+    donations: 'Donaciones',
+    audio_dosis: 'Audio dosis',
+    feed: 'Predicas'
 };
 
 // Map module keys to route names (if they exist, otherwise '#')
@@ -143,12 +157,12 @@ export const MODULE_ROUTES: Record<string, string> = {
     integrations: '#',
     shipping: 'tenant.shipping.index',
     support: 'tenant.support.index',
-    services: '#',
-    agenda: '#',
-    appointments: '#',
+    services: 'tenant.admin.services.index',
+    devotionals: 'tenant.admin.devotionals.index',
+    appointments: 'tenant.admin.appointments.index',
     customers: '#',
     team: 'tenant.members.index',
-    reviews: '#',
+    reviews: 'tenant.admin.testimonials.index',
     payment_methods: 'tenant.payment-methods.index',
     coupons: '#',
     tickers: 'tenant.admin.tickers.index',
@@ -162,7 +176,12 @@ export const MODULE_ROUTES: Record<string, string> = {
     kitchen: 'tenant.admin.kitchen.index',
     waiters: 'tenant.admin.waiters.index',
     statistics: '#',
-    shorts: 'tenant.shorts.index'
+    shorts: 'tenant.shorts.index',
+    // Church
+    collaborators: 'tenant.admin.collaborators.index',
+    donations: 'tenant.admin.donations.index',
+    audio_dosis: 'tenant.admin.audio-dosis.index',
+    feed: 'tenant.admin.sermons.index'
 };
 
 // Sub-items configuration (optional, for modules with children)
@@ -191,6 +210,7 @@ export const MODULE_CHILDREN: Record<string, Array<{ label: string, route: strin
         { label: 'Addi', route: '#' },
         { label: 'Sistecrédito', route: '#' },
         { label: 'Wompi', route: '#' },
+        { label: 'YouTube', route: '#' },
         { label: 'Dropi', route: '#' },
         { label: 'MasterShop', route: '#' },
     ]
@@ -261,7 +281,7 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
     'servicios': [
         'dashboard',
         'services',
-        'agenda',
+        'devotionals',
         'appointments',
         'customers',
         'team',
@@ -275,6 +295,47 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
         'whatsapp',
         'locations',
         'shorts'
+    ],
+    'church': [
+        'dashboard',
+        'services',
+        'devotionals',
+        'appointments',
+        'collaborators',
+        'donations',
+        'audio_dosis',
+        'feed',
+        'sliders',
+        'tickers',
+        'reviews',
+        'shorts',
+        'files',
+        'locations',
+        'payment_methods',
+        'whatsapp',
+        'support',
+        'integrations'
+    ],
+    // Mismo contenido que church: el vertical en BD se llama "Iglesias" → slug normalizado "iglesias"
+    'iglesias': [
+        'dashboard',
+        'services',
+        'devotionals',
+        'appointments',
+        'collaborators',
+        'donations',
+        'audio_dosis',
+        'feed',
+        'sliders',
+        'tickers',
+        'reviews',
+        'shorts',
+        'files',
+        'locations',
+        'payment_methods',
+        'whatsapp',
+        'support',
+        'integrations'
     ],
     'default': [
         'dashboard',
@@ -291,6 +352,7 @@ export const MODULE_HAS_LIMIT: Record<string, string> = {
     'payment_methods': 'Máx. cuentas bancarias',
     'digital_menu': 'Máx. productos',
     'shorts': 'Máx. shorts',
+    'audio_dosis': 'Máx. episodios',
 };
 
 // En vertical gastronomía el módulo es "digital_menu" pero el backend usa getLimit('products')
@@ -327,5 +389,17 @@ export const VERTICAL_FEATURES: Record<string, Record<string, boolean>> = {
         'integration_addi': true,
         'integration_sistecredito': true,
         'integration_wompi': true,
+    },
+    'church': {
+        'integration_epayco': true,
+        'integration_payu': true,
+        'integration_wompi': true,
+        'integration_youtube': true,
+    },
+    'iglesias': {
+        'integration_epayco': true,
+        'integration_payu': true,
+        'integration_wompi': true,
+        'integration_youtube': true,
     }
 };

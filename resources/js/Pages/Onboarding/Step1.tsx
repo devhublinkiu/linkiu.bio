@@ -10,37 +10,27 @@ import { Badge } from '@/Components/ui/badge';
 import { Card } from '@/Components/ui/card';
 
 // Lucide Icons
-import {
-    CheckCircle2,
-    ArrowRight,
-    Utensils,
-    ShoppingBag,
-    HeartPulse,
-    Briefcase,
-    Zap,
-    ChevronRight,
-    Sparkles
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
 
-// --- Visual Industry Icon Component ---
-const IndustryIcon = ({ name, active }: { name: string, active: boolean }) => {
-    const t = name.toLowerCase();
-    const iconClass = cn(
-        "w-8 h-8 transition-all duration-500",
-        active ? "text-white scale-110" : "text-slate-400 grayscale group-hover:grayscale-0"
-    );
-
-    if (t.includes('restaurante') || t.includes('comida') || t.includes('gastro')) {
-        return <Utensils className={iconClass} />;
-    }
-    if (t.includes('tienda') || t.includes('ecommerce') || t.includes('ventas') || t.includes('dropshipping')) {
-        return <ShoppingBag className={iconClass} />;
-    }
-    if (t.includes('salud') || t.includes('bienestar') || t.includes('medico')) {
-        return <HeartPulse className={iconClass} />;
-    }
-    return <Briefcase className={iconClass} />;
+// Assets por vertical: bg e icon (onboarding)
+const VERTICAL_ONBOARDING_ASSETS: Record<string, { bg: string; icon: string }> = {
+    drop: { bg: 'bg_verticals_drop_onboarding', icon: 'icon_verticals_drop_onboarding' },
+    ecommerce: { bg: 'bg_verticals_ecommerce_onboarding', icon: 'icon_verticals_ecommerce_onboarding' },
+    service: { bg: 'bg_verticals_service_onboarding', icon: 'icon_verticals_service_onboarding' },
+    gastronomy: { bg: 'bg_verticals_gastronomy_onboarding', icon: 'icon_verticals_gastronomy_onboarding' },
+    church: { bg: 'bg_verticals_church_onboarding', icon: 'icon_verticals_church_onboarding' },
 };
+
+function getVerticalOnboardingSlug(name: string): string | null {
+    const t = name.toLowerCase();
+    if (t.includes('dropshipping')) return 'drop';
+    if (t.includes('ecommerce') || t.includes('e-commerce')) return 'ecommerce';
+    if (t.includes('servicio')) return 'service';
+    if (t.includes('gastronom')) return 'gastronomy';
+    if (t.includes('iglesia') || t.includes('church')) return 'church';
+    return null;
+}
+
 
 // --- Interfaces ---
 interface Category {
@@ -110,10 +100,14 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                     </p>
                 </div>
 
-                {/* Vertical Selection Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Vertical Selection Grid — 3 columnas; card Dropshipping: fondo 256×155 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {verticals.map((vertical) => {
                         const isSelected = data.vertical_id === vertical.id.toString();
+                        const verticalSlug = getVerticalOnboardingSlug(vertical.name);
+                        const assets = verticalSlug ? VERTICAL_ONBOARDING_ASSETS[verticalSlug] : null;
+                        const hasCustomAssets = Boolean(assets);
+
                         return (
                             <Card
                                 key={vertical.id}
@@ -121,29 +115,50 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                                     setData(prev => ({ ...prev, vertical_id: vertical.id.toString(), category_id: '' }));
                                 }}
                                 className={cn(
-                                    "group relative p-6 cursor-pointer transition-all duration-500 border-2 overflow-hidden",
-                                    isSelected
-                                        ? "border-primary bg-primary shadow-xl shadow-primary/20 scale-[1.03]"
-                                        : "border-slate-100 hover:border-primary/30 hover:shadow-lg bg-white"
+                                    "group relative p-6 cursor-pointer transition-all duration-500 border-0 shadow-none",
+                                    isSelected && "scale-[1.03] shadow-xl shadow-primary/20",
+                                    !isSelected && "hover:scale-[1.03] hover:shadow-lg",
+                                    hasCustomAssets && "bg-transparent",
+                                    !hasCustomAssets && isSelected && "bg-primary",
+                                    !hasCustomAssets && !isSelected && "bg-white"
                                 )}
+                                style={hasCustomAssets && assets ? {
+                                    backgroundImage: `url(/onboarding/${assets.bg}.webp)`,
+                                    backgroundSize: '256px 155px',
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat',
+                                } : undefined}
                             >
-                                <div className="space-y-4 relative z-10">
-                                    <div className={cn(
-                                        "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors duration-500",
-                                        isSelected ? "bg-white/20 text-white" : "bg-slate-50 group-hover:bg-primary/10"
-                                    )}>
-                                        <IndustryIcon name={vertical.name} active={isSelected} />
-                                    </div>
-                                    <div>
+                                <div className={cn(
+                                    "space-y-4 relative z-10 flex flex-col",
+                                    hasCustomAssets && "items-start text-center text-white"
+                                )}>
+                                    {hasCustomAssets && assets ? (
+                                        <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                                            <img
+                                                src={`/onboarding/${assets.icon}.svg`}
+                                                alt=""
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className={cn(
+                                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors duration-500",
+                                            isSelected ? "bg-white/20 text-white" : "bg-slate-50 group-hover:bg-primary/10"
+                                        )}>
+                                            <span className="text-2xl font-bold text-slate-400">{vertical.name.charAt(0)}</span>
+                                        </div>
+                                    )}
+                                    <div className={cn(hasCustomAssets && "w-full text-left")}>
                                         <h3 className={cn(
                                             "font-bold text-lg",
-                                            isSelected ? "text-white" : "text-slate-800"
+                                            hasCustomAssets ? "text-white" : isSelected ? "text-white" : "text-slate-800"
                                         )}>
                                             {vertical.name}
                                         </h3>
                                         <p className={cn(
-                                            "text-xs mt-1 line-clamp-1",
-                                            isSelected ? "text-white/70" : "text-slate-400"
+                                            "text-xs mt-1",
+                                            hasCustomAssets ? "text-white/80" : isSelected ? "text-white/70" : "text-slate-400"
                                         )}>
                                             {vertical.categories.length} categorías disponibles
                                         </p>
@@ -151,13 +166,7 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                                 </div>
 
                                 {isSelected && (
-                                    <div className="absolute -right-2 -bottom-2 opacity-10">
-                                        <Zap className="w-24 h-24 text-primary fill-primary" />
-                                    </div>
-                                )}
-
-                                {isSelected && (
-                                    <div className="absolute top-4 right-4 animate-in zoom-in duration-300">
+                                    <div className="absolute top-4 right-6 animate-in zoom-in duration-300">
                                         <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
                                             <CheckCircle2 className="w-4 h-4 text-primary" />
                                         </div>

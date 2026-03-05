@@ -128,5 +128,21 @@ class VerticalSeeder extends Seeder
             'require_verification' => false,
         ]);
 
+
+        // 5. Church (Iglesias)
+        $church = Vertical::firstOrCreate(
+            ['slug' => 'church'],
+            [
+                'name' => 'Iglesias',
+                'description' => 'Iglesias y organizaciones religiosas.',
+            ]
+        );
+
+        BusinessCategory::firstOrCreate(['slug' => 'iglesia-general'], [
+            'vertical_id' => $church->id,
+            'name' => 'Iglesias',
+            'require_verification' => false,
+        ]);
+
     }
 }

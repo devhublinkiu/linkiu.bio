@@ -8,6 +8,42 @@
 
     <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+    @php
+        $ogTenant = app()->bound('currentTenant') ? app('currentTenant') : null;
+        $routeName = request()->route()?->getName();
+        $isTenantPublic = $ogTenant && $routeName && in_array($routeName, ['tenant.home', 'tenant.menu', 'tenant.menu.category', 'tenant.public.locations', 'tenant.reservations.index', 'tenant.public.shorts'], true);
+        $ogFromPage = (isset($page) && isset($page['props']['og']) && is_array($page['props']['og'])) ? $page['props']['og'] : null;
+    @endphp
+    @if($ogFromPage)
+        <meta property="og:type" content="{{ $ogFromPage['type'] ?? 'article' }}">
+        <meta property="og:url" content="{{ $ogFromPage['url'] ?? url()->current() }}">
+        <meta property="og:title" content="{{ $ogFromPage['title'] ?? '' }}">
+        <meta property="og:description" content="{{ $ogFromPage['description'] ?? '' }}">
+        @if(!empty($ogFromPage['image']))
+        <meta property="og:image" content="{{ $ogFromPage['image'] }}">
+        @endif
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $ogFromPage['title'] ?? '' }}">
+        <meta name="twitter:description" content="{{ $ogFromPage['description'] ?? '' }}">
+        @if(!empty($ogFromPage['image']))
+        <meta name="twitter:image" content="{{ $ogFromPage['image'] }}">
+        @endif
+    @elseif($ogTenant && $isTenantPublic)
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ $ogTenant->name }} - {{ config('app.name') }}">
+        <meta property="og:description" content="{{ $ogTenant->store_description ?: 'Descubre nuestra tienda en ' . config('app.name') }}">
+        @if($ogTenant->logo_url)
+        <meta property="og:image" content="{{ $ogTenant->logo_url }}">
+        @endif
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $ogTenant->name }} - {{ config('app.name') }}">
+        <meta name="twitter:description" content="{{ $ogTenant->store_description ?: 'Descubre nuestra tienda en ' . config('app.name') }}">
+        @if($ogTenant->logo_url)
+        <meta name="twitter:image" content="{{ $ogTenant->logo_url }}">
+        @endif
+    @endif
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />

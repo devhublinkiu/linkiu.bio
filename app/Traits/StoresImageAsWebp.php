@@ -48,6 +48,37 @@ trait StoresImageAsWebp
     }
 
     /**
+     * Guarda la imagen como WebP con tamaño fijo (cover: recorta y redimensiona a exactamente width x height).
+     *
+     * @param  int  $width  Ancho deseado.
+     * @param  int  $height  Alto deseado.
+     */
+    protected function storeImageAsWebpCover(
+        UploadedFile $file,
+        string $basePath,
+        int $width,
+        int $height,
+        string $disk = 'bunny',
+        int $quality = 85
+    ): string {
+        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $safeName = substr(preg_replace('/[^a-z0-9\-_]/', '', Str::slug($originalName)), 0, 80) ?: 'image';
+        $filename = $safeName . '-' . Str::random(6) . '.webp';
+        $path = $basePath . '/' . $filename;
+
+        try {
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($file->get());
+            $image->cover($width, $height);
+            $encoded = $image->toWebp($quality);
+            Storage::disk($disk)->put($path, (string) $encoded);
+            return $path;
+        } catch (\Throwable $e) {
+            return $file->store($basePath, $disk);
+        }
+    }
+
+    /**
      * Registra el archivo en la tabla media_files para auditoría.
      *
      * @param  string  $path  Ruta del archivo en Bunny

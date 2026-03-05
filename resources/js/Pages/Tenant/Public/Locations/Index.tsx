@@ -1,17 +1,20 @@
 import React from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import type { PublicLocation } from '@/types/location';
-import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
+import GastronomyPublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
+import ChurchPublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
 import LocationCard from '@/Components/Tenant/Public/Locations/LocationCard';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
+import GastronomyHeader from '@/Components/Tenant/Gastronomy/Public/Header';
+import ChurchHeader from '@/Components/Tenant/Church/Public/Header';
 import { MapPin } from 'lucide-react';
+import { PageProps } from '@/types';
 
 interface TenantPublic {
     name: string;
     slug: string;
     logo_url?: string | null;
     store_description?: string | null;
-    brand_colors?: { bg_color?: string; name_color?: string };
+    brand_colors?: { bg_color?: string; name_color?: string; description_color?: string };
 }
 
 interface LocationsPageProps {
@@ -21,16 +24,24 @@ interface LocationsPageProps {
 }
 
 export default function Index({ tenant, locations, selected_location_id = null }: LocationsPageProps) {
-    const { locationsCount = 0 } = usePage().props as { locationsCount?: number };
+    const pageProps = usePage<PageProps & { locationsCount?: number }>().props;
+    const locationsCount = pageProps.locationsCount ?? 0;
+    const currentTenant = pageProps.currentTenant;
+    const verticalSlug = (currentTenant as { vertical?: { slug?: string } } | undefined)?.vertical?.slug ?? null;
+    const isChurch = verticalSlug === 'church' || verticalSlug === 'iglesias';
+
     const slug = tenant.slug;
-    const { bg_color, name_color } = tenant.brand_colors || { bg_color: '#db2777', name_color: '#ffffff' };
+    const { bg_color, name_color, description_color } = tenant.brand_colors || { bg_color: '#db2777', name_color: '#ffffff' };
 
     const enterSede = (locationId: number) => {
         router.post(route('tenant.shorts.enter', { tenant: slug }), { location_id: locationId });
     };
 
+    const Layout = isChurch ? ChurchPublicLayout : GastronomyPublicLayout;
+    const Header = isChurch ? ChurchHeader : GastronomyHeader;
+
     return (
-        <PublicLayout bgColor={bg_color}>
+        <Layout bgColor={bg_color}>
             <Head title={`Nuestras Sedes - ${tenant.name}`} />
 
             <div className="flex flex-col min-h-screen pb-20">
@@ -40,6 +51,7 @@ export default function Index({ tenant, locations, selected_location_id = null }
                     description={tenant.store_description ?? undefined}
                     bgColor={bg_color}
                     textColor={name_color}
+                    descriptionColor={description_color}
                 />
 
                 <div className="max-w-md mx-auto px-4 w-full">
@@ -80,6 +92,6 @@ export default function Index({ tenant, locations, selected_location_id = null }
                     </div>
                 </div>
             </div>
-        </PublicLayout>
+        </Layout>
     );
 }
