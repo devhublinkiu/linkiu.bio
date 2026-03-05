@@ -325,21 +325,24 @@ class OnboardingController extends Controller
     }
 
     /**
-     * Get site settings helper
+     * Get site settings helper (Bunny CDN for logo).
      */
     private function getSiteSettings(): array
     {
         $setting = \App\Models\SiteSetting::first();
 
+        $logoUrl = null;
+        if ($setting?->logo_path) {
+            try {
+                $logoUrl = \Illuminate\Support\Facades\Storage::disk('bunny')->url($setting->logo_path);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         return [
             'app_name' => $setting->app_name ?? config('app.name', 'Linkiu'),
-            'logo_url' => $setting?->logo_path
-                ? (function () use ($setting) {
-                    /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-                    $disk = \Illuminate\Support\Facades\Storage::disk('s3');
-                    return $disk->url($setting->logo_path);
-                })()
-                : null,
+            'logo_url' => $logoUrl,
         ];
     }
 }
