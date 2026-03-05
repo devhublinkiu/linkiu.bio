@@ -18,13 +18,23 @@ createServer((page) =>
                 import.meta.glob('./Pages/**/*.tsx'),
             ),
         setup: ({ App, props }) => {
+            const ziggy = page.props?.ziggy;
+            const ziggyConfig =
+                ziggy && typeof ziggy.routes === 'object' && ziggy.location
+                    ? { ...ziggy, location: new URL(ziggy.location) }
+                    : { routes: {} as Record<string, unknown>, location: new URL('http://localhost') };
+
+            (globalThis as any).Ziggy = ziggyConfig;
+
             /* eslint-disable */
             // @ts-expect-error
-            global.route<RouteName> = (name, params, absolute) =>
-                route(name, params as any, absolute, {
-                    ...page.props.ziggy,
-                    location: new URL(page.props.ziggy.location),
-                });
+            global.route<RouteName> = (name, params, absolute) => {
+                try {
+                    return route(name, params as any, absolute, ziggyConfig);
+                } catch {
+                    return '#';
+                }
+            };
             /* eslint-enable */
 
             return <App {...props} />;

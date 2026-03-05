@@ -102,10 +102,20 @@ class HandleInertiaRequests extends Middleware
                         : (isset($role) ? $role->permissions->pluck('name')->toArray() : [])
                 ];
             },
-            'ziggy' => fn() => [
-                ...(new Ziggy)->toArray(),
-                'location' => $request->url(),
-            ],
+            'ziggy' => function () use ($request) {
+                try {
+                    $ziggy = new Ziggy();
+                    return [
+                        ...$ziggy->toArray(),
+                        'location' => $request->url(),
+                    ];
+                } catch (\Throwable $e) {
+                    return [
+                        'routes' => [],
+                        'location' => $request->url() ?? 'http://localhost',
+                    ];
+                }
+            },
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error' => fn() => $request->session()->get('error'),
