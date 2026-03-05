@@ -123,7 +123,7 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                                     !hasCustomAssets && !isSelected && "bg-white"
                                 )}
                                 style={hasCustomAssets && assets ? {
-                                    backgroundImage: `url(/onboarding/${assets.bg}.webp)`,
+                                    backgroundImage: `url(/onboarding-assets/${assets.bg}.webp)`,
                                     backgroundSize: '256px 155px',
                                     backgroundPosition: 'center',
                                     backgroundRepeat: 'no-repeat',
@@ -136,7 +136,7 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                                     {hasCustomAssets && assets ? (
                                         <div className="w-12 h-12 flex items-center justify-center shrink-0">
                                             <img
-                                                src={`/onboarding/${assets.icon}.svg`}
+                                                src={`/onboarding-assets/${assets.icon}.svg`}
                                                 alt=""
                                                 className="w-full h-full object-contain"
                                             />

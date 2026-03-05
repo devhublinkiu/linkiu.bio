@@ -2,10 +2,42 @@ import { createInertiaApp } from '@inertiajs/react';
 import createServer from '@inertiajs/react/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import ReactDOMServer from 'react-dom/server';
+import type { Config } from 'ziggy-js';
 import { RouteName } from 'ziggy-js';
 import { route } from '../../vendor/tightenco/ziggy';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+function buildZiggyConfig(ziggy: unknown): Config {
+    const base =
+        ziggy &&
+        typeof ziggy === 'object' &&
+        'routes' in ziggy &&
+        typeof (ziggy as Config).routes === 'object' &&
+        'location' in ziggy
+            ? (ziggy as Config & { location: string })
+            : null;
+
+    if (base) {
+        const url = new URL(base.location);
+        return {
+            ...base,
+            location: {
+                host: url.hostname,
+                pathname: url.pathname,
+                search: url.search,
+            },
+        };
+    }
+
+    return {
+        url: 'http://localhost',
+        port: null,
+        defaults: {},
+        routes: {},
+        location: { host: 'localhost', pathname: '/', search: '' },
+    };
+}
 
 createServer((page) =>
     createInertiaApp({
@@ -18,11 +50,7 @@ createServer((page) =>
                 import.meta.glob('./Pages/**/*.tsx'),
             ),
         setup: ({ App, props }) => {
-            const ziggy = page.props?.ziggy;
-            const ziggyConfig =
-                ziggy && typeof ziggy.routes === 'object' && ziggy.location
-                    ? { ...ziggy, location: new URL(ziggy.location) }
-                    : { routes: {} as Record<string, unknown>, location: new URL('http://localhost') };
+            const ziggyConfig = buildZiggyConfig(page.props?.ziggy);
 
             (globalThis as any).Ziggy = ziggyConfig;
 
