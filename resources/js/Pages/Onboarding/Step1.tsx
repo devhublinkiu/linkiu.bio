@@ -21,6 +21,9 @@ const VERTICAL_ONBOARDING_ASSETS: Record<string, { bg: string; icon: string }> =
     church: { bg: 'bg_verticals_church_onboarding', icon: 'icon_verticals_church_onboarding' },
 };
 
+// Verticales deshabilitadas con "Próximamente"
+const VERTICALES_PROXIMAMENTE = new Set(['drop', 'ecommerce', 'service']);
+
 function getVerticalOnboardingSlug(name: string): string | null {
     const t = name.toLowerCase();
     if (t.includes('dropshipping')) return 'drop';
@@ -107,17 +110,21 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                         const verticalSlug = getVerticalOnboardingSlug(vertical.name);
                         const assets = verticalSlug ? VERTICAL_ONBOARDING_ASSETS[verticalSlug] : null;
                         const hasCustomAssets = Boolean(assets);
+                        const isComingSoon = verticalSlug ? VERTICALES_PROXIMAMENTE.has(verticalSlug) : false;
 
                         return (
                             <Card
                                 key={vertical.id}
                                 onClick={() => {
+                                    if (isComingSoon) return;
                                     setData(prev => ({ ...prev, vertical_id: vertical.id.toString(), category_id: '' }));
                                 }}
                                 className={cn(
-                                    "group relative p-6 cursor-pointer transition-all duration-500 border-0 shadow-none",
-                                    isSelected && "scale-[1.03] shadow-xl shadow-primary/20",
-                                    !isSelected && "hover:scale-[1.03] hover:shadow-lg",
+                                    "group relative p-6 transition-all duration-500 border-0 shadow-none",
+                                    isComingSoon && "opacity-60 cursor-not-allowed",
+                                    !isComingSoon && "cursor-pointer",
+                                    !isComingSoon && isSelected && "scale-[1.03] shadow-xl shadow-primary/20",
+                                    !isComingSoon && !isSelected && "hover:scale-[1.03] hover:shadow-lg",
                                     hasCustomAssets && "bg-transparent",
                                     !hasCustomAssets && isSelected && "bg-primary",
                                     !hasCustomAssets && !isSelected && "bg-white"
@@ -165,8 +172,16 @@ export default function Step1({ verticals = [], siteSettings }: Props) {
                                     </div>
                                 </div>
 
-                                {isSelected && (
-                                    <div className="absolute top-4 right-6 animate-in zoom-in duration-300">
+                                {isComingSoon && (
+                                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-slate-900/70 backdrop-blur-[2px]">
+                                        <span className="rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
+                                            Próximamente
+                                        </span>
+                                    </div>
+                                )}
+
+                                {!isComingSoon && isSelected && (
+                                    <div className="absolute top-4 right-6 z-20 animate-in zoom-in duration-300">
                                         <div className="h-6 w-6 bg-white rounded-full flex items-center justify-center">
                                             <CheckCircle2 className="w-4 h-4 text-primary" />
                                         </div>
