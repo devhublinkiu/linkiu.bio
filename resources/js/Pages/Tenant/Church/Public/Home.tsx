@@ -260,7 +260,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                        <h3 className="font-semibold text-slate-900 line-clamp-2">{sermon.title}</h3>
+                                        <h3 className="font-semibold text-slate-900 line-clamp-2 leading-none">{sermon.title}</h3>
                                         <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                                             <Calendar className="size-3.5" />
                                             Próxima transmisión
@@ -281,8 +281,8 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                 </section>
 
                 {services.length > 0 && (
-                    <section className="w-full -mx-4" aria-labelledby="servicios-slider-heading">
-                        <div className="flex items-center justify-between px-4 mb-3">
+                    <section className="w-full" aria-labelledby="servicios-slider-heading">
+                        <div className="flex items-center justify-between mb-3">
                             <h2 id="servicios-slider-heading" className="text-lg font-bold text-slate-900">
                                 Nuestros servicios
                             </h2>
@@ -294,12 +294,12 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                 <ChevronRight className="size-4" />
                             </Link>
                         </div>
-                        <div className="overflow-x-auto snap-x snap-mandatory flex gap-4 px-4 pb-2 scrollbar-none">
+                        <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-2 scrollbar-none">
                             {services.map((service) => (
                                 <Link
                                     key={service.id}
                                     href={route('tenant.public.services', tenant.slug)}
-                                    className="snap-center shrink-0 w-[280px] rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:border-slate-200 transition-all flex flex-col"
+                                    className="snap-center shrink-0 w-[180px] rounded-lg bg-white shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col"
                                 >
                                     <div className="h-32 w-full bg-slate-100 relative overflow-hidden">
                                         {service.image_url ? (
@@ -322,7 +322,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                     <div className="p-3 flex flex-col flex-1">
                                         <h3 className="font-bold text-slate-900 line-clamp-2">{service.name}</h3>
                                         {service.schedule && (
-                                            <p className="text-xs text-slate-500 mt-1 line-clamp-1">{service.schedule}</p>
+                                            <p className="text-xs text-slate-500 line-clamp-1">{service.schedule}</p>
                                         )}
                                     </div>
                                 </Link>
@@ -347,7 +347,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                         <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/10 to-transparent" />
 
 
-                        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="relative z-10 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0 border border-white/30 shadow-inner group-hover:bg-white/25 transition-colors">
                                     <HandHeart className="w-8 h-8 text-white" />
@@ -360,7 +360,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <span className="px-5 py-2.5 rounded-xl bg-white text-slate-800 font-bold text-sm shadow-md group-hover:bg-white/95 group-hover:shadow-lg transition-all inline-flex items-center gap-2">
+                                <span className="px-2 py-2 rounded-xl bg-white text-slate-800 font-bold text-sm shadow-md group-hover:bg-white/95 group-hover:shadow-lg transition-all inline-flex items-center gap-2">
                                     Pedir cita
                                     <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                                 </span>
@@ -370,8 +370,8 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                 </Link>
 
                 {devotionals.length > 0 && (
-                    <section className="w-full -mx-4" aria-labelledby="devocionales-slider-heading">
-                        <div className="flex items-center justify-between px-4 mb-3">
+                    <section className="w-full" aria-labelledby="devocionales-slider-heading">
+                        <div className="flex items-center justify-between mb-3">
                             <h2 id="devocionales-slider-heading" className="text-lg font-bold text-slate-900">
                                 Devocionales
                             </h2>
@@ -383,12 +383,12 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                 <ChevronRight className="size-4" />
                             </Link>
                         </div>
-                        <div className="overflow-x-auto snap-x snap-mandatory flex gap-4 px-4 pb-2 scrollbar-none">
+                        <div className="overflow-x-auto snap-x snap-mandatory flex gap-3 pb-2 scrollbar-none">
                             {devotionals.map((d) => (
                                 <Link
                                     key={d.id}
                                     href={route('tenant.public.devotionals.show', [tenant.slug, d.id])}
-                                    className="snap-center shrink-0 w-[280px] rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:border-slate-200 transition-all flex flex-col"
+                                    className="snap-center shrink-0 w-[200px] rounded-lg bg-white shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col"
                                 >
                                     <div className="h-32 w-full bg-slate-100 relative overflow-hidden">
                                         {d.cover_image ? (
@@ -404,8 +404,8 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                         )}
                                     </div>
                                     <div className="p-3 flex flex-col flex-1">
-                                        <h3 className="font-bold text-slate-900 line-clamp-2">{d.title}</h3>
-                                        <p className="text-xs text-slate-500 mt-1">
+                                        <h3 className="font-bold text-slate-900 line-clamp-2 leading-none">{d.title}</h3>
+                                        <p className="text-xs text-slate-500 mt-2">
                                             {new Date(d.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </p>
                                         {(d.excerpt || d.scripture_reference) && (
@@ -491,7 +491,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                                                 </div>
                                             )}
                                         </div>
-                                        <h3 className="font-bold text-slate-900 text-sm line-clamp-2">{c.name}</h3>
+                                        <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-none">{c.name}</h3>
                                         {c.role && (
                                             <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{c.role}</p>
                                         )}

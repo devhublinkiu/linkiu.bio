@@ -63,7 +63,7 @@ export default function EpisodeCard({ ep, logoUrl, bgColor, onPlay }: EpisodeCar
             tabIndex={0}
             onClick={onPlay}
             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onPlay()}
-            className={`rounded-xl border border-slate-200 shadow-sm overflow-hidden flex gap-4 px-4 py-3 cursor-pointer hover:shadow-lg transition-all active:scale-[0.99] ${!bgColor ? 'bg-white' : ''}`}
+            className={`rounded-xl border border-slate-200 shadow-sm overflow-hidden flex gap-4 px-2 py-3 cursor-pointer hover:shadow-lg transition-all active:scale-[0.99] ${!bgColor ? 'bg-white' : ''}`}
             style={bgColor ? { background: `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}dd 50%, ${bgColor}99 100%)` } : undefined}
         >
             <div className="shrink-0 w-12 h-12 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
@@ -73,16 +73,16 @@ export default function EpisodeCard({ ep, logoUrl, bgColor, onPlay }: EpisodeCar
                     <Headphones className="size-7 text-slate-400" />
                 )}
             </div>
-            <div className="min-w-0 flex-1 flex flex-col justify-center">
-                <h2 className={`font-bold text-base line-clamp-2 ${textClass}`}>{ep.title}</h2>
-                <p className={`text-xs flex items-center gap-2 flex-wrap mt-0.5 ${metaClass}`}>
+            <div className="min-w-0 flex-1 flex flex-col items-start justify-center">
+                <h2 className={`font-bold text-base line-clamp-2 leading-none ${textClass}`}>{ep.title}</h2>
+                <p className={`text-xs flex items-center gap-1 flex-wrap ${metaClass}`}>
                     <span>{formatTimeAgo(ep.created_at)}</span>
-                    <span className={dotClass}>·</span>
+                    <span className={dotClass}>•</span>
                     <span className="flex items-center gap-1">
                         <Clock className="size-3.5" />
                         {ep.formatted_duration}
                     </span>
-                    <span className={dotClass}>·</span>
+                    <span className={dotClass}>•</span>
                     <span>{formatDate(ep.created_at)}</span>
                 </p>
             </div>
