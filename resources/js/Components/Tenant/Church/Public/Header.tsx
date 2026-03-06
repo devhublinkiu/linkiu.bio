@@ -39,7 +39,7 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
         { id: 'services', label: 'Servicios', icon: Church, href: route('tenant.public.services', currentTenant?.slug) },
         { id: 'home', label: 'Inicio', icon: Home, href: route('tenant.home', currentTenant?.slug) },
         { id: 'podcast', label: 'Podcast', icon: Headphones, href: route('tenant.public.podcast', currentTenant?.slug) },
-        { id: 'donations', label: 'Donaciones', icon: Banknote, href: route('tenant.public.donations', currentTenant?.slug) },
+        { id: 'donations', label: 'Donar', icon: Banknote, href: route('tenant.public.donations', currentTenant?.slug) },
     ];
 
     return (
@@ -77,7 +77,7 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                     </div>
                 </div>
 
-                {/* Navigation: Sedes | Servicios | Inicio | Podcast | Donaciones */}
+                {/* Navigation: Sedes | Servicios | Inicio | Podcast | Donar */}
                 <div className="bg-slate-100 py-3 sm:py-4 px-4">
                     <nav className="grid grid-cols-5 gap-2 px-2 sm:px-4" aria-label="Navegación principal">
                         {menuItems.map((item) => {

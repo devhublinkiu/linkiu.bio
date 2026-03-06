@@ -20,6 +20,7 @@ interface BankAccountPublic {
     account_type: string;
     account_number: string;
     account_holder: string;
+    holder_id: string | null;
 }
 
 interface Props {
@@ -171,6 +172,9 @@ export default function DonationsIndex({ tenant, bankAccounts }: Props) {
                                             {acc.account_type}: <span className="font-mono font-medium">{acc.account_number}</span>
                                         </p>
                                         <p className="text-slate-600">Titular: {acc.account_holder}</p>
+                                        {acc.holder_id && (
+                                            <p className="text-slate-600">NIT / Cédula: {acc.holder_id}</p>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

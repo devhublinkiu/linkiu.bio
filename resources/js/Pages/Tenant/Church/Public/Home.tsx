@@ -126,7 +126,7 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
         { label: podcast_page_title, href: route('tenant.public.podcast', tenant.slug), icon: Headphones, description: 'Mensajes y enseñanzas en audio' },
         { label: 'Predicas', href: route('tenant.public.sermons', tenant.slug), icon: Radio, description: 'Transmisiones en vivo y archivo' },
         { label: 'Testimonios', href: route('tenant.public.testimonials', tenant.slug), icon: Quote, description: 'Historias de fe y transformación' },
-        { label: 'Donaciones', href: route('tenant.public.donations', tenant.slug), icon: Banknote, description: 'Apoya con tu ofrenda' },
+        { label: 'Donar', href: route('tenant.public.donations', tenant.slug), icon: Banknote, description: 'Apoya con tu ofrenda' },
     ];
 
     return (

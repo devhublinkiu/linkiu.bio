@@ -88,7 +88,7 @@ function ServiceCard({ service }: { service: ChurchServicePublic }) {
 
     return (
         <Card className="overflow-hidden border border-slate-200 shadow-sm rounded-xl bg-white relative">
-            <div className="flex gap-3 p-3">
+            <div className="flex flex-col gap-3 p-0">
                 {/* Miniatura compacta */}
                 <div className="w-200 h-120 shrink-0 rounded-lg bg-slate-100 overflow-hidden relative">
                     {service.image_url ? (
@@ -109,11 +109,12 @@ function ServiceCard({ service }: { service: ChurchServicePublic }) {
                     )}
                 </div>
 
-                <div className="min-w-0 flex-1 pt-0.5">
+                <div className="min-w-0 flex-1 pt-0.5 px-3 pb-3">
                     <h3 className="font-bold text-base text-slate-900 leading-tight line-clamp-2">{service.name}</h3>
                     {service.description && (
                         <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{service.description}</p>
                     )}
+                    <div className="flex flex-col sm:flex-row gap-1">
                     {service.schedule && (
                         <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                             <Calendar className="size-3.5 shrink-0" />
@@ -138,6 +139,7 @@ function ServiceCard({ service }: { service: ChurchServicePublic }) {
                             <span className="truncate">{service.duration}</span>
                         </p>
                     )}
+                    </div>
                 </div>
             </div>
 

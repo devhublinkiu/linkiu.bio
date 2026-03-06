@@ -756,7 +756,7 @@ class PublicController extends Controller
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('created_at')
-            ->get(['id', 'bank_name', 'account_type', 'account_number', 'account_holder']);
+            ->get(['id', 'bank_name', 'account_type', 'account_number', 'account_holder', 'holder_id']);
 
         return Inertia::render('Tenant/Church/Public/Donations/Index', [
             'tenant' => $tenant,
