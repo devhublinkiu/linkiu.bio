@@ -435,8 +435,8 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                 )}
 
                 {Array.isArray(promo_shorts) && promo_shorts.length > 0 && (
-                    <section className="w-full" aria-labelledby="shorts-heading">
-                        <h2 id="shorts-heading" className="text-[140px] font-bold text-gray-200 px-4 flex items-center -mb-24">
+                    <section className="w-full max-w-[100vw]" aria-labelledby="shorts-heading">
+                        <h2 id="shorts-heading" className="text-[100px] font-black text-gray-200 px-4 flex items-center -mb-16">
                             Shorts
                         </h2>
                         <Carousel

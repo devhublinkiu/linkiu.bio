@@ -60,9 +60,6 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
-    const hasDraggedRef = useRef(false);
-    const startXRef = useRef(0);
-    const scrollLeftStartRef = useRef(0);
 
     useEffect(() => {
         if (carouselRef.current) {
@@ -95,49 +92,13 @@ export const Carousel = ({ items, initialScroll = 0 }: CarouselProps) => {
         }
     };
 
-    const handlePointerDownCapture = (e: React.PointerEvent) => {
-        if (!carouselRef.current) return;
-        hasDraggedRef.current = false;
-        startXRef.current = e.clientX;
-        scrollLeftStartRef.current = carouselRef.current.scrollLeft;
-        carouselRef.current.setPointerCapture(e.pointerId);
-    };
-
-    const handlePointerMove = (e: React.PointerEvent) => {
-        if (!carouselRef.current) return;
-        const dx = startXRef.current - e.clientX;
-        if (Math.abs(dx) > 5) hasDraggedRef.current = true;
-        carouselRef.current.scrollLeft = scrollLeftStartRef.current + dx;
-    };
-
-    const handlePointerUp = (e: React.PointerEvent) => {
-        carouselRef.current?.releasePointerCapture(e.pointerId);
-    };
-
-    const handlePointerLeave = () => {
-        // Pointer release is handled in onPointerUp
-    };
-
-    const handleClick = (e: React.MouseEvent) => {
-        if (hasDraggedRef.current) {
-            e.preventDefault();
-            e.stopPropagation();
-            hasDraggedRef.current = false;
-        }
-    };
-
     return (
         <CarouselContext.Provider value={{ activeIndex }}>
             <div className="relative w-full">
                 <div
-                    className="flex w-full overflow-x-auto overscroll-x-auto scroll-smooth snap-x snap-mandatory py-4 [scrollbar-width:none] md:py-6 cursor-grab active:cursor-grabbing select-none touch-pan-x"
+                    className="flex w-full overflow-x-auto overflow-y-hidden scroll-smooth snap-x snap-mandatory py-4 [scrollbar-width:none] md:py-6 touch-pan-x [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain]"
                     ref={carouselRef}
                     onScroll={checkScrollability}
-                    onPointerDownCapture={handlePointerDownCapture}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerLeave}
-                    onClickCapture={handleClick}
                 >
                     <div className={cn('absolute right-0 z-[1000] h-auto w-[5%] overflow-hidden bg-gradient-to-l')} />
                     <div className={cn('flex flex-row justify-start gap-4 pl-4', 'mx-auto max-w-7xl')}>

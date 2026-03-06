@@ -62,7 +62,9 @@ class PublicController extends Controller
             ->orderBy('id')
             ->get()
             ->map(function (Short $short) use ($tenant) {
-                $actionUrl = $short->external_url ?? route('tenant.public.shorts', ['tenant' => $tenant->slug]);
+                $actionUrl = $short->link_type === 'none'
+                    ? '#'
+                    : ($short->external_url ?? route('tenant.public.shorts', ['tenant' => $tenant->slug]));
                 return [
                     'id' => $short->id,
                     'name' => $short->name,

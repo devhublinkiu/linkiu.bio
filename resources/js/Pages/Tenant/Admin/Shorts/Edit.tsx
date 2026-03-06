@@ -60,10 +60,10 @@ export default function Edit({ short, locations, categories, products }: Props) 
         location_id: short.location_id.toString(),
         name: short.name,
         description: short.description ?? '',
-        link_type: short.link_type as 'category' | 'product' | 'external',
+        link_type: (short.link_type === 'none' || !['category', 'product', 'external'].includes(short.link_type) ? 'none' : short.link_type) as 'category' | 'product' | 'external' | 'none',
         external_url: short.external_url ?? '',
-        linkable_type: short.link_type === 'external' ? '' : (short.linkable_type ?? (short.link_type === 'product' ? 'App\\Models\\Product' : 'App\\Models\\Category')),
-        linkable_id: short.link_type === 'external' ? '' : (short.linkable_id?.toString() ?? ''),
+        linkable_type: short.link_type === 'external' || short.link_type === 'none' ? '' : (short.linkable_type ?? (short.link_type === 'product' ? 'App\\Models\\Product' : 'App\\Models\\Category')),
+        linkable_id: short.link_type === 'external' || short.link_type === 'none' ? '' : (short.linkable_id?.toString() ?? ''),
         short_video: null as File | null,
         remove_short: false,
         sort_order: short.sort_order.toString(),
@@ -89,7 +89,7 @@ export default function Edit({ short, locations, categories, products }: Props) 
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Nombre de la promo *</Label>
+                        <Label htmlFor="name">Nombre *</Label>
                         <Input
                             id="name"
                             value={data.name}
@@ -115,18 +115,19 @@ export default function Edit({ short, locations, categories, products }: Props) 
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Enlace *</Label>
+                        <Label>Enlace (opcional)</Label>
                         <Select
                             value={data.link_type}
-                            onValueChange={(v: 'category' | 'product' | 'external') => {
+                            onValueChange={(v: 'category' | 'product' | 'external' | 'none') => {
                                 setData('link_type', v);
                                 setData('linkable_type', v === 'category' ? 'App\\Models\\Category' : v === 'product' ? 'App\\Models\\Product' : '');
                                 setData('linkable_id', '');
                                 setData('external_url', '');
                             }}
                         >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Sin enlace" /></SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="none">Sin enlace</SelectItem>
                                 <SelectItem value="category">Categoría</SelectItem>
                                 <SelectItem value="product">Producto</SelectItem>
                                 <SelectItem value="external">URL externa</SelectItem>
@@ -185,7 +186,7 @@ export default function Edit({ short, locations, categories, products }: Props) 
                             accept=".mp4,.mov"
                             onChange={(e) => setData('short_video', e.target.files?.[0] ?? null)}
                         />
-                        <p className="text-xs text-muted-foreground">Deja vacío para mantener el actual. MP4 o MOV, máx. 50 MB</p>
+                        <p className="text-xs text-muted-foreground">Deja vacío para mantener el actual. MP4 o MOV, máx. 100 MB, hasta 60 s</p>
                         <FieldError>{errors.short_video}</FieldError>
                     </div>
 

@@ -25,7 +25,7 @@ class UpdateShortRequest extends FormRequest
             ],
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:50',
-            'link_type' => 'required|in:category,product,external',
+            'link_type' => 'nullable|in:category,product,external,none',
             'external_url' => 'nullable|required_if:link_type,external|url|max:500',
             'linkable_type' => 'nullable|string|in:App\Models\Category,App\Models\Product',
             'linkable_id' => [
@@ -49,9 +49,8 @@ class UpdateShortRequest extends FormRequest
     {
         return [
             'location_id.required' => 'Debes seleccionar una sede.',
-            'name.required' => 'El nombre de la promo es obligatorio.',
+            'name.required' => 'El nombre es obligatorio.',
             'description.max' => 'La descripción no puede exceder 50 caracteres.',
-            'link_type.required' => 'El tipo de enlace es obligatorio.',
             'external_url.required_if' => 'La URL es obligatoria cuando el enlace es externo.',
             'short_video.mimes' => 'El video debe ser MP4 o MOV.',
             'short_video.max' => 'El video no puede superar 100 MB.',

@@ -102,9 +102,17 @@ class ShortController extends Controller
 
         $validated['short_video_id'] = $videoId;
         $validated['tenant_id'] = $tenant->id;
-        $validated['linkable_type'] = $validated['link_type'] === 'external' ? null : ($validated['linkable_type'] ?? null);
-        $validated['linkable_id'] = $validated['link_type'] === 'external' ? null : (isset($validated['linkable_id']) && $validated['linkable_id'] !== '' ? (int) $validated['linkable_id'] : null);
-        $validated['external_url'] = $validated['link_type'] === 'external' ? ($validated['external_url'] ?? null) : null;
+        $linkType = $validated['link_type'] ?? 'none';
+        if ($linkType === 'none' || $linkType === '') {
+            $validated['link_type'] = 'none';
+            $validated['linkable_type'] = null;
+            $validated['linkable_id'] = null;
+            $validated['external_url'] = null;
+        } else {
+            $validated['linkable_type'] = $linkType === 'external' ? null : ($validated['linkable_type'] ?? null);
+            $validated['linkable_id'] = $linkType === 'external' ? null : (isset($validated['linkable_id']) && $validated['linkable_id'] !== '' ? (int) $validated['linkable_id'] : null);
+            $validated['external_url'] = $linkType === 'external' ? ($validated['external_url'] ?? null) : null;
+        }
         $validated['sort_order'] = (int) ($validated['sort_order'] ?? 0);
         $validated['is_active'] = true;
 
@@ -173,7 +181,13 @@ class ShortController extends Controller
             $validated['short_video_id'] = $videoId;
         }
 
-        if (($validated['link_type'] ?? '') === 'external') {
+        $linkType = $validated['link_type'] ?? 'none';
+        if ($linkType === 'none' || $linkType === '') {
+            $validated['link_type'] = 'none';
+            $validated['linkable_type'] = null;
+            $validated['linkable_id'] = null;
+            $validated['external_url'] = null;
+        } elseif ($linkType === 'external') {
             $validated['linkable_type'] = null;
             $validated['linkable_id'] = null;
         } else {
