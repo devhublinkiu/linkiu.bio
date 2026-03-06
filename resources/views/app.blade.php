@@ -21,8 +21,23 @@
         ];
         $isTenantPublic = $ogTenant && $routeName && in_array($routeName, $tenantPublicRoutes, true);
         $ogFromPage = (isset($page) && isset($page['props']['og']) && is_array($page['props']['og'])) ? $page['props']['og'] : null;
+        $isPodcastRoute = $routeName === 'tenant.public.podcast';
     @endphp
-    @if($ogFromPage)
+    @if($isPodcastRoute && $ogTenant)
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ 'Podcast - ' . $ogTenant->name }}">
+        <meta property="og:description" content="Mensajes y enseñanzas en audio.">
+        @if($ogTenant->logo_url ?? null)
+        <meta property="og:image" content="{{ $ogTenant->logo_url }}">
+        @endif
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ 'Podcast - ' . $ogTenant->name }}">
+        <meta name="twitter:description" content="Mensajes y enseñanzas en audio.">
+        @if($ogTenant->logo_url ?? null)
+        <meta name="twitter:image" content="{{ $ogTenant->logo_url }}">
+        @endif
+    @elseif($ogFromPage)
         <meta property="og:type" content="{{ $ogFromPage['type'] ?? 'article' }}">
         <meta property="og:url" content="{{ $ogFromPage['url'] ?? url()->current() }}">
         <meta property="og:title" content="{{ $ogFromPage['title'] ?? '' }}">
@@ -57,7 +72,6 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
-    @routes
     @viteReactRefresh
     @vite(['resources/js/app.tsx'])
     @inertiaHead
@@ -93,6 +107,7 @@
 
 <body class="font-sans antialiased">
     @inertia
+    @routes
 </body>
 
 </html>
