@@ -143,7 +143,7 @@ class LocationController extends Controller
                 return redirect()
                     ->back()
                     ->withInput()
-                    ->withErrors(['short_video' => 'No se pudo subir el video. Verifica formato (MP4/MOV) y tamaño (máx 50 MB).']);
+                    ->withErrors(['short_video' => 'No se pudo subir el video. Verifica formato (MP4/MOV) y tamaño (máx 100 MB).']);
             }
             $validated['short_video_id'] = $videoId;
         }

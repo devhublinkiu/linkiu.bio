@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Tenant\Admin;
 
+use App\Rules\VideoMaxDurationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -37,7 +38,7 @@ class StoreShortRequest extends FormRequest
                     Rule::exists('products', 'id')->where('tenant_id', $tenantId),
                 ]),
             ],
-            'short_video' => 'required|file|mimes:mp4,mov|max:51200',
+            'short_video' => ['required', 'file', 'mimes:mp4,mov', 'max:102400', new VideoMaxDurationRule(60)],
             'sort_order' => 'nullable|integer|min:0',
         ];
     }
@@ -55,7 +56,7 @@ class StoreShortRequest extends FormRequest
             'linkable_id.required_if' => 'Debes seleccionar una categoría o producto.',
             'short_video.required' => 'Debes subir el video del short.',
             'short_video.mimes' => 'El video debe ser MP4 o MOV.',
-            'short_video.max' => 'El video no puede superar 50 MB.',
+            'short_video.max' => 'El video no puede superar 100 MB.',
         ];
     }
 }

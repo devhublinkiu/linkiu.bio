@@ -264,6 +264,16 @@ export default function TestimonialShow({
                         </div>
                     </header>
 
+                    {testimonial.image_url && (
+                        <div className="w-full rounded-xl overflow-hidden bg-slate-100 shadow-md">
+                            <img
+                                src={testimonial.image_url}
+                                alt={testimonial.title}
+                                className="w-full h-[150px] object-cover"
+                            />
+                        </div>
+                    )}
+
                     {hasVideo && (
                         <div className="aspect-video w-full rounded-xl overflow-hidden bg-black shadow-lg">
                             <iframe

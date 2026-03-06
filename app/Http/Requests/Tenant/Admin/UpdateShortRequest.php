@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Tenant\Admin;
 
+use App\Rules\VideoMaxDurationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -37,7 +38,7 @@ class UpdateShortRequest extends FormRequest
                     Rule::exists('products', 'id')->where('tenant_id', $tenantId),
                 ]),
             ],
-            'short_video' => 'nullable|file|mimes:mp4,mov|max:51200',
+            'short_video' => ['nullable', 'file', 'mimes:mp4,mov', 'max:102400', new VideoMaxDurationRule(60)],
             'remove_short' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
@@ -53,7 +54,7 @@ class UpdateShortRequest extends FormRequest
             'link_type.required' => 'El tipo de enlace es obligatorio.',
             'external_url.required_if' => 'La URL es obligatoria cuando el enlace es externo.',
             'short_video.mimes' => 'El video debe ser MP4 o MOV.',
-            'short_video.max' => 'El video no puede superar 50 MB.',
+            'short_video.max' => 'El video no puede superar 100 MB.',
         ];
     }
 }

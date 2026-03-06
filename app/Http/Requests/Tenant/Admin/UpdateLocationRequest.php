@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Tenant\Admin;
 
+use App\Rules\VideoMaxDurationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateLocationRequest extends FormRequest
@@ -29,7 +30,7 @@ class UpdateLocationRequest extends FormRequest
             'opening_hours' => 'nullable|array',
             'social_networks' => 'nullable|array',
             'is_active' => 'required|boolean',
-            'short_video' => 'nullable|file|mimes:mp4,mov|max:51200',
+            'short_video' => ['nullable', 'file', 'mimes:mp4,mov', 'max:102400', new VideoMaxDurationRule(60)],
             'remove_short' => 'nullable|boolean',
         ];
     }
@@ -50,7 +51,7 @@ class UpdateLocationRequest extends FormRequest
             'latitude.between' => 'La latitud debe estar entre -90 y 90.',
             'longitude.between' => 'La longitud debe estar entre -180 y 180.',
             'short_video.mimes' => 'El short debe ser MP4 o MOV.',
-            'short_video.max' => 'El video no puede superar 50 MB. Recomendado: máx 10 segundos, 1080×1920.',
+            'short_video.max' => 'El video no puede superar 100 MB. Recomendado: máx 60 segundos, 1080×1920.',
         ];
     }
 }

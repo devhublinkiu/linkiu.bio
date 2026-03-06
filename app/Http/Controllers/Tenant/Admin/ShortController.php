@@ -97,7 +97,7 @@ class ShortController extends Controller
         $title = 'Short ' . ($validated['name'] ?? '') . ' - ' . now()->format('Y-m-d H:i');
         $videoId = $bunnyStream->createAndUpload($title, $request->file('short_video'), $tenant);
         if (!$videoId) {
-            return redirect()->back()->withInput()->withErrors(['short_video' => 'No se pudo subir el video. Verifica formato (MP4/MOV) y tamaño (máx 50 MB).']);
+            return redirect()->back()->withInput()->withErrors(['short_video' => 'No se pudo subir el video. Verifica formato (MP4/MOV) y tamaño (máx 100 MB).']);
         }
 
         $validated['short_video_id'] = $videoId;

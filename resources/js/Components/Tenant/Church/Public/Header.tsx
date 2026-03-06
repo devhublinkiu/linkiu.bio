@@ -77,25 +77,23 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                     </div>
                 </div>
 
-                {/* Navigation: Sedes | Servicios | Inicio | Podcast | Donar */}
+                {/* Navigation: icono arriba, texto abajo */}
                 <div className="bg-slate-100 py-3 sm:py-4 px-4">
-                    <nav className="grid grid-cols-5 gap-2 px-2 sm:px-4" aria-label="Navegación principal">
+                    <nav className="grid grid-cols-5 gap-4" aria-label="Navegación principal">
                         {menuItems.map((item) => {
                             const isActive = activeTab === item.id;
                             const isLink = item.href && item.href !== '#';
 
                             const itemContent = (
-                                <div className="flex flex-col items-center justify-center gap-0.5 transition-all duration-300">
-                                    {isActive ? (
-                                        <div className="bg-slate-900 text-white md:px-4 px-3 py-2 md:py-3 rounded-full shadow-lg shadow-slate-900/20 flex items-center gap-1 justify-center">
-                                            <item.icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" aria-hidden />
-                                            <span className="text-xs md:text-xs font-bold whitespace-nowrap">{item.label}</span>
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-full text-slate-500 flex items-center justify-center w-10 h-10 shrink-0">
-                                            <item.icon className="w-5 h-5 shrink-0" aria-hidden />
-                                        </div>
-                                    )}
+                                <div
+                                    className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl transition-all duration-300 ${
+                                        isActive ? 'bg-slate-900 w-24 px-3 text-white shadow-lg shadow-slate-900/20' : 'text-slate-500'
+                                    }`}
+                                >
+                                    <item.icon className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" aria-hidden />
+                                    <span className={`text-[14px] sm:text-xs font-semibold whitespace-nowrap leading-tight ${isActive ? 'text-white' : 'text-slate-600'}`}>
+                                        {item.label}
+                                    </span>
                                 </div>
                             );
 
@@ -103,7 +101,7 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                                 <Link
                                     key={item.id}
                                     href={item.href!}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-[1.25rem] sm:rounded-[1.5rem] flex justify-center items-center"
+                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl flex justify-center items-center"
                                     aria-current={isActive ? 'page' : undefined}
                                 >
                                     {itemContent}

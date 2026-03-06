@@ -119,8 +119,14 @@ export default function FloatingAudioPlayer({ episodes, currentIndex, onClose, o
                         max={duration || 100}
                         value={currentTime}
                         onChange={handleSeek}
-                        className="w-full h-1.5 accent-primary cursor-pointer mb-2"
+                        className="w-full h-1.5 accent-primary cursor-pointer"
                     />
+                    <div className="grid grid-cols-2 gap-2 items-center mt-1 mb-2 text-xs">
+                        <p className="font-semibold text-slate-900 truncate min-w-0" title={ep.title}>{ep.title}</p>
+                        <p className="text-slate-500 text-right tabular-nums">
+                            {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')} / {ep.formatted_duration}
+                        </p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <button type="button" onClick={goPrev} disabled={!hasPrev && currentTime === 0} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none" aria-label="Anterior">
                             <ChevronLeft className="size-6" />
@@ -139,12 +145,7 @@ export default function FloatingAudioPlayer({ episodes, currentIndex, onClose, o
                         <button type="button" onClick={goNext} disabled={!hasNext} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none" aria-label="Siguiente">
                             <ChevronRight className="size-6" />
                         </button>
-                        <div className="flex-1 min-w-0 mx-2">
-                            <p className="font-semibold text-slate-900 text-sm truncate">{ep.title}</p>
-                            <p className="text-xs text-slate-500">
-                                {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')} / {ep.formatted_duration}
-                            </p>
-                        </div>
+                        <div className="flex-1 min-w-0" />
                         <div className="flex items-center gap-1">
                             <button type="button" onClick={() => setMuted((m) => !m)} className="p-2 rounded-full text-slate-600 hover:bg-slate-100" aria-label={muted ? 'Activar sonido' : 'Silenciar'}>
                                 {muted || volume === 0 ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
