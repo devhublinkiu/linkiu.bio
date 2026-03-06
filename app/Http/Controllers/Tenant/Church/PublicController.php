@@ -222,11 +222,20 @@ class PublicController extends Controller
                 'created_at' => $e->created_at?->toIso8601String(),
             ]);
 
+        $pageTitle = $config->page_title;
+
         return Inertia::render('Tenant/Church/Public/Podcast/Index', [
             'tenant' => $tenant,
-            'pageTitle' => $config->page_title,
+            'pageTitle' => $pageTitle,
             'episodeOfTheDay' => $episodeOfTheDayArray,
             'episodes' => $episodes,
+            'og' => [
+                'type' => 'website',
+                'url' => url()->current(),
+                'title' => "{$pageTitle} - {$tenant->name}",
+                'description' => 'Mensajes y enseñanzas en audio.',
+                'image' => $tenant->logo_url ?? null,
+            ],
         ]);
     }
 

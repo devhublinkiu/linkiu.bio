@@ -11,7 +11,15 @@
     @php
         $ogTenant = app()->bound('currentTenant') ? app('currentTenant') : null;
         $routeName = request()->route()?->getName();
-        $isTenantPublic = $ogTenant && $routeName && in_array($routeName, ['tenant.home', 'tenant.menu', 'tenant.menu.category', 'tenant.public.locations', 'tenant.reservations.index', 'tenant.public.shorts'], true);
+        $tenantPublicRoutes = [
+            'tenant.home', 'tenant.menu', 'tenant.menu.category', 'tenant.public.locations',
+            'tenant.reservations.index', 'tenant.public.shorts',
+            'tenant.public.podcast', 'tenant.public.sermons', 'tenant.public.sermons.show',
+            'tenant.public.devotionals', 'tenant.public.devotionals.show', 'tenant.public.services',
+            'tenant.public.team', 'tenant.public.team.show', 'tenant.public.donations',
+            'tenant.public.testimonials', 'tenant.public.testimonials.show', 'tenant.public.appointments.request',
+        ];
+        $isTenantPublic = $ogTenant && $routeName && in_array($routeName, $tenantPublicRoutes, true);
         $ogFromPage = (isset($page) && isset($page['props']['og']) && is_array($page['props']['og'])) ? $page['props']['og'] : null;
     @endphp
     @if($ogFromPage)
