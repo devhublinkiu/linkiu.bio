@@ -1,5 +1,6 @@
 import React from 'react';
 import { Headphones, Clock, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface EpisodePublic {
     id: number;
@@ -42,10 +43,29 @@ export default function EpisodeCard({ ep, logoUrl, bgColor, onPlay }: EpisodeCar
         e.stopPropagation();
         const url = typeof window !== 'undefined' ? window.location.href : '';
         const text = `${ep.title} - ${ep.formatted_duration}`;
+
+        const copyToClipboard = (): Promise<boolean> => {
+            if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return Promise.resolve(false);
+            return navigator.clipboard.writeText(url).then(() => true).catch(() => false);
+        };
+
+        const onCopyFallback = (): void => {
+            copyToClipboard().then((copied) => {
+                if (copied) toast.success('Enlace copiado');
+                else toast.info('Enlace listo para compartir', { description: url });
+            });
+        };
+
         if (typeof navigator !== 'undefined' && navigator.share) {
-            navigator.share({ title: ep.title, text, url }).catch(() => navigator.clipboard?.writeText(url));
+            navigator
+                .share({ title: ep.title, text, url })
+                .then(() => toast.success('Enlace compartido'))
+                .catch((err: unknown) => {
+                    if ((err as Error)?.name === 'AbortError') return;
+                    onCopyFallback();
+                });
         } else {
-            navigator.clipboard?.writeText(url);
+            onCopyFallback();
         }
     };
 

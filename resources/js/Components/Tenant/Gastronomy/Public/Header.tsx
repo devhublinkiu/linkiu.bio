@@ -52,7 +52,7 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
     const hasMultipleLocations = locationsCount > 1;
 
     return (
-        <div className="w-full px-4 pt-4 pb-2 z-10 space-y-0">
+        <div className="w-full px-4 pt-2 pb-2 z-10 space-y-0">
             {/* Barra sede actual — mismo ancho que el header, estilo Magic UI */}
             {selectedLocationName && shortsUrl && (
                 <Link
@@ -81,6 +81,7 @@ export default function Header({ tenantName, description, logoUrl, bgColor, text
                     <ChevronRight className="ml-1 size-4 stroke-neutral-500 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
                 </Link>
             )}
+
             <div className="w-full bg-white rounded-[1rem] overflow-hidden relative">
                 {/* Upper Section: Vibrant Brand Color */}
                 <div

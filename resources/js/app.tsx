@@ -27,6 +27,9 @@ if (sentryDsn) {
             'Importing a module script failed',
             /Failed to fetch dynamically imported module/i,
             /Loading chunk \d+ failed/i,
+            // WebView / IAB de redes sociales (Instagram, etc.): scripts inyectados que usan window.webkit.messageHandlers
+            /window\.webkit\.messageHandlers/i,
+            /evaluating ['"]window\.webkit\.messageHandlers/i,
         ],
     });
     // Verificar envío: en la consola del navegador ejecuta: window.__sentryTest()

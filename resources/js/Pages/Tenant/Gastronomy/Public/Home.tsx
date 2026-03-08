@@ -103,7 +103,7 @@ export default function Home({
                     descriptionColor={description_color}
                 />
 
-                {location_status_message && (
+                 {location_status_message && (
                     <div className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700">
                         <Clock className="size-4 text-slate-500 shrink-0" aria-hidden />
                         <span>{location_status_message}</span>
@@ -113,7 +113,7 @@ export default function Home({
                 <PromotionalTicker tickers={tickers} />
             </div>
 
-            <div className="flex-1 bg-gray-50 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-4">
+            <div className="flex-1 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-4">
                 <BannerSlider sliders={sliders} tenantSlug={tenant.slug} />
 
                 <CategoryGrid categories={categories} />

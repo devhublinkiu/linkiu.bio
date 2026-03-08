@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Sheet, SheetContent } from '@/Components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/Components/ui/sheet';
 import { Button } from '@/Components/ui/button';
 import { useCart } from '@/Contexts/CartContext';
 import { Minus, Plus, ShoppingBag, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -171,6 +171,10 @@ export default function ProductDetailDrawer({ product, isOpen, onClose }: Produc
                 side="bottom"
                 className="h-[80vh] w-full max-w-[480px] mx-auto left-0 right-0 p-0 rounded-t-[2rem] bg-slate-50 flex flex-col overflow-hidden border-none focus-visible:outline-none shadow-2xl"
             >
+                <SheetTitle className="sr-only">{product.name}</SheetTitle>
+                <SheetDescription className="sr-only">
+                    {product.short_description || `Detalle y opciones de ${product.name}`}
+                </SheetDescription>
                 {/* Visual Drag Handle */}
                 <div className="absolute top-0 left-0 right-0 flex justify-center pt-3 pb-1 z-50 pointer-events-none">
                     <div className="w-12 h-1.5 bg-slate-200/50 backdrop-blur-sm rounded-full" />
