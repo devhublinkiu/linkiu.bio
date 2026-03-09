@@ -37,8 +37,8 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
                 <div
                     className="absolute top-0 left-0 right-0 w-full pointer-events-none z-10"
                     style={{
-                        height: '45%', // cambia por el % que quieras (ej. 15%, 200px)
-                        background: 'linear-gradient(to bottom, #ffceec, rgba(255, 206, 236, 0))',
+                        height: '50%', // cambia por el % que quieras (ej. 15%, 200px)
+                        background: 'linear-gradient(to bottom, #ffceec, #ffffff)',
                     }}
                 >
                     <img
@@ -56,7 +56,7 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
                 </div>
 
                 {/* Scroll Velocity Text march 8 */}
-                <div className="relative flex w-full flex-col items-center justify-center overflow-hidden z-10 pt-6">
+                <div className="relative flex w-full h-auto flex-col items-center justify-center overflow-hidden z-10 pt-6">
                     <ScrollVelocityContainer className="text-2xl font-bold tracking-tight text-pink-600 md:text-4xl">
                         <ScrollVelocityRow baseVelocity={4} direction={1}>
                             Tu día, tu poder 💪

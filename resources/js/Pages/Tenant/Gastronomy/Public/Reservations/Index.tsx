@@ -222,7 +222,7 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
                 />
             </div>
 
-            <div className="flex-1 bg-slate-50 p-4 -mt-4 relative z-0 pb-20">
+            <div className="flex-1 p-4 -mt-4 relative z-0 pb-20">
                 <Card className="w-full max-w-xl mx-auto mb-8 mt-4 border-0 shadow-sm bg-white/80 backdrop-blur-sm rounded-2xl">
                     <CardHeader className="text-center space-y-2">
                         <CardTitle className="text-2xl font-bold text-slate-800">

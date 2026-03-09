@@ -74,7 +74,7 @@ export default function FavoritesIndex({ tenant }: Props) {
         <PublicLayout bgColor={bg_color}>
             <Head title={`Favoritos - ${tenant.name}`} />
 
-            <div className="flex flex-col min-h-screen bg-gray-50/50">
+            <div className="flex flex-col min-h-screen">
                 <Header
                     tenantName={tenant.name}
                     logoUrl={tenant.logo_url}
@@ -85,8 +85,8 @@ export default function FavoritesIndex({ tenant }: Props) {
                 />
 
                 {/* Header Section */}
-                <div className="bg-white px-4 pt-6 pb-2">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="px-4 pt-6 pb-2">
+                    <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
                             <Heart className="size-6 fill-current" />
                         </div>
@@ -118,8 +118,8 @@ export default function FavoritesIndex({ tenant }: Props) {
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
-                            <div className="bg-slate-100 p-6 rounded-full shadow-sm mb-4">
-                                <Heart className="size-10 text-slate-300" />
+                            <div className="bg-rose-50 p-6 rounded-full shadow-sm mb-4">
+                                <Heart className="size-10 text-red-500 fill-current animate-pulse" />
                             </div>
                             <h3 className="font-bold text-slate-900 text-lg">Aún no tienes favoritos</h3>
                             <p className="text-sm text-slate-400 mt-2 max-w-[250px] leading-relaxed">
