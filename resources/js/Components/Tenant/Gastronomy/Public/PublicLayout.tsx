@@ -3,17 +3,20 @@ import { CartProvider, useCart, CartContextType } from '@/Contexts/CartContext';
 import FloatingCart from './FloatingCart';
 import Footer from '@/Components/Public/Footer';
 import ReportBusinessStrip from '@/Components/Public/ReportBusinessStrip';
+import PreFooter from './PreFooter';
 import { Toaster } from 'sonner';
 import { MapPin } from 'lucide-react';
 import { ScrollVelocityContainer, ScrollVelocityRow } from '@/Components/ui/scroll-based-velocity';
 
 interface PublicLayoutProps extends PropsWithChildren {
     bgColor?: string;
+    /** Bloque antes del banner "Reportar problemas" (Gastronomy: pilares + legal) */
+    renderPrefooter?: React.ReactNode;
     renderBottomAction?: (cart: CartContextType) => React.ReactNode;
     showFloatingCart?: boolean;
 }
 
-const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart = true }: PublicLayoutProps) => {
+const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction, showFloatingCart = true }: PublicLayoutProps) => {
     const cart = useCart();
     const { selectedTable } = cart;
 
@@ -44,7 +47,7 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
                     <img
                         src="/themes/march_8/flowers_01.webp"
                         alt=""
-                        className="absolute top-[100px] right-[350px] -rotate-45 w-56 h-auto object-contain opacity-90"
+                        className="absolute top-[100px] right-[350px] -rotate-45 w-56 h-auto object-contain opacity-60"
                         aria-hidden
                     />
                     <img
@@ -53,21 +56,6 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
                         className="absolute top-[200px] -right-[80px] rotate-180 w-80 h-auto object-contain opacity-60"
                         aria-hidden
                     />
-                </div>
-
-                {/* Scroll Velocity Text march 8 */}
-                <div className="relative flex w-full h-auto flex-col items-center justify-center overflow-hidden z-10 pt-6">
-                    <ScrollVelocityContainer className="text-2xl font-bold tracking-tight text-pink-600 md:text-4xl">
-                        <ScrollVelocityRow baseVelocity={4} direction={1}>
-                            Tu día, tu poder 💪
-                        </ScrollVelocityRow>
-                        <ScrollVelocityRow baseVelocity={4} direction={-1}>
-                            Tu fuerza, tu día, tu momento ✨
-                        </ScrollVelocityRow>
-                        <ScrollVelocityRow baseVelocity={4} direction={1}>
-                            Gracias por ser imparable 🌟
-                        </ScrollVelocityRow>
-                    </ScrollVelocityContainer>
                 </div>
 
                 {selectedTable && (
@@ -80,6 +68,20 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
 
                 <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
                     <div className="min-h-full flex flex-col">
+                        {/* Scroll Velocity — dentro del scroll para que se mueva con el contenido */}
+                        <div className="flex w-full shrink-0 flex-col items-center justify-center overflow-hidden pt-6 pb-2">
+                            <ScrollVelocityContainer className="text-2xl font-bold tracking-tight text-pink-600 md:text-4xl">
+                                <ScrollVelocityRow baseVelocity={4} direction={1}>
+                                    Tu día, tu poder 💪
+                                </ScrollVelocityRow>
+                                <ScrollVelocityRow baseVelocity={4} direction={-1}>
+                                    Tu fuerza, tu día, tu momento ✨
+                                </ScrollVelocityRow>
+                                <ScrollVelocityRow baseVelocity={4} direction={1}>
+                                    Gracias por ser imparable 🌟
+                                </ScrollVelocityRow>
+                            </ScrollVelocityContainer>
+                        </div>
                         <div className="flex-1">{children}</div>
                         <img
                             src="/themes/march_8/heart_various.webp"
@@ -88,6 +90,7 @@ const LayoutContent = ({ children, bgColor, renderBottomAction, showFloatingCart
                             aria-hidden
                         />
                         <ReportBusinessStrip />
+                        {renderPrefooter ?? <PreFooter />}
                         <Footer />
                     </div>
                 </div>

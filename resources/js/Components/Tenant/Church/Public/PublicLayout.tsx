@@ -5,13 +5,15 @@ import { Toaster } from 'sonner';
 
 interface PublicLayoutProps extends PropsWithChildren {
     bgColor?: string;
+    /** Bloque opcional antes del banner "Reportar problemas" (por vertical; Church no usa) */
+    renderPrefooter?: React.ReactNode;
     /** Barra fija inferior opcional (ej. CTA) */
     renderBottomAction?: React.ReactNode;
     /** Reproductor o elemento flotante al fondo (como el carrito en gastronomía) */
     renderFloatingBottom?: React.ReactNode;
 }
 
-export default function PublicLayout({ children, bgColor, renderBottomAction, renderFloatingBottom }: PublicLayoutProps) {
+export default function PublicLayout({ children, bgColor, renderPrefooter, renderBottomAction, renderFloatingBottom }: PublicLayoutProps) {
     return (
         <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500 bg-white">
             {/* 1. Base Image Layer (Deep back) */}
@@ -32,6 +34,7 @@ export default function PublicLayout({ children, bgColor, renderBottomAction, re
                     <div className="min-h-full flex flex-col">
                         <div className="flex-1">{children}</div>
                         <ReportBusinessStrip />
+                        {renderPrefooter}
                         <Footer />
                     </div>
                 </div>

@@ -113,7 +113,7 @@ export default function Home({
                 <PromotionalTicker tickers={tickers} />
             </div>
 
-            <div className="flex-1 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-4">
+            <div className="flex-1 min-w-0 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-4">
                 <BannerSlider sliders={sliders} tenantSlug={tenant.slug} />
 
                 <CategoryGrid categories={categories} />
@@ -193,10 +193,11 @@ export default function Home({
                 )}
 
                 {Array.isArray(promo_shorts) && promo_shorts.length > 0 && (
-                    <section className="w-full" aria-labelledby="promos-heading">
-                        <h2 id="promos-heading" className="text-[140px] font-bold text-gray-200 px-4 flex items-center -mb-24">
+                    <section className="w-full min-w-0 max-w-full overflow-x-hidden" aria-labelledby="promos-heading">
+                        <h2 id="promos-heading" className="text-lg font-bold text-slate-900 px-4 flex items-center overflow-hidden">
                             Shorts
                         </h2>
+                        <div className="min-w-0 w-full overflow-x-hidden">
                         <Carousel
                             items={promo_shorts.map((short, index) => (
                                 <PromoCard
@@ -211,6 +212,7 @@ export default function Home({
                                 />
                             ))}
                         />
+                        </div>
                     </section>
                 )}
 
