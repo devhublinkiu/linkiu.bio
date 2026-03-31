@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -122,7 +123,7 @@ class User extends Authenticatable
             if (filter_var($path, FILTER_VALIDATE_URL)) {
                 return $path;
             }
-            return \Illuminate\Support\Facades\Storage::disk('s3')->url($path);
+            return Storage::disk('bunny')->url($path);
         }
 
         return null;
