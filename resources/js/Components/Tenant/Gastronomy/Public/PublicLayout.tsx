@@ -97,12 +97,6 @@ const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction,
                                 className="w-full max-w-72 object-contain pointer-events-none"
                                 aria-hidden
                             />
-                            <img
-                                src="/themes/april_26/Assets_april_26_04.webp"
-                                alt=""
-                                className="mr-4 w-full max-w-48 shrink-0 self-end object-contain pointer-events-none animate-float will-change-transform -translate-y-10"
-                                aria-hidden
-                            />
                         </div>
                         <ReportBusinessStrip />
                         {renderPrefooter ?? <PreFooter />}
