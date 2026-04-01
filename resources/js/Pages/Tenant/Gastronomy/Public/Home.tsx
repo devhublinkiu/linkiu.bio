@@ -113,7 +113,7 @@ export default function Home({
                 <PromotionalTicker tickers={tickers} />
             </div>
 
-            <div className="flex-1 min-w-0 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-4">
+            <div className="flex-1 min-w-0 p-4 -mt-4 relative z-0 pb-4 flex flex-col gap-4">
                 <BannerSlider sliders={sliders} tenantSlug={tenant.slug} />
 
                 <CategoryGrid categories={categories} />

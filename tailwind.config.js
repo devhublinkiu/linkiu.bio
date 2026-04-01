@@ -50,6 +50,17 @@ export default {
 					'0%, 100%': { transform: 'translateY(0)' },
 					'50%': { transform: 'translateY(-10px)' },
 				},
+				/** Brillo suave para assets (solo filter; combinable con rotate en el hijo) */
+				'sparkle-glow': {
+					'0%, 100%': {
+						filter:
+							'drop-shadow(0 0 4px rgba(255, 255, 255, 0.45)) drop-shadow(0 0 8px rgba(253, 224, 71, 0.35)) brightness(1)',
+					},
+					'50%': {
+						filter:
+							'drop-shadow(0 0 14px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 20px rgba(250, 204, 21, 0.55)) brightness(1.12)',
+					},
+				},
 			},
 			animation: {
 				gradient: 'gradient 8s linear infinite',
@@ -58,6 +69,7 @@ export default {
 				marquee: 'marquee var(--duration, 40s) linear infinite',
 				'marquee-vertical': 'marquee-vertical var(--duration, 40s) linear infinite',
 				float: 'float 4s ease-in-out infinite',
+				'sparkle-glow': 'sparkle-glow 2.8s ease-in-out infinite',
 			},
 			colors: {
 				border: 'hsl(var(--border))',
