@@ -42,7 +42,12 @@ import {
     Headphones,
     LayoutGrid,
     Quote,
-    Mic2
+    Mic2,
+    ShoppingCart,
+    Bell,
+    Sparkles,
+    Receipt,
+    Phone
 } from 'lucide-react';
 
 export const MODULE_ICONS: Record<string, any> = {
@@ -89,7 +94,13 @@ export const MODULE_ICONS: Record<string, any> = {
     collaborators: UserCog,
     donations: Banknote,
     audio_dosis: Headphones,
-    feed: Mic2
+    feed: Mic2,
+    // Ecommerce
+    ecommerce_orders: Receipt,
+    abandoned_cart: ShoppingCart,
+    buy_on_whatsapp: Phone,
+    waitlist: Bell,
+    linkiu_offers: Sparkles
 };
 
 export const MODULE_LABELS: Record<string, string> = {
@@ -135,7 +146,13 @@ export const MODULE_LABELS: Record<string, string> = {
     collaborators: 'Colaboradores',
     donations: 'Donaciones',
     audio_dosis: 'Audio dosis',
-    feed: 'Predicas'
+    feed: 'Predicas',
+    // Ecommerce
+    ecommerce_orders: 'Órdenes',
+    abandoned_cart: 'Carrito abandonado',
+    buy_on_whatsapp: 'Comprar por WhatsApp',
+    waitlist: 'Lista de espera',
+    linkiu_offers: 'LinkiuOffers'
 };
 
 // Map module keys to route names (if they exist, otherwise '#')
@@ -181,7 +198,13 @@ export const MODULE_ROUTES: Record<string, string> = {
     collaborators: 'tenant.admin.collaborators.index',
     donations: 'tenant.admin.donations.index',
     audio_dosis: 'tenant.admin.audio-dosis.index',
-    feed: 'tenant.admin.sermons.index'
+    feed: 'tenant.admin.sermons.index',
+    // Ecommerce (rutas propias cuando existan backend)
+    ecommerce_orders: '#',
+    abandoned_cart: '#',
+    buy_on_whatsapp: '#',
+    waitlist: '#',
+    linkiu_offers: '#'
 };
 
 // Sub-items configuration (optional, for modules with children)
@@ -237,19 +260,23 @@ export const VERTICAL_CONFIG: Record<string, string[]> = {
     ],
     'ecommerce': [
         'dashboard',
-        'orders',
-        'categories',
         'products',
         'variables',
+        'ecommerce_orders',
+        'linkiu_offers',
+        'warehouse',
+        'coupons',
+        'abandoned_cart',
+        'buy_on_whatsapp',
+        'waitlist',
+        'categories',
         'files',
         'sliders',
-        'warehouse',
         'whatsapp',
         'integrations',
         'shipping',
         'payment_methods',
         'locations',
-        'coupons',
         'tickers',
         'support',
         'shorts'

@@ -46,6 +46,10 @@ export default {
 					from: { transform: 'translateY(0)' },
 					to: { transform: 'translateY(calc(-100% - var(--gap, 1rem)))' },
 				},
+				float: {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-10px)' },
+				},
 			},
 			animation: {
 				gradient: 'gradient 8s linear infinite',
@@ -53,6 +57,7 @@ export default {
 				'shiny-text': 'shiny-text 8s infinite',
 				marquee: 'marquee var(--duration, 40s) linear infinite',
 				'marquee-vertical': 'marquee-vertical var(--duration, 40s) linear infinite',
+				float: 'float 4s ease-in-out infinite',
 			},
 			colors: {
 				border: 'hsl(var(--border))',

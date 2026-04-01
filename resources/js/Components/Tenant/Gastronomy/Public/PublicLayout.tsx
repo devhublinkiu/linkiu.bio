@@ -35,25 +35,25 @@ const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction,
             <div className="fixed inset-0 -z-10 backdrop-blur-[100px] bg-white/10" />
 
             {/* Mobile-First Wrapper (The "Phone") — altura vista para que el scroll sea interno */}
-            <div className="w-full max-w-[480px] h-full max-h-[100dvh] shadow-2xl overflow-hidden flex flex-col relative mx-auto bg-white">
+            <div className="w-full max-w-[480px] h-full max-h-[100dvh] shadow-2xl overflow-hidden flex flex-col relative mx-auto bg-white pt-32">
                 {/* Banda fija arriba: no hace scroll, el contenido pasa por debajo */}
                 <div
                     className="absolute top-0 left-0 right-0 w-full pointer-events-none z-10"
                     style={{
                         height: '50%', // cambia por el % que quieras (ej. 15%, 200px)
-                        background: 'linear-gradient(to bottom, #ffceec, #ffffff)',
+                        background: 'linear-gradient(to bottom,rgba(161, 41, 185, 0.3),rgba(255, 255, 255, 0.06))',
                     }}
                 >
                     <img
-                        src="/themes/march_8/flowers_01.webp"
+                        src="/themes/april_26/Assets_april_26_01.webp"
                         alt=""
-                        className="absolute top-[100px] right-[350px] -rotate-45 w-56 h-auto object-contain opacity-60"
+                        className="absolute -top-[10px] w-full h-auto object-contain"
                         aria-hidden
                     />
                     <img
-                        src="/themes/march_8/flowers_02.webp"
+                        src="/themes/april_26/Assets_april_26_02.webp"
                         alt=""
-                        className="absolute top-[200px] -right-[80px] rotate-180 w-80 h-auto object-contain opacity-60"
+                        className="absolute -top-[10px] right-[150px] w-40 h-auto object-contain animate-float will-change-transform"
                         aria-hidden
                     />
                 </div>
@@ -65,30 +65,37 @@ const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction,
                     </div>
                 )}
 
-
                 <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
                     <div className="min-h-full flex flex-col">
-                        {/* Scroll Velocity — dentro del scroll para que se mueva con el contenido */}
-                        <div className="flex w-full shrink-0 flex-col items-center justify-center overflow-hidden pt-6 pb-2">
-                            <ScrollVelocityContainer className="text-2xl font-bold tracking-tight text-pink-600 md:text-4xl">
-                                <ScrollVelocityRow baseVelocity={4} direction={1}>
-                                    Tu día, tu poder 💪
-                                </ScrollVelocityRow>
-                                <ScrollVelocityRow baseVelocity={4} direction={-1}>
-                                    Tu fuerza, tu día, tu momento ✨
-                                </ScrollVelocityRow>
-                                <ScrollVelocityRow baseVelocity={4} direction={1}>
-                                    Gracias por ser imparable 🌟
-                                </ScrollVelocityRow>
-                            </ScrollVelocityContainer>
+                        <div className="flex-1 min-h-0">{children}</div>
+                        {/* Bloque inferior: texto en scroll + corazones sin hueco (el asset suele traer padding transparente arriba) */}
+                        <div className="flex w-full shrink-0 flex-col items-end overflow-x-hidden">
+                            <div className="flex w-full flex-col items-center justify-center overflow-hidden pt-2 pb-1">
+                                <ScrollVelocityContainer className="text-xl font-bold leading-tight tracking-tight text-slate-950 md:text-3xl [&>div]:py-0.5">
+                                    <ScrollVelocityRow baseVelocity={4} direction={1}>
+                                        Imagina sin límites 🌈🧩
+                                    </ScrollVelocityRow>
+                                    <ScrollVelocityRow baseVelocity={4} direction={-1}>
+                                        Celebramos ser niños 🎈🧸
+                                    </ScrollVelocityRow>
+                                    <ScrollVelocityRow baseVelocity={4} direction={1}>
+                                        La magia de jugar 🎨🪁
+                                    </ScrollVelocityRow>
+                                </ScrollVelocityContainer>
+                            </div>
+                            <img
+                                src="/themes/april_26/Assets_april_26_03.webp"
+                                alt=""
+                                className="w-full max-w-72 object-contain pointer-events-none"
+                                aria-hidden
+                            />
+                            <img
+                                src="/themes/april_26/Assets_april_26_04.webp"
+                                alt=""
+                                className="w-full max-w-56 absolute top-[3900px] right-[280px] object-contain pointer-events-none animate-float will-change-transform -translate-y-10"
+                                aria-hidden
+                            />
                         </div>
-                        <div className="flex-1">{children}</div>
-                        <img
-                            src="/themes/march_8/heart_various.webp"
-                            alt=""
-                            className="top-0 w-full h-full object-contain opacity-90"
-                            aria-hidden
-                        />
                         <ReportBusinessStrip />
                         {renderPrefooter ?? <PreFooter />}
                         <Footer />
