@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import ProductCard from '@/Components/Tenant/Gastronomy/Public/Menu/ProductCard';
 import ProductDetailDrawer from '@/Components/Tenant/Gastronomy/Public/ProductDetailDrawer';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -75,15 +74,6 @@ export default function FavoritesIndex({ tenant }: Props) {
             <Head title={`Favoritos - ${tenant.name}`} />
 
             <div className="flex flex-col min-h-screen">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={brandColors.description_color}
-                />
-
                 {/* Header Section */}
                 <div className="px-4 pt-6 pb-2">
                     <div className="flex items-center gap-3">

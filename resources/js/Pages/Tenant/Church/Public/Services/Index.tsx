@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Church, Calendar, Clock, MapPin, Users, User, Phone, ExternalLink, LayoutGrid, Share2, Radio, ChevronRight, Mail, MessageCircle, Quote, Heart, HandHeart } from 'lucide-react';
 
@@ -195,17 +194,6 @@ export default function ServicesIndex({ tenant, services, sermons_live = [], ser
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`Servicios - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto px-4 w-full flex-1 pb-20 pt-8">
                 <section aria-labelledby="servicios-heading">

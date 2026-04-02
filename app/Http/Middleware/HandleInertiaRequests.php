@@ -159,6 +159,20 @@ class HandleInertiaRequests extends Middleware
                     ->where('is_active', true)
                     ->count();
             },
+            // Estado de horario de la sede seleccionada (gastronomía) — HeaderShell OpeningHours
+            'location_status_message' => function () {
+                if (! app()->bound('currentTenant')) {
+                    return null;
+                }
+                $tenant = app('currentTenant');
+                $tenant->loadMissing('vertical');
+                if (($tenant->vertical->slug ?? null) !== 'gastronomia') {
+                    return null;
+                }
+
+                return app(\App\Http\Controllers\Tenant\Gastronomy\PublicController::class)
+                    ->getLocationStatusMessage($tenant);
+            },
         ];
     }
 }

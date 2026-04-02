@@ -2,13 +2,12 @@ import { useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import type { Ticker } from '@/types/ticker';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import BannerSlider from '@/Components/Tenant/Gastronomy/Public/BannerSlider';
 import CategoryGrid from '@/Components/Tenant/Gastronomy/Public/CategoryGrid';
 import PromotionalTicker from '@/Components/Tenant/Public/PromotionalTicker';
 import ProductList, { type ProductListRef } from '@/Components/Tenant/Gastronomy/Public/ProductList';
 import { Carousel, PromoCard, type PromoCardData } from '@/Components/ui/promo-carousel';
-import { ChevronLeft, ChevronRight, Clock, Flame, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Trophy } from 'lucide-react';
 
 interface TenantBrandColors {
     bg_color?: string;
@@ -65,7 +64,6 @@ interface Props {
     featured_products?: HomeProduct[];
     top_selling_products?: HomeProduct[];
     top_categories?: TopCategory[];
-    location_status_message?: string | null;
     tickers: Ticker[];
     promo_shorts?: PromoShort[];
 }
@@ -77,7 +75,6 @@ export default function Home({
     featured_products = [],
     top_selling_products = [],
     top_categories = [],
-    location_status_message = null,
     tickers,
     promo_shorts = [],
 }: Props) {
@@ -94,22 +91,6 @@ export default function Home({
             <Head title={tenant.name} />
 
             <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={description_color}
-                />
-
-                 {location_status_message && (
-                    <div className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700">
-                        <Clock className="size-4 text-slate-500 shrink-0" aria-hidden />
-                        <span>{location_status_message}</span>
-                    </div>
-                )}
-
                 <PromotionalTicker tickers={tickers} />
             </div>
 

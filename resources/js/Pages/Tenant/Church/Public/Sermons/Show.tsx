@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { ArrowLeft, ExternalLink, MessageCircle, Radio } from 'lucide-react';
 
 interface TenantBrandColors {
@@ -109,17 +108,6 @@ export default function SermonShow({ tenant, sermon }: Props) {
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`${sermon.title} - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto w-full flex-1 pb-20 px-4 pt-4">
                 <Link

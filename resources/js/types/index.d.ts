@@ -35,6 +35,13 @@ export type PageProps<
         slug: string;
         name: string;
         logo_url?: string;
+        /** Descripción corta tienda (settings), p. ej. hero público */
+        store_description?: string | null;
+        vertical?: {
+            id: number;
+            slug: string;
+            name?: string;
+        };
         latest_subscription?: any;
         pending_invoice?: any;
     };
@@ -44,4 +51,6 @@ export type PageProps<
         permissions: string[];
     };
     ziggy: Config & { location: string };
+    /** Mensaje de horario de sede (gastronomía), p. ej. desde HandleInertiaRequests */
+    location_status_message?: string | null;
 };

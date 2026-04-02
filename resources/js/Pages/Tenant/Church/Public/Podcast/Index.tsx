@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import EpisodeCard from '@/Components/Tenant/Church/Public/EpisodeCard';
 import FloatingAudioPlayer from '@/Components/Tenant/Church/Public/FloatingAudioPlayer';
 import type { EpisodePublic } from '@/Components/Tenant/Church/Public/EpisodeCard';
@@ -59,17 +58,6 @@ export default function PodcastIndex({ tenant, pageTitle, episodeOfTheDay, episo
             }
         >
             <Head title={`${pageTitle} - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto px-4 w-full flex-1 pb-20 pt-8">
                 <section aria-labelledby="podcast-heading">

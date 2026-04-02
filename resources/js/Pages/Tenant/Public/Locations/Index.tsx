@@ -4,8 +4,6 @@ import type { PublicLocation } from '@/types/location';
 import GastronomyPublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import ChurchPublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
 import LocationCard from '@/Components/Tenant/Public/Locations/LocationCard';
-import GastronomyHeader from '@/Components/Tenant/Gastronomy/Public/Header';
-import ChurchHeader from '@/Components/Tenant/Church/Public/Header';
 import { MapPin } from 'lucide-react';
 import { PageProps } from '@/types';
 
@@ -38,22 +36,12 @@ export default function Index({ tenant, locations, selected_location_id = null }
     };
 
     const Layout = isChurch ? ChurchPublicLayout : GastronomyPublicLayout;
-    const Header = isChurch ? ChurchHeader : GastronomyHeader;
 
     return (
         <Layout bgColor={bg_color}>
             <Head title={`Nuestras Sedes - ${tenant.name}`} />
 
             <div className="flex flex-col min-h-screen pb-20">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url ?? undefined}
-                    description={tenant.store_description ?? undefined}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={description_color}
-                />
-
                 <div className="max-w-md mx-auto px-4 w-full">
                     <div className="flex items-center gap-3 mb-6 mt-2">
                         <div className="bg-primary/10 p-2.5 rounded-xl">

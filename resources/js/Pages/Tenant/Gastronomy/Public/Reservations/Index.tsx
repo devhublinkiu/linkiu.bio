@@ -11,7 +11,6 @@ import { format, parse, isBefore, addMinutes, isAfter } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import { toast } from 'sonner';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import { formatPrice } from '@/lib/utils';
 import axios from 'axios';
 
@@ -210,17 +209,6 @@ export default function ReservationIndex({ tenant, locations, bankAccounts = [] 
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`Reservar en ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="flex-1 p-4 -mt-4 relative z-0 pb-20">
                 <Card className="w-full max-w-xl mx-auto mb-8 mt-4 border-0 shadow-sm bg-white/80 backdrop-blur-sm rounded-2xl">

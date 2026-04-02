@@ -4,6 +4,7 @@ import FloatingCart from './FloatingCart';
 import Footer from '@/Components/Public/Footer';
 import ReportBusinessStrip from '@/Components/Public/ReportBusinessStrip';
 import PreFooter from './PreFooter';
+import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
 import { Toaster } from 'sonner';
 import { MapPin } from 'lucide-react';
 import { ScrollVelocityContainer, ScrollVelocityRow } from '@/Components/ui/scroll-based-velocity';
@@ -74,6 +75,10 @@ const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction,
                                     aria-hidden
                                 />
                             </span>
+                        </div>
+                        {/* Header universal (Figma): va antes del contenido de página — p. ej. selector de sede en Home/Header */}
+                        <div className="relative z-20 w-full shrink-0 pointer-events-auto px-4 pt-2">
+                            <HeaderShellAll />
                         </div>
                         <div className="flex-1 min-h-0">{children}</div>
                         {/* Bloque inferior: texto en scroll + corazones sin hueco (el asset suele traer padding transparente arriba) */}

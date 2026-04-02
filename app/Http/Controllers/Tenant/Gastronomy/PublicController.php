@@ -189,8 +189,6 @@ class PublicController extends Controller
                 ->sortBy(fn ($p) => array_search($p->id, $topSellingIds))
                 ->values();
 
-        $locationStatusMessage = $this->getLocationStatusMessage($tenant);
-
         $tickers = \App\Models\Tenant\All\Ticker::select(['id', 'content', 'link', 'background_color', 'text_color', 'order'])
             ->where('is_active', true)
             ->orderBy('order', 'asc')
@@ -295,13 +293,12 @@ class PublicController extends Controller
             'featured_products' => $featuredProducts,
             'top_selling_products' => $topSellingProducts,
             'top_categories' => $topCategoriesForHome,
-            'location_status_message' => $locationStatusMessage,
             'tickers' => $tickers,
             'promo_shorts' => $promoShorts,
         ]);
     }
 
-    private function getLocationStatusMessage($tenant): ?string
+    public function getLocationStatusMessage($tenant): ?string
     {
         $locationId = session('selected_location_id');
         if (!$locationId) {
@@ -317,7 +314,7 @@ class PublicController extends Controller
         $dayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][$now->dayOfWeek];
         $todayHours = $location->opening_hours[$dayKey] ?? [];
         if (empty($todayHours)) {
-            return 'Cerrado hoy';
+            return $this->closedWithNextOpening($location, $now, 'Cerrado hoy');
         }
         $currentMinutes = $now->hour * 60 + $now->minute;
         foreach ($todayHours as $slot) {
@@ -340,7 +337,60 @@ class PublicController extends Controller
         if ($nextSlot) {
             return 'Abre a las ' . $nextSlot['open'];
         }
-        return 'Cerrado';
+
+        return $this->closedWithNextOpening($location, $now, 'Cerrado');
+    }
+
+    /**
+     * Cierra el mensaje con la próxima apertura: "Cerrado - Abre mañana a las HH:MM" (o día de la semana si no abre mañana).
+     *
+     * @param  Location  $location
+     */
+    private function closedWithNextOpening(Location $location, \Carbon\Carbon $now, string $closedLabel): string
+    {
+        $next = $this->nextOpeningLine($location, $now);
+        if ($next === null) {
+            return $closedLabel;
+        }
+
+        return $closedLabel.' - '.$next;
+    }
+
+    /**
+     * Primera franja de apertura en los próximos días (desde mañana).
+     *
+     * @param  Location  $location
+     */
+    private function nextOpeningLine(Location $location, \Carbon\Carbon $now): ?string
+    {
+        $hoursByDay = $location->opening_hours ?? [];
+        if (! is_array($hoursByDay) || $hoursByDay === []) {
+            return null;
+        }
+
+        $dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        $spanishDays = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+        for ($addDays = 1; $addDays <= 14; $addDays++) {
+            $d = $now->copy()->addDays($addDays)->startOfDay();
+            $key = $dayKeys[(int) $d->dayOfWeek];
+            $slots = $hoursByDay[$key] ?? [];
+            if ($slots === []) {
+                continue;
+            }
+            $first = $slots[0] ?? null;
+            $open = is_array($first) ? ($first['open'] ?? null) : null;
+            if ($open === null || $open === '') {
+                continue;
+            }
+            if ($addDays === 1) {
+                return 'Abre mañana a las '.$open;
+            }
+
+            return 'Abre el '.$spanishDays[(int) $d->dayOfWeek].' a las '.$open;
+        }
+
+        return null;
     }
 
     public function detectTable(Request $request, $tenantSlug, $token)

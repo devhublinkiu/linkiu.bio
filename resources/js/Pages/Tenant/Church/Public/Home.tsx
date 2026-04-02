@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import type { Ticker } from '@/types/ticker';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import EpisodeCard from '@/Components/Tenant/Church/Public/EpisodeCard';
 import FloatingAudioPlayer from '@/Components/Tenant/Church/Public/FloatingAudioPlayer';
 import BannerSlider from '@/Components/Tenant/Gastronomy/Public/BannerSlider';
@@ -146,15 +145,6 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
             <Head title={tenant.name} />
 
             <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-
                 <PromotionalTicker tickers={tickers} />
             </div>
 

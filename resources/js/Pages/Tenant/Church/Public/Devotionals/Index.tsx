@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { BookOpen, Calendar, Heart, HandHeart, Share2 } from 'lucide-react';
 import SharedPagination from '@/Components/Shared/Pagination';
 
@@ -111,17 +110,6 @@ export default function DevotionalsIndex({ tenant, devotionals }: Props) {
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`Devocionales - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto px-4 w-full flex-1 pb-20 pt-8">
                 <section aria-labelledby="devocionales-heading">

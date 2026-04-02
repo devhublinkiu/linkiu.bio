@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { Radio, Calendar, Play, ExternalLink } from 'lucide-react';
 
 interface TenantBrandColors {
@@ -108,17 +107,6 @@ export default function SermonsIndex({ tenant, sermons_live, sermons_upcoming, s
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`Predicas - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto px-4 w-full flex-1 pb-20 pt-8">
                 <section aria-labelledby="predicas-heading">

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import { Search, X } from 'lucide-react';
 
 interface TenantProps {
@@ -42,15 +41,6 @@ export default function Index({ tenant, categories }: Props) {
             <Head title={`Menú - ${tenant.name}`} />
 
             <div className="flex flex-col min-h-screen bg-gray-50/50">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={brandColors.description_color}
-                />
-
                 {/* 1. Category Grid (At the Top) */}
                 <div className="p-4 bg-white mb-2">
                     <div className="grid grid-cols-4 gap-4">

@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { Button } from '@/Components/ui/button';
 import { Ripple } from '@/Components/ui/ripple';
 import { CheckCircle2, Banknote } from 'lucide-react';
@@ -28,17 +27,6 @@ export default function DonationsThankYou({ tenant }: Props) {
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title="Gracias por tu ofrenda" />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="flex-1 bg-slate-50/80 p-4 -mt-4 pb-20 pt-8">
                 <div className="max-w-md mx-auto text-center">

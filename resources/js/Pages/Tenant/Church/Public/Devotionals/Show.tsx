@@ -1,7 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { Calendar, Copy, ExternalLink, HandHeart, Heart, Mail, Share2, User } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -223,17 +222,6 @@ export default function DevotionalShow({ tenant, devotional, blessing_count: ini
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={`${devotional.title} - Devocionales - ${tenant.name}`} />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="max-w-md mx-auto px-4 w-full flex-1 pb-20 pt-6">
                 <Link

@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import Header from '@/Components/Tenant/Gastronomy/Public/Header';
 import { Search, X, Flame, Star, Percent, Leaf, ChevronLeft } from 'lucide-react';
 import ProductCard from '@/Components/Tenant/Gastronomy/Public/Menu/ProductCard';
 import ProductDetailDrawer from '@/Components/Tenant/Gastronomy/Public/ProductDetailDrawer';
@@ -114,15 +113,6 @@ export default function CategoryShow({ tenant, category, categories }: Props) {
             <Head title={`${category.name} - ${tenant.name}`} />
 
             <div className="flex flex-col min-h-screen bg-gray-50/50">
-                <Header
-                    tenantName={tenant.name}
-                    logoUrl={tenant.logo_url}
-                    description={tenant.store_description}
-                    bgColor={bg_color}
-                    textColor={name_color}
-                    descriptionColor={brandColors.description_color}
-                />
-
                 {/* Back Link & Category Header */}
                 <div className="bg-white px-4 pt-4 pb-2 flex items-center gap-4">
                     <button

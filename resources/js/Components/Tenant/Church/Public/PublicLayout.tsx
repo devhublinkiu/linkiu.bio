@@ -1,6 +1,7 @@
 import React, { PropsWithChildren } from 'react';
 import Footer from '@/Components/Public/Footer';
 import ReportBusinessStrip from '@/Components/Public/ReportBusinessStrip';
+import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
 import { Toaster } from 'sonner';
 
 interface PublicLayoutProps extends PropsWithChildren {
@@ -30,9 +31,12 @@ export default function PublicLayout({ children, bgColor, renderPrefooter, rende
 
             {/* Mobile-First Wrapper (The "Phone") — altura vista para que el scroll sea interno */}
             <div className="w-full max-w-[480px] h-full max-h-[100dvh] bg-white shadow-2xl overflow-hidden flex flex-col relative mx-auto z-10">
-                <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
+                <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
                     <div className="min-h-full flex flex-col">
-                        <div className="flex-1">{children}</div>
+                        <div className="relative z-20 w-full shrink-0 pointer-events-auto px-4 pt-2">
+                            <HeaderShellAll />
+                        </div>
+                        <div className="flex-1 min-h-0">{children}</div>
                         <ReportBusinessStrip />
                         {renderPrefooter}
                         <Footer />

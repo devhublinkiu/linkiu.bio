@@ -1,6 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
-import Header from '@/Components/Tenant/Church/Public/Header';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -60,17 +59,6 @@ export default function DonationsIndex({ tenant, bankAccounts }: Props) {
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title="Donaciones" />
-
-            <div className="flex flex-col">
-                <Header
-                    tenantName={tenant.name}
-                    description={tenant.store_description}
-                    logoUrl={tenant.logo_url}
-                    bgColor={bg_color}
-                    textColor={brandColors.name_color ?? '#ffffff'}
-                    descriptionColor={brandColors.description_color}
-                />
-            </div>
 
             <div className="flex-1 bg-slate-50/80 p-4 -mt-4 pb-20 pt-8">
                 <div className="max-w-lg mx-auto">
