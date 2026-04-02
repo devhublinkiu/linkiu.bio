@@ -1,126 +1,71 @@
-import React, { PropsWithChildren } from 'react';
-import { CartProvider, useCart, CartContextType } from '@/Contexts/CartContext';
-import FloatingCart from './FloatingCart';
-import Footer from '@/Components/Public/Footer';
-import ReportBusinessStrip from '@/Components/Public/ReportBusinessStrip';
-import PreFooter from './PreFooter';
-import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
-import { Toaster } from 'sonner';
+import type { PropsWithChildren, ReactNode } from 'react';
 import { MapPin } from 'lucide-react';
-import { ScrollVelocityContainer, ScrollVelocityRow } from '@/Components/ui/scroll-based-velocity';
+import { Toaster } from 'sonner';
+
+import { CartProvider, useCart, type CartContextType } from '@/Contexts/CartContext';
+import FooterShellAll from '@/Components/Tenant/Public/FooterShell/FooterShellAll';
+import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
+
+import FloatingCart from './FloatingCart';
 
 interface PublicLayoutProps extends PropsWithChildren {
     bgColor?: string;
-    /** Bloque antes del banner "Reportar problemas" (Gastronomy: pilares + legal) */
-    renderPrefooter?: React.ReactNode;
-    renderBottomAction?: (cart: CartContextType) => React.ReactNode;
+    renderBottomAction?: (cart: CartContextType) => ReactNode;
     showFloatingCart?: boolean;
 }
 
-const LayoutContent = ({ children, bgColor, renderPrefooter, renderBottomAction, showFloatingCart = true }: PublicLayoutProps) => {
+const LayoutContent = ({
+    children,
+    bgColor,
+    renderBottomAction,
+    showFloatingCart = true,
+}: PublicLayoutProps) => {
     const cart = useCart();
     const { selectedTable } = cart;
 
     return (
-        <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500 bg-white">
+        <div className="flex h-dvh w-full items-stretch justify-center overflow-hidden bg-white transition-colors duration-500">
             {/* 1. Base Image Layer (Deep back) */}
             <div className="fixed inset-0 -z-30 bg-[url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
 
             {/* 2. Color Tint Layer (The brand color) - Semi-transparent */}
             <div
-                className="fixed inset-0 -z-20 transition-colors duration-500 mix-blend-multiply opacity-80"
+                className="fixed inset-0 -z-20 opacity-80 mix-blend-multiply transition-colors duration-500"
                 style={{ backgroundColor: bgColor || '#f0f2f5' }}
             />
 
             {/* 3. Glass/Blur Layer (Frosted effect) */}
-            <div className="fixed inset-0 -z-10 backdrop-blur-[100px] bg-white/10" />
+            <div className="fixed inset-0 -z-10 bg-white/10 backdrop-blur-[100px]" />
 
-            {/* Mobile-First Wrapper — el scroll es interno; la cabecera temática va DENTRO del scroll para que no quede “fixed” */}
-            <div className="w-full max-w-[480px] h-full max-h-[100dvh] shadow-2xl overflow-hidden flex flex-col relative mx-auto bg-white">
+            {/* Mobile-First Wrapper — scroll interno; cabecera dentro del scroll */}
+            <div className="relative mx-auto flex h-full max-h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-white shadow-2xl">
                 {selectedTable && (
-                    <div className="bg-white text-primary px-4 py-2.5 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 border-b border-primary/20 animate-in fade-in slide-in-from-top duration-700 z-[9999]">
-                        <MapPin className="w-3 h-3 animate-bounce" />
-                        Pidiendo en: <span className="opacity-80">{selectedTable.name}</span> {selectedTable.zone?.name && <span className="text-[9px] opacity-60 ml-0.5">[{selectedTable.zone.name}]</span>}
+                    <div className="z-[9999] flex animate-in items-center justify-center gap-2 border-b border-primary/20 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-primary fade-in slide-in-from-top duration-700">
+                        <MapPin className="h-3 w-3 animate-bounce" />
+                        Pidiendo en: <span className="opacity-80">{selectedTable.name}</span>{' '}
+                        {selectedTable.zone?.name && (
+                            <span className="ml-0.5 text-[9px] opacity-60">[{selectedTable.zone.name}]</span>
+                        )}
                     </div>
                 )}
 
-                <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
-                    <div className="min-h-full flex flex-col">
-                        {/* Cabecera abril: flujo normal + hijos absolute solo dentro de esta caja (sí hace scroll) */}
-                        <div
-                            className="relative w-full shrink-0 pointer-events-none min-h-[min(42vh,160px)]"
-                            style={{
-                                background:
-                                    'linear-gradient(to bottom,rgba(161, 41, 185, 0.3),rgba(255, 255, 255, 0.06))',
-                            }}
-                        >
-                            <img
-                                src="/themes/april_26/Assets_april_26_01.webp"
-                                alt=""
-                                className="relative -mt-2.5 w-full h-auto object-contain z-10"
-                                aria-hidden
-                            />
-                            <img
-                                src="/themes/april_26/Assets_april_26_02.webp"
-                                alt=""
-                                className="absolute top-[30px] right-[70px] w-40 h-auto object-contain animate-float will-change-transform z-30"
-                                aria-hidden
-                            />
-                            {/* Float en el wrapper: si va en la img, pisa el rotate (ambos usan transform) */}
-                            <span className="absolute top-[90px] left-[20px] z-10 inline-block origin-center animate-float will-change-transform">
-                                <img
-                                    src="/themes/april_26/Assets_april_26_05.webp"
-                                    alt=""
-                                    className="w-48 h-auto object-contain -rotate-[22deg] animate-sparkle-glow [animation-delay:0.3s]"
-                                    aria-hidden
-                                />
-                            </span>
-                        </div>
-                        {/* Header universal (Figma): va antes del contenido de página — p. ej. selector de sede en Home/Header */}
-                        <div className="relative z-20 w-full shrink-0 pointer-events-auto px-4 pt-2">
-                            <HeaderShellAll />
-                        </div>
-                        <div className="flex-1 min-h-0">{children}</div>
-                        {/* Bloque inferior: texto en scroll + corazones sin hueco (el asset suele traer padding transparente arriba) */}
-                        <div className="flex w-full shrink-0 flex-col items-end overflow-x-hidden">
-                            <div className="flex w-full flex-col items-center justify-center overflow-hidden pt-0 pb-1">
-                                <ScrollVelocityContainer className="text-xl font-bold leading-tight tracking-tight text-slate-950 md:text-3xl [&>div]:py-0.5">
-                                    <ScrollVelocityRow baseVelocity={4} direction={1}>
-                                        Imagina sin límites 🌈🧩
-                                    </ScrollVelocityRow>
-                                    <ScrollVelocityRow baseVelocity={4} direction={-1}>
-                                        Celebramos ser niños 🎈🧸
-                                    </ScrollVelocityRow>
-                                    <ScrollVelocityRow baseVelocity={4} direction={1}>
-                                        La magia de jugar 🎨🪁
-                                    </ScrollVelocityRow>
-                                </ScrollVelocityContainer>
-                            </div>
-                            <img
-                                src="/themes/april_26/Assets_april_26_03.webp"
-                                alt=""
-                                className="w-full max-w-72 object-contain pointer-events-none"
-                                aria-hidden
-                            />
-                        </div>
-                        <ReportBusinessStrip />
-                        {renderPrefooter ?? <PreFooter />}
-                        <Footer />
+                <div className="scrollbar-public relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                    <div className="flex min-h-full flex-col">
+                        <HeaderShellAll />
+                        <div className="min-h-0 flex-1">{children}</div>
+                        <FooterShellAll />
                     </div>
                 </div>
 
-                {/* Cart Components */}
                 {showFloatingCart && <FloatingCart />}
 
-                {/* Bottom Action Bar (Dynamic) */}
                 {renderBottomAction && (
-                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 px-6 z-40 sm:absolute sm:bottom-0">
+                    <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-white p-4 px-6 sm:absolute sm:bottom-0">
                         {renderBottomAction(cart)}
                     </div>
                 )}
 
-                {/* iPhone Home Bar Indicator (Visual Flair) */}
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-200 rounded-full sm:block hidden pointer-events-none mb-1 z-50"></div>
+                <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 mb-1 hidden h-1 w-32 -translate-x-1/2 rounded-full bg-slate-200 sm:block" />
             </div>
         </div>
     );

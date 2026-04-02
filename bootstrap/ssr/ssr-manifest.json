@@ -1,7 +1,7 @@
 {
   "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
   "node_modules/leaflet/dist/images/marker-icon.png": [
-    "/build/assets/Index-DgqrLOMZ.js",
+    "/build/assets/Index-BEK4AT09.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -9,7 +9,7 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "node_modules/leaflet/dist/images/marker-shadow.png": [
-    "/build/assets/Index-DgqrLOMZ.js",
+    "/build/assets/Index-BEK4AT09.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -23,7 +23,7 @@
     "/build/assets/useWindowSize-BFapJuGt.js"
   ],
   "node_modules/react-use/esm/useLocalStorage.js": [
-    "/build/assets/ProductDetailDrawer-4t9BzSaz.js"
+    "/build/assets/ProductDetailDrawer-CrlTr9sR.js"
   ],
   "node_modules/react-use/esm/useRafState.js": [
     "/build/assets/useWindowSize-BFapJuGt.js"
@@ -76,14 +76,8 @@
   "resources/js/Components/NotificationSidebar.tsx": [
     "/build/assets/dropdown-menu-Dkgv2tnp.js"
   ],
-  "resources/js/Components/Public/Footer.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
-  ],
-  "resources/js/Components/Public/ReportBusinessStrip.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
-  ],
   "resources/js/Components/Public/ReportModal.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/ResponsiveNavLink.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -171,55 +165,82 @@
     "/build/assets/FloatingAudioPlayer-2m5hVaig.js"
   ],
   "resources/js/Components/Tenant/Church/Public/PublicLayout.tsx": [
-    "/build/assets/PublicLayout-Br4xeMwg.js"
+    "/build/assets/PublicLayout-3J0paspN.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/BannerSlider.tsx": [
     "/build/assets/promo-carousel-DxUxB6OQ.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/CategoryGrid.tsx": [
-    "/build/assets/Home-DGXXwja_.js"
+    "/build/assets/Home-Ai-eJMuD.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/FloatingCart.tsx": [
-    "/build/assets/PublicLayout-C1n6GEnS.js"
+    "/build/assets/PublicLayout-C5fH9mtF.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/Menu/ProductCard.tsx": [
-    "/build/assets/ProductCard-Cr4v0Ujw.js"
-  ],
-  "resources/js/Components/Tenant/Gastronomy/Public/PreFooter.tsx": [
-    "/build/assets/PublicLayout-C1n6GEnS.js"
+    "/build/assets/ProductCard-D-16bFF5.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/ProductDetailDrawer.tsx": [
-    "/build/assets/ProductDetailDrawer-4t9BzSaz.js"
+    "/build/assets/ProductDetailDrawer-CrlTr9sR.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/ProductList.tsx": [
-    "/build/assets/Home-DGXXwja_.js"
+    "/build/assets/Home-Ai-eJMuD.js"
   ],
   "resources/js/Components/Tenant/Gastronomy/Public/PublicLayout.tsx": [
-    "/build/assets/PublicLayout-C1n6GEnS.js"
+    "/build/assets/PublicLayout-C5fH9mtF.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/FooterShellAll.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/bagdeOperative.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/benefits.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/buttonRegisterLinkiu.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/contact.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/legalsLinkiu.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/legalsVerticals.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/socialMedia.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/FooterShell/parts/verticalsAds.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/HeaderShellAll.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/Hero.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/MenuVerticals.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/OpeningHours.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/SelectSede.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/VerifiedInsightIcon.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/HeaderShell/parts/menuVerticalConfig.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
+  ],
+  "resources/js/Components/Tenant/Public/HeaderShell/parts/verticalsAds.tsx": [
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/Tenant/Public/Locations/LocationCard.tsx": [
-    "/build/assets/Index-DgqrLOMZ.js",
+    "/build/assets/Index-BEK4AT09.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -227,7 +248,7 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "resources/js/Components/Tenant/Public/Locations/LocationMap.tsx": [
-    "/build/assets/Index-DgqrLOMZ.js",
+    "/build/assets/Index-BEK4AT09.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -254,12 +275,6 @@
   ],
   "resources/js/Components/ui/animated-beam.tsx": [
     "/build/assets/Welcome-D_51BP8n.js"
-  ],
-  "resources/js/Components/ui/animated-gradient-text.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
-  ],
-  "resources/js/Components/ui/animated-shiny-text.tsx": [
-    "/build/assets/HeaderShellAll-1-HGtoe6.js"
   ],
   "resources/js/Components/ui/animated-tooltip.tsx": [
     "/build/assets/Welcome-D_51BP8n.js"
@@ -340,7 +355,7 @@
     "/build/assets/promo-carousel-DxUxB6OQ.js"
   ],
   "resources/js/Components/ui/radio-group.tsx": [
-    "/build/assets/Index-CGyH2znH.js"
+    "/build/assets/Index-DAlT_Qgf.js"
   ],
   "resources/js/Components/ui/rich-text-editor.tsx": [
     "/build/assets/Edit-D0vWy1BI.js"
@@ -352,7 +367,7 @@
     "/build/assets/scroll-area-iVmBTZv4.js"
   ],
   "resources/js/Components/ui/scroll-based-velocity.tsx": [
-    "/build/assets/PublicLayout-C1n6GEnS.js"
+    "/build/assets/HeaderShellAll-i5N7L180.js"
   ],
   "resources/js/Components/ui/select.tsx": [
     "/build/assets/select-BWhoZY6G.js"
@@ -391,7 +406,7 @@
     "/build/assets/menuConfig-yp3b8soW.js"
   ],
   "resources/js/Contexts/CartContext.tsx": [
-    "/build/assets/PublicLayout-C1n6GEnS.js"
+    "/build/assets/PublicLayout-C5fH9mtF.js"
   ],
   "resources/js/Layouts/AuthenticatedLayout.tsx": [
     "/build/assets/AuthenticatedLayout-BYqPcHJa.js"
@@ -760,73 +775,73 @@
     "/build/assets/Settings-8xshtITo.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Appointments/Request.tsx": [
-    "/build/assets/Request-BWjybS-1.js"
+    "/build/assets/Request-BFMr2mNR.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Devotionals/Index.tsx": [
-    "/build/assets/Index-Blo2UdTW.js"
+    "/build/assets/Index-B680r2Wj.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Devotionals/Show.tsx": [
-    "/build/assets/Show-DugrdRMD.js"
+    "/build/assets/Show-BxH0Urgf.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Donations/Index.tsx": [
-    "/build/assets/Index-bUlrQ7xq.js"
+    "/build/assets/Index-BTYl0Q_f.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Donations/ThankYou.tsx": [
-    "/build/assets/ThankYou-BZRAK0Y7.js"
+    "/build/assets/ThankYou-CTKl12Zt.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Home.tsx": [
-    "/build/assets/Home-DpbrCZrB.js"
+    "/build/assets/Home-5YWdTeXa.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Podcast/Index.tsx": [
-    "/build/assets/Index-CaZm3j5C.js"
+    "/build/assets/Index-DWQ9MfZZ.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Sermons/Index.tsx": [
-    "/build/assets/Index-Bf2ZiOZu.js"
+    "/build/assets/Index-BjcahKVo.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Sermons/Show.tsx": [
-    "/build/assets/Show-CsQ92UVS.js"
+    "/build/assets/Show-zE-6RN_O.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Services/Index.tsx": [
-    "/build/assets/Index-Blle-T4K.js"
+    "/build/assets/Index-C3My-ZJp.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Team/Index.tsx": [
-    "/build/assets/Index-BouFy8UK.js"
+    "/build/assets/Index-Docn4kiy.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Team/Show.tsx": [
-    "/build/assets/Show-_L15RXXX.js"
+    "/build/assets/Show-B4Np7aIq.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Testimonials/Index.tsx": [
-    "/build/assets/Index-DqgfUbpD.js"
+    "/build/assets/Index-CFqzIc3O.js"
   ],
   "resources/js/Pages/Tenant/Church/Public/Testimonials/Show.tsx": [
-    "/build/assets/Show-BWcio_Yg.js"
+    "/build/assets/Show-DmaIIbq5.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Cart/Index.tsx": [
-    "/build/assets/Index-CozRt7Qf.js"
+    "/build/assets/Index-CrwKprhK.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Checkout/Index.tsx": [
-    "/build/assets/Index-CGyH2znH.js"
+    "/build/assets/Index-DAlT_Qgf.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Checkout/Success.tsx": [
-    "/build/assets/Success-DeoWp6St.js"
+    "/build/assets/Success-B5UNxvhC.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Favorites/Index.tsx": [
-    "/build/assets/Index-C-nbzleS.js"
+    "/build/assets/Index-BGbSjK8S.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Home.tsx": [
-    "/build/assets/Home-DGXXwja_.js"
+    "/build/assets/Home-Ai-eJMuD.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/MagicUpload.tsx": [
     "/build/assets/MagicUpload-D64XdxMt.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Menu/CategoryShow.tsx": [
-    "/build/assets/CategoryShow-DTzUbrsJ.js"
+    "/build/assets/CategoryShow-CLwAOzTq.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Menu/Index.tsx": [
-    "/build/assets/Index-DZji1m6N.js"
+    "/build/assets/Index-Bw2JTDXG.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Reservations/Index.tsx": [
-    "/build/assets/Index-DetEDBt5.js"
+    "/build/assets/Index-DxDk8td3.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Shorts/Index.tsx": [
     "/build/assets/Index-HOHs_RYi.js"
@@ -835,7 +850,7 @@
     "/build/assets/Show-BvzYYpKF.js"
   ],
   "resources/js/Pages/Tenant/Public/Locations/Index.tsx": [
-    "/build/assets/Index-DgqrLOMZ.js",
+    "/build/assets/Index-BEK4AT09.js",
     "/build/assets/leaflet-CG6DamIu.css",
     "/build/assets/marker-icon-hN30_KVU.png",
     "/build/assets/marker-shadow-f7SaPCxT.png",
@@ -858,7 +873,7 @@
     "/build/assets/Index-Byoz9CWz.js"
   ],
   "resources/js/hooks/useFavorites.tsx": [
-    "/build/assets/ProductDetailDrawer-4t9BzSaz.js"
+    "/build/assets/ProductDetailDrawer-CrlTr9sR.js"
   ],
   "resources/js/lib/utils.ts": [
     "/build/assets/utils-B0hQsrDj.js"

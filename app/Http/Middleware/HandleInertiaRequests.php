@@ -159,6 +159,20 @@ class HandleInertiaRequests extends Middleware
                     ->where('is_active', true)
                     ->count();
             },
+            /** Nombres de sedes activas (footer / chips), orden principal primero */
+            'public_location_names' => function () {
+                if (! app()->bound('currentTenant')) {
+                    return [];
+                }
+
+                return \App\Models\Tenant\Locations\Location::where('tenant_id', app('currentTenant')->id)
+                    ->where('is_active', true)
+                    ->orderByRaw('is_main DESC')
+                    ->orderBy('name')
+                    ->pluck('name')
+                    ->values()
+                    ->all();
+            },
             // Estado de horario de la sede seleccionada (gastronomía) — HeaderShell OpeningHours
             'location_status_message' => function () {
                 if (! app()->bound('currentTenant')) {

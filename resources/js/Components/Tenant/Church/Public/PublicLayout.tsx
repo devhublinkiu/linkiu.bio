@@ -1,20 +1,17 @@
 import React, { PropsWithChildren } from 'react';
-import Footer from '@/Components/Public/Footer';
-import ReportBusinessStrip from '@/Components/Public/ReportBusinessStrip';
+import FooterShellAll from '@/Components/Tenant/Public/FooterShell/FooterShellAll';
 import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
 import { Toaster } from 'sonner';
 
 interface PublicLayoutProps extends PropsWithChildren {
     bgColor?: string;
-    /** Bloque opcional antes del banner "Reportar problemas" (por vertical; Church no usa) */
-    renderPrefooter?: React.ReactNode;
     /** Barra fija inferior opcional (ej. CTA) */
     renderBottomAction?: React.ReactNode;
     /** Reproductor o elemento flotante al fondo (como el carrito en gastronomía) */
     renderFloatingBottom?: React.ReactNode;
 }
 
-export default function PublicLayout({ children, bgColor, renderPrefooter, renderBottomAction, renderFloatingBottom }: PublicLayoutProps) {
+export default function PublicLayout({ children, bgColor, renderBottomAction, renderFloatingBottom }: PublicLayoutProps) {
     return (
         <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500 bg-white">
             {/* 1. Base Image Layer (Deep back) */}
@@ -33,13 +30,9 @@ export default function PublicLayout({ children, bgColor, renderPrefooter, rende
             <div className="w-full max-w-[480px] h-full max-h-[100dvh] bg-white shadow-2xl overflow-hidden flex flex-col relative mx-auto z-10">
                 <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
                     <div className="min-h-full flex flex-col">
-                        <div className="relative z-20 w-full shrink-0 pointer-events-auto px-4 pt-2">
-                            <HeaderShellAll />
-                        </div>
+                        <HeaderShellAll />
                         <div className="flex-1 min-h-0">{children}</div>
-                        <ReportBusinessStrip />
-                        {renderPrefooter}
-                        <Footer />
+                        <FooterShellAll />
                     </div>
                 </div>
 
