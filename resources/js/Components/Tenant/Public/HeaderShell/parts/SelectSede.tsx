@@ -34,7 +34,7 @@ export default function SelectSede() {
                         <span className="font-normal">Sede actual: </span>
                         <span className="font-semibold">
                             {selectedLocationName}
-                            {' | Toca aquí para cambiar'}
+                            {' | Toca para cambiar'}
                         </span>
                     </>
                 ) : (
