@@ -75,7 +75,6 @@ export default function Home({
     const brandColors = tenant.brand_colors ?? {};
     const bg_color = brandColors.bg_color ?? '#db2777';
     const destacadosSliderRef = useRef<ProductListVerticalRef>(null);
-    const topSellingSliderRef = useRef<ProductListVerticalRef>(null);
 
     const [drawerProduct, setDrawerProduct] = useState<HomeProduct | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -98,7 +97,9 @@ export default function Home({
 
                 <CategoryShort categories={categories} tenantSlug={tenant.slug} />
 
-                <TopBestSeller />
+                {Array.isArray(top_selling_products) && top_selling_products.length > 0 && (
+                    <TopBestSeller products={top_selling_products} onProductClick={openProduct} />
+                )}
 
                 {Array.isArray(featured_products) && featured_products.length > 0 && (
                     <section className="w-full px-4" aria-labelledby="destacados-heading">
@@ -112,23 +113,6 @@ export default function Home({
                         <ProductListVertical
                             ref={destacadosSliderRef}
                             products={featured_products}
-                            onProductClick={openProduct}
-                        />
-                    </section>
-                )}
-
-                {Array.isArray(top_selling_products) && top_selling_products.length > 0 && (
-                    <section className="w-full px-4" aria-labelledby="mas-vendidos-heading">
-                        <HeaderSectionProducts
-                            headingId="mas-vendidos-heading"
-                            title="Los más vendidos"
-                            availableCount={top_selling_products.length}
-                            onPrev={() => topSellingSliderRef.current?.scrollPrev()}
-                            onNext={() => topSellingSliderRef.current?.scrollNext()}
-                        />
-                        <ProductListVertical
-                            ref={topSellingSliderRef}
-                            products={top_selling_products}
                             onProductClick={openProduct}
                         />
                     </section>

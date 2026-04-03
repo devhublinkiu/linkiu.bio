@@ -253,25 +253,25 @@
     "/build/assets/layers-2x-Bpkbi35X.png"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/CategoryShort/index.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/CategoryShort/parts/ExploreCategoriesButton.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/CategoryShort/parts/HeroCategoryShort.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/CategoryShort/parts/ItemsCategoryShort.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/HeaderSectionProducts/index.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/ProductListVertical/index.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/ProductListVertical/parts/ProductCardVertical.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/ShortsFeed/index.tsx": [
     "/build/assets/index-DiOeUUHd.js"
@@ -304,13 +304,16 @@
     "/build/assets/index-DiOeUUHd.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/TopBestSeller/index.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/TopBestSeller/parts/BgHeaderTopBestSeller.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/TopBestSeller/parts/HeaderTopBestSeller.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
+  ],
+  "resources/js/Components/Tenant/Public/ModulesVerticals/Shared/TopBestSeller/parts/ItemProductTopBestSeller.tsx": [
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Components/Tenant/Public/contexts/PublicLayoutPortalContext.tsx": [
     "/build/assets/HeaderShellAll-dJouNd-7.js"
@@ -883,7 +886,7 @@
     "/build/assets/Index-CDuygAu6.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/Home.tsx": [
-    "/build/assets/Home-r3cymchR.js"
+    "/build/assets/Home-RriljFqV.js"
   ],
   "resources/js/Pages/Tenant/Gastronomy/Public/MagicUpload.tsx": [
     "/build/assets/MagicUpload-D64XdxMt.js"
