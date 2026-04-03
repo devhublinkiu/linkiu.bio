@@ -28,6 +28,8 @@ return [
         'enabled' => env('BUNNY_STREAM_ENABLED', false),
         'embed_base_url' => 'https://iframe.mediadelivery.net/embed',
         'api_base_url' => 'https://video.bunnycdn.com',
+        /** Hostname del pull zone (ej. vz-xxxxx.b-cdn.net) — portadas preview.webp / thumbnail */
+        'cdn_hostname' => env('BUNNY_STREAM_CDN_HOSTNAME'),
     ],
 
 ];

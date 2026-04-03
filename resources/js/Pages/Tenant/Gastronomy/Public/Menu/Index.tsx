@@ -50,7 +50,7 @@ export default function Index({ tenant, categories }: Props) {
                                 href={route('tenant.menu.category', [tenant.slug, category.slug])}
                                 className="flex flex-col items-center gap-2.5 group"
                             >
-                                {/* Squircle (Soft Rounded Square) Container - EXACTLY as CategoryGrid.tsx */}
+                                {/* Squircle (Soft Rounded Square) — mismo patrón visual que categorías en home */}
                                 <div className="w-[4.5rem] h-[4.5rem] rounded-[1.2rem] bg-white shadow-sm flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-active:scale-95 border border-slate-100/80 overflow-hidden relative">
                                     <div className="absolute inset-0 bg-gradient-to-b from-white to-slate-50 opacity-50" />
 

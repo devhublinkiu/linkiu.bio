@@ -14,6 +14,7 @@ use App\Traits\ProcessesGastronomyOrders;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -240,7 +241,10 @@ class POSController extends Controller
             DB::beginTransaction();
 
             $oldStatus = $orderModel->status;
-            $orderModel->update(['status' => 'completed']);
+            $orderModel->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
 
             // Liberar mesa
             if ($orderModel->table_id) {
@@ -256,6 +260,8 @@ class POSController extends Controller
             ]);
 
             DB::commit();
+
+            Cache::forget(Order::topSellingProductsCacheKey($tenantModel->id));
 
             // Notificar al mesero vía Echo que el pago fue verificado
             \App\Events\OrderStatusUpdated::dispatch($orderModel->fresh(), 'payment_verified');

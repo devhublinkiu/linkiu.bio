@@ -1,7 +1,9 @@
 import type { PropsWithChildren, ReactNode } from 'react';
+import { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { Toaster } from 'sonner';
 
+import { PublicLayoutPortalContext } from '@/Components/Tenant/Public/contexts/PublicLayoutPortalContext';
 import { CartProvider, useCart, type CartContextType } from '@/Contexts/CartContext';
 import FooterShellAll from '@/Components/Tenant/Public/FooterShell/FooterShellAll';
 import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
@@ -22,8 +24,10 @@ const LayoutContent = ({
 }: PublicLayoutProps) => {
     const cart = useCart();
     const { selectedTable } = cart;
+    const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
 
     return (
+        <PublicLayoutPortalContext.Provider value={portalEl}>
         <div className="flex h-dvh w-full items-stretch justify-center overflow-hidden bg-white transition-colors duration-500">
             {/* 1. Base Image Layer (Deep back) */}
             <div className="fixed inset-0 -z-30 bg-[url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
@@ -38,7 +42,7 @@ const LayoutContent = ({
             <div className="fixed inset-0 -z-10 bg-white/10 backdrop-blur-[100px]" />
 
             {/* Mobile-First Wrapper — scroll interno; cabecera dentro del scroll */}
-            <div className="relative mx-auto flex h-full max-h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-white shadow-2xl">
+            <div className="relative mx-auto flex h-full max-h-[100dvh] w-full max-w-[480px] flex-col overflow-hidden bg-white shadow-2xl transform-gpu">
                 {selectedTable && (
                     <div className="z-[9999] flex animate-in items-center justify-center gap-2 border-b border-primary/20 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-primary fade-in slide-in-from-top duration-700">
                         <MapPin className="h-3 w-3 animate-bounce" />
@@ -66,8 +70,16 @@ const LayoutContent = ({
                 )}
 
                 <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 mb-1 hidden h-1 w-32 -translate-x-1/2 rounded-full bg-slate-200 sm:block" />
+
+                {/* Portal para modales/overlays contenidos en el shell (p. ej. ShortsFeed) */}
+                <div
+                    ref={setPortalEl}
+                    className="pointer-events-none absolute inset-0 z-[100] overflow-hidden"
+                    aria-hidden
+                />
             </div>
         </div>
+        </PublicLayoutPortalContext.Provider>
     );
 };
 

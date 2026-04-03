@@ -41,6 +41,7 @@ interface ShortData {
     linkable_type: string | null;
     linkable_id: number | null;
     short_embed_url: string | null;
+    poster_url: string | null;
     sort_order: number;
     is_active: boolean;
 }
@@ -66,6 +67,7 @@ export default function Edit({ short, locations, categories, products }: Props) 
         linkable_id: short.link_type === 'external' || short.link_type === 'none' ? '' : (short.linkable_id?.toString() ?? ''),
         short_video: null as File | null,
         remove_short: false,
+        poster_url: short.poster_url ?? '',
         sort_order: short.sort_order.toString(),
         is_active: short.is_active,
     });
@@ -188,6 +190,21 @@ export default function Edit({ short, locations, categories, products }: Props) 
                         />
                         <p className="text-xs text-muted-foreground">Deja vacío para mantener el actual. MP4 o MOV, máx. 100 MB, hasta 60 s</p>
                         <FieldError>{errors.short_video}</FieldError>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="poster_url">URL de portada (opcional)</Label>
+                        <Input
+                            id="poster_url"
+                            type="url"
+                            value={data.poster_url}
+                            onChange={(e) => setData('poster_url', e.target.value)}
+                            placeholder="https://… Si lo dejas vacío, se usa la miniatura de Bunny o el preview del vídeo."
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Para elegir el fotograma en el vídeo, usa el panel de Bunny Stream (miniatura) y guarda; o pega aquí la URL de una imagen.
+                        </p>
+                        <FieldError>{errors.poster_url}</FieldError>
                     </div>
 
                     <div className="space-y-2">

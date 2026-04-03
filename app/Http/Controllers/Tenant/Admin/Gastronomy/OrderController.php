@@ -11,6 +11,7 @@ use App\Services\InfobipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -112,7 +113,11 @@ class OrderController extends Controller
             $oldStatus = $orderModel->status;
             $newStatus = $validated['status'];
 
-            $orderModel->update(['status' => $newStatus]);
+            $updateData = ['status' => $newStatus];
+            if ($newStatus === 'completed' && $oldStatus !== 'completed') {
+                $updateData['completed_at'] = now();
+            }
+            $orderModel->update($updateData);
 
             OrderStatusHistory::create([
                 'gastronomy_order_id' => $orderModel->id,
@@ -130,6 +135,10 @@ class OrderController extends Controller
             \App\Events\OrderStatusUpdated::dispatch($orderModel->fresh(), $validated['comment'] ?? null);
 
             DB::commit();
+
+            if ($newStatus === 'completed' && $oldStatus !== 'completed') {
+                Cache::forget(Order::topSellingProductsCacheKey($tenantModel->id));
+            }
 
             // WhatsApp al cliente por cambio de estado
             $customerPhone = $orderModel->customer_phone ? trim((string) $orderModel->customer_phone) : null;

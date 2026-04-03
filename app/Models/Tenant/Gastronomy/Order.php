@@ -35,6 +35,7 @@ class Order extends Model
         'waiter_collected',
         'cash_change',
         'created_by',
+        'completed_at',
     ];
 
     public function creator()
@@ -52,6 +53,7 @@ class Order extends Model
         'cash_change' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     public function customer()
@@ -90,5 +92,10 @@ class Order extends Model
     public function location()
     {
         return $this->belongsTo(\App\Models\Tenant\Locations\Location::class);
+    }
+
+    public static function topSellingProductsCacheKey(int $tenantId): string
+    {
+        return "tenant.{$tenantId}.gastronomy.top_selling_products.v1";
     }
 }

@@ -13,6 +13,13 @@ class UpdateShortRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('poster_url') && $this->poster_url === '') {
+            $this->merge(['poster_url' => null]);
+        }
+    }
+
     public function rules(): array
     {
         $tenantId = app('currentTenant')?->id;
@@ -39,6 +46,7 @@ class UpdateShortRequest extends FormRequest
                 ]),
             ],
             'short_video' => ['nullable', 'file', 'mimes:mp4,mov', 'max:102400', new VideoMaxDurationRule(60)],
+            'poster_url' => 'nullable|string|max:500|url',
             'remove_short' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',

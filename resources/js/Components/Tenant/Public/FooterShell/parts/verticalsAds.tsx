@@ -1,38 +1,43 @@
-import { ScrollVelocityContainer, ScrollVelocityRow } from '@/Components/ui/scroll-based-velocity';
-import { cn } from '@/lib/utils';
+import { usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
+import AprilAds from './verticalsAds/aprilAds';
 
 export type VerticalsAdsProps = {
     className?: string;
 };
 
 /**
- * Bloque promocional / velocidad (tema abril) — antes era pie de página en PublicLayout Gastronomy.
+ * Ads del pie por vertical. Creá el componente en `parts/verticalsAds/<nombre>.tsx` e importalo en el `case` correspondiente.
  */
-export default function VerticalsAds({ className }: VerticalsAdsProps) {
-    return (
-        <div
-            className={cn('flex w-full shrink-0 flex-col items-end overflow-x-hidden', className)}
-            data-part="verticals-ads"
-        >
-            <div className="flex w-full flex-col items-center justify-center overflow-hidden pt-0 pb-1">
-                <ScrollVelocityContainer className="text-xl font-bold leading-tight tracking-tight text-slate-950 md:text-3xl [&>div]:py-0.5">
-                    <ScrollVelocityRow baseVelocity={4} direction={1}>
-                        Imagina sin límites 🌈🧩
-                    </ScrollVelocityRow>
-                    <ScrollVelocityRow baseVelocity={4} direction={-1}>
-                        Celebramos ser niños 🎈🧸
-                    </ScrollVelocityRow>
-                    <ScrollVelocityRow baseVelocity={4} direction={1}>
-                        La magia de jugar 🎨🪁
-                    </ScrollVelocityRow>
-                </ScrollVelocityContainer>
-            </div>
-            <img
-                src="/themes/april_26/Assets_april_26_03.webp"
-                alt=""
-                className="w-full max-w-72 object-contain pointer-events-none"
-                aria-hidden
-            />
-        </div>
-    );
+export default function VerticalsAds(props: VerticalsAdsProps) {
+    const slug = usePage<PageProps>().props.currentTenant?.vertical?.slug;
+
+    switch (slug) {
+        case 'gastronomia':
+            return <AprilAds {...props} />;
+
+        case 'ecommerce':
+            // import EcommerceAds from './verticalsAds/ecommerceAds';
+            // return <EcommerceAds {...props} />;
+            return null;
+
+        case 'church':
+        case 'iglesias':
+            // import ChurchAds from './verticalsAds/churchAds';
+            // return <ChurchAds {...props} />;
+            return null;
+
+        case 'servicios':
+            // import ServiciosAds from './verticalsAds/serviciosAds';
+            // return <ServiciosAds {...props} />;
+            return null;
+
+        case 'dropshipping':
+            // import DropshippingAds from './verticalsAds/dropshippingAds';
+            // return <DropshippingAds {...props} />;
+            return null;
+
+        default:
+            return null;
+    }
 }

@@ -116,7 +116,12 @@ class ShortController extends Controller
         $validated['sort_order'] = (int) ($validated['sort_order'] ?? 0);
         $validated['is_active'] = true;
 
-        Short::create($validated);
+        $short = Short::create($validated);
+
+        $thumbUrl = $bunnyStream->getPublicThumbnailUrlForVideo($videoId);
+        if ($thumbUrl) {
+            $short->update(['poster_url' => $thumbUrl]);
+        }
 
         return redirect()
             ->route('tenant.shorts.index', ['tenant' => $tenant->slug])
@@ -145,6 +150,7 @@ class ShortController extends Controller
             'linkable_type' => $short->linkable_type,
             'linkable_id' => $short->linkable_id,
             'short_embed_url' => $short->short_embed_url,
+            'poster_url' => $short->poster_url,
             'sort_order' => $short->sort_order,
             'is_active' => $short->is_active,
         ];
@@ -179,6 +185,10 @@ class ShortController extends Controller
                 return redirect()->back()->withInput()->withErrors(['short_video' => 'No se pudo subir el video.']);
             }
             $validated['short_video_id'] = $videoId;
+            $thumbUrl = $bunnyStream->getPublicThumbnailUrlForVideo($videoId);
+            if ($thumbUrl) {
+                $validated['poster_url'] = $thumbUrl;
+            }
         }
 
         $linkType = $validated['link_type'] ?? 'none';

@@ -4,9 +4,9 @@ import type { Ticker } from '@/types/ticker';
 import PublicLayout from '@/Components/Tenant/Church/Public/PublicLayout';
 import EpisodeCard from '@/Components/Tenant/Church/Public/EpisodeCard';
 import FloatingAudioPlayer from '@/Components/Tenant/Church/Public/FloatingAudioPlayer';
-import BannerSlider from '@/Components/Tenant/Gastronomy/Public/BannerSlider';
-import PromotionalTicker from '@/Components/Tenant/Public/PromotionalTicker';
-import { Carousel, PromoCard } from '@/Components/ui/promo-carousel';
+import SlidersPromo from '@/Components/Tenant/Public/ModulesVerticals/Shared/SlidersPromo';
+import TickersPromo from '@/Components/Tenant/Public/ModulesVerticals/Shared/TickersPromo';
+import ShortsFeed from '@/Components/Tenant/Public/ModulesVerticals/Shared/ShortsFeed';
 import { Briefcase, Headphones, Banknote, Church, ChevronRight, HandHeart, BookOpen, Heart, Share2, Users, Mail, Phone, MessageCircle, Radio, Calendar, Quote } from 'lucide-react';
 
 interface TenantBrandColors {
@@ -50,6 +50,7 @@ interface PromoShort {
     name: string;
     description: string;
     short_embed_url: string;
+    poster_url?: string | null;
     link_type: string;
     action_url: string;
 }
@@ -145,11 +146,11 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
             <Head title={tenant.name} />
 
             <div className="flex flex-col">
-                <PromotionalTicker tickers={tickers} />
+                <TickersPromo tickers={tickers} />
             </div>
 
             <div className="flex-1 bg-gray-50 p-4 -mt-4 relative z-0 pb-20 flex flex-col gap-6">
-                <BannerSlider sliders={sliders} tenantSlug={tenant.slug} />
+                <SlidersPromo sliders={sliders} tenantSlug={tenant.slug} />
 
                 {(podcast_episode_of_the_day || podcast_page_title) && (
                     <section className="w-full" aria-labelledby="podcast-heading">
@@ -425,24 +426,11 @@ export default function Home({ tenant, sliders, tickers, services = [], devotion
                 )}
 
                 {Array.isArray(promo_shorts) && promo_shorts.length > 0 && (
-                    <section className="w-full max-w-[100vw]" aria-labelledby="shorts-heading">
-                        <h2 id="shorts-heading" className="text-[100px] font-black text-gray-200 px-4 flex items-center -mb-16">
+                    <section className="w-full px-4" aria-labelledby="shorts-heading">
+                        <h2 id="shorts-heading" className="mb-3 text-lg font-bold text-slate-900">
                             Shorts
                         </h2>
-                        <Carousel
-                            items={promo_shorts.map((short, index) => (
-                                <PromoCard
-                                    key={short.id}
-                                    card={{
-                                        title: short.name,
-                                        short_embed_url: short.short_embed_url,
-                                        action_url: short.action_url,
-                                        link_type: short.link_type,
-                                    }}
-                                    index={index}
-                                />
-                            ))}
-                        />
+                        <ShortsFeed items={promo_shorts} />
                     </section>
                 )}
 

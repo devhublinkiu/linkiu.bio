@@ -1,13 +1,15 @@
-import { useRef } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { useRef, useState } from 'react';
+import { Head } from '@inertiajs/react';
 import type { Ticker } from '@/types/ticker';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
-import BannerSlider from '@/Components/Tenant/Gastronomy/Public/BannerSlider';
-import CategoryGrid from '@/Components/Tenant/Gastronomy/Public/CategoryGrid';
-import PromotionalTicker from '@/Components/Tenant/Public/PromotionalTicker';
-import ProductList, { type ProductListRef } from '@/Components/Tenant/Gastronomy/Public/ProductList';
-import { Carousel, PromoCard, type PromoCardData } from '@/Components/ui/promo-carousel';
-import { ChevronLeft, ChevronRight, Flame, Trophy } from 'lucide-react';
+import ProductDetailDrawer from '@/Components/Tenant/Gastronomy/Public/ProductDetailDrawer';
+import SlidersPromo from '@/Components/Tenant/Public/ModulesVerticals/Shared/SlidersPromo';
+import CategoryShort from '@/Components/Tenant/Public/ModulesVerticals/Shared/CategoryShort';
+import TopBestSeller from '@/Components/Tenant/Public/ModulesVerticals/Shared/TopBestSeller';
+import HeaderSectionProducts from '@/Components/Tenant/Public/ModulesVerticals/Shared/HeaderSectionProducts';
+import ProductListVertical, { type ProductListVerticalRef } from '@/Components/Tenant/Public/ModulesVerticals/Shared/ProductListVertical';
+import TickersPromo from '@/Components/Tenant/Public/ModulesVerticals/Shared/TickersPromo';
+import ShortsFeed from '@/Components/Tenant/Public/ModulesVerticals/Shared/ShortsFeed';
 
 interface TenantBrandColors {
     bg_color?: string;
@@ -30,7 +32,7 @@ interface HomeProduct {
     image_url?: string;
     is_featured: boolean;
     short_description?: string;
-    variant_groups?: unknown[];
+    variant_groups?: any[];
 }
 
 interface HomeSlider {
@@ -46,15 +48,9 @@ interface PromoShort {
     name: string;
     description: string;
     short_embed_url: string;
+    poster_url?: string | null;
     link_type: string;
     action_url: string;
-}
-
-interface TopCategory {
-    id: number;
-    name: string;
-    slug: string;
-    products: HomeProduct[];
 }
 
 interface Props {
@@ -63,7 +59,6 @@ interface Props {
     categories: HomeCategory[];
     featured_products?: HomeProduct[];
     top_selling_products?: HomeProduct[];
-    top_categories?: TopCategory[];
     tickers: Ticker[];
     promo_shorts?: PromoShort[];
 }
@@ -74,172 +69,88 @@ export default function Home({
     categories,
     featured_products = [],
     top_selling_products = [],
-    top_categories = [],
     tickers,
     promo_shorts = [],
 }: Props) {
     const brandColors = tenant.brand_colors ?? {};
     const bg_color = brandColors.bg_color ?? '#db2777';
-    const name_color = brandColors.name_color ?? '#ffffff';
-    const description_color = brandColors.description_color;
-    const destacadosSliderRef = useRef<ProductListRef>(null);
-    const topSellingSliderRef = useRef<ProductListRef>(null);
-    const categorySliderRefs = useRef<(ProductListRef | null)[]>([]);
+    const destacadosSliderRef = useRef<ProductListVerticalRef>(null);
+    const topSellingSliderRef = useRef<ProductListVerticalRef>(null);
+
+    const [drawerProduct, setDrawerProduct] = useState<HomeProduct | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+
+    const openProduct = (product: HomeProduct) => {
+        setDrawerProduct(product);
+        setDrawerOpen(true);
+    };
 
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={tenant.name} />
 
             <div className="flex flex-col">
-                <PromotionalTicker tickers={tickers} />
+                <TickersPromo tickers={tickers} />
             </div>
 
             <div className="flex-1 min-w-0 p-4 -mt-4 relative z-0 pb-4 flex flex-col gap-4">
-                <BannerSlider sliders={sliders} tenantSlug={tenant.slug} />
+                <SlidersPromo sliders={sliders} tenantSlug={tenant.slug} />
 
-                <CategoryGrid categories={categories} />
+                <CategoryShort categories={categories} tenantSlug={tenant.slug} />
+
+                <TopBestSeller />
 
                 {Array.isArray(featured_products) && featured_products.length > 0 && (
                     <section className="w-full px-4" aria-labelledby="destacados-heading">
-                        <div className="flex items-center justify-between gap-2 mb-4">
-                            <h2 id="destacados-heading" className="text-lg font-bold text-slate-900">
-                                Destacados
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <Link
-                                    href={route('tenant.menu', { tenant: tenant.slug })}
-                                    className="text-sm font-medium text-slate-500 hover:text-slate-700"
-                                >
-                                    Ver todos
-                                </Link>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => destacadosSliderRef.current?.scrollPrev()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Anterior"
-                                    >
-                                        <ChevronLeft className="size-5" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => destacadosSliderRef.current?.scrollNext()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Siguiente"
-                                    >
-                                        <ChevronRight className="size-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <ProductList ref={destacadosSliderRef} products={featured_products} section="destacados" layout="vertical" />
+                        <HeaderSectionProducts
+                            headingId="destacados-heading"
+                            title="Destacados"
+                            availableCount={featured_products.length}
+                            onPrev={() => destacadosSliderRef.current?.scrollPrev()}
+                            onNext={() => destacadosSliderRef.current?.scrollNext()}
+                        />
+                        <ProductListVertical
+                            ref={destacadosSliderRef}
+                            products={featured_products}
+                            onProductClick={openProduct}
+                        />
                     </section>
                 )}
 
                 {Array.isArray(top_selling_products) && top_selling_products.length > 0 && (
                     <section className="w-full px-4" aria-labelledby="mas-vendidos-heading">
-                        <div className="flex items-center justify-between gap-2 mb-4">
-                            <h2 id="mas-vendidos-heading" className="text-lg font-bold text-slate-900">
-                                Los 3 más vendidos
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <Link
-                                    href={route('tenant.menu', { tenant: tenant.slug })}
-                                    className="text-sm font-medium text-slate-500 hover:text-slate-700"
-                                >
-                                    Ver todos
-                                </Link>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => topSellingSliderRef.current?.scrollPrev()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Anterior"
-                                    >
-                                        <ChevronLeft className="size-5" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => topSellingSliderRef.current?.scrollNext()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Siguiente"
-                                    >
-                                        <ChevronRight className="size-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <ProductList ref={topSellingSliderRef} products={top_selling_products} section="top_selling" layout="vertical" />
+                        <HeaderSectionProducts
+                            headingId="mas-vendidos-heading"
+                            title="Los más vendidos"
+                            availableCount={top_selling_products.length}
+                            onPrev={() => topSellingSliderRef.current?.scrollPrev()}
+                            onNext={() => topSellingSliderRef.current?.scrollNext()}
+                        />
+                        <ProductListVertical
+                            ref={topSellingSliderRef}
+                            products={top_selling_products}
+                            onProductClick={openProduct}
+                        />
                     </section>
                 )}
 
                 {Array.isArray(promo_shorts) && promo_shorts.length > 0 && (
-                    <section className="w-full min-w-0 max-w-full overflow-x-hidden" aria-labelledby="promos-heading">
-                        <h2 id="promos-heading" className="text-lg font-bold text-slate-900 px-4 flex items-center overflow-hidden">
+                    <section className="w-full px-4" aria-labelledby="promos-heading">
+                        <h2 id="promos-heading" className="mb-3 text-lg font-bold text-slate-900">
                             Shorts
                         </h2>
-                        <div className="min-w-0 w-full overflow-x-hidden">
-                        <Carousel
-                            items={promo_shorts.map((short, index) => (
-                                <PromoCard
-                                    key={short.id}
-                                    card={{
-                                        title: short.name,
-                                        short_embed_url: short.short_embed_url,
-                                        action_url: short.action_url,
-                                        link_type: short.link_type,
-                                    }}
-                                    index={index}
-                                />
-                            ))}
-                        />
-                        </div>
+                        <ShortsFeed items={promo_shorts} />
                     </section>
                 )}
-
-                {top_categories.map((category, index) => (
-                    <section key={category.id} className="w-full px-4" aria-labelledby={`category-${category.id}-heading`}>
-                        <div className="flex items-center justify-between gap-2 mb-4">
-                            <h2 id={`category-${category.id}-heading`} className="text-lg font-bold text-slate-900">
-                                {category.name}
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <Link
-                                    href={route('tenant.menu.category', { tenant: tenant.slug, slug: category.slug })}
-                                    className="text-sm font-medium text-slate-500 hover:text-slate-700"
-                                >
-                                    Ver todos
-                                </Link>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => categorySliderRefs.current[index]?.scrollPrev()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Anterior"
-                                    >
-                                        <ChevronLeft className="size-5" />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => categorySliderRefs.current[index]?.scrollNext()}
-                                        className="p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        aria-label="Siguiente"
-                                    >
-                                        <ChevronRight className="size-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <ProductList
-                            ref={(el) => { categorySliderRefs.current[index] = el; }}
-                            products={category.products}
-                            section="category"
-                            layout="vertical"
-                        />
-                    </section>
-                ))}
-
             </div>
+
+            {drawerProduct && (
+                <ProductDetailDrawer
+                    product={drawerProduct}
+                    isOpen={drawerOpen}
+                    onClose={() => setDrawerOpen(false)}
+                />
+            )}
         </PublicLayout>
     );
 }

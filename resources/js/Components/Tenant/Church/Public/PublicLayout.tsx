@@ -1,4 +1,5 @@
-import React, { PropsWithChildren } from 'react';
+import React, { PropsWithChildren, useState } from 'react';
+import { PublicLayoutPortalContext } from '@/Components/Tenant/Public/contexts/PublicLayoutPortalContext';
 import FooterShellAll from '@/Components/Tenant/Public/FooterShell/FooterShellAll';
 import HeaderShellAll from '@/Components/Tenant/Public/HeaderShell/HeaderShellAll';
 import { Toaster } from 'sonner';
@@ -12,7 +13,10 @@ interface PublicLayoutProps extends PropsWithChildren {
 }
 
 export default function PublicLayout({ children, bgColor, renderBottomAction, renderFloatingBottom }: PublicLayoutProps) {
+    const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
+
     return (
+        <PublicLayoutPortalContext.Provider value={portalEl}>
         <div className="h-dvh w-full flex justify-center items-stretch relative overflow-hidden transition-colors duration-500 bg-white">
             {/* 1. Base Image Layer (Deep back) */}
             <div className="fixed inset-0 -z-30 bg-[url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
@@ -27,7 +31,7 @@ export default function PublicLayout({ children, bgColor, renderBottomAction, re
             <div className="fixed inset-0 -z-10 backdrop-blur-[100px] bg-white/10" />
 
             {/* Mobile-First Wrapper (The "Phone") — altura vista para que el scroll sea interno */}
-            <div className="w-full max-w-[480px] h-full max-h-[100dvh] bg-white shadow-2xl overflow-hidden flex flex-col relative mx-auto z-10">
+            <div className="w-full max-w-[480px] h-full max-h-[100dvh] bg-white shadow-2xl overflow-hidden flex flex-col relative mx-auto z-10 transform-gpu">
                 <div className="scrollbar-public flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden z-10">
                     <div className="min-h-full flex flex-col">
                         <HeaderShellAll />
@@ -52,8 +56,15 @@ export default function PublicLayout({ children, bgColor, renderBottomAction, re
 
                 {/* iPhone Home Bar Indicator (Visual Flair) */}
                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-200 rounded-full sm:block hidden pointer-events-none mb-1 z-50" />
+
+                <div
+                    ref={setPortalEl}
+                    className="pointer-events-none absolute inset-0 z-[100] overflow-hidden"
+                    aria-hidden
+                />
             </div>
             <Toaster position="top-center" />
         </div>
+        </PublicLayoutPortalContext.Provider>
     );
 }

@@ -9,8 +9,10 @@ use App\Models\Tenant\Locations\Location;
 use App\Http\Requests\Tenant\Gastronomy\StorePublicOrderRequest;
 use App\Traits\ProcessesGastronomyOrders;
 use Illuminate\Http\JsonResponse;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class PublicController extends Controller
@@ -167,16 +169,32 @@ class PublicController extends Controller
             ->limit(8)
             ->get();
 
-        $topSellingIds = \App\Models\Tenant\Gastronomy\OrderItem::query()
-            ->join('gastronomy_orders', 'gastronomy_order_items.gastronomy_order_id', '=', 'gastronomy_orders.id')
-            ->where('gastronomy_orders.tenant_id', $tenant->id)
-            ->whereNotIn('gastronomy_orders.status', ['cancelled'])
-            ->selectRaw('gastronomy_order_items.product_id, sum(gastronomy_order_items.quantity) as total')
-            ->groupBy('gastronomy_order_items.product_id')
-            ->orderByDesc('total')
-            ->limit(3)
-            ->pluck('product_id')
-            ->toArray();
+        // Top 6: últimos 30 días, pedidos completados (completed_at), ítems no cancelados; desempate por product_id; caché 10 min.
+        $topSellingSince = Carbon::now()->subDays(30);
+        $topSellingCacheTtl = 600;
+        $topSellingIds = Cache::remember(
+            \App\Models\Tenant\Gastronomy\Order::topSellingProductsCacheKey($tenant->id),
+            $topSellingCacheTtl,
+            function () use ($tenant, $topSellingSince) {
+                return \App\Models\Tenant\Gastronomy\OrderItem::query()
+                    ->join('gastronomy_orders', 'gastronomy_order_items.gastronomy_order_id', '=', 'gastronomy_orders.id')
+                    ->where('gastronomy_orders.tenant_id', $tenant->id)
+                    ->where('gastronomy_orders.status', 'completed')
+                    ->whereNotNull('gastronomy_orders.completed_at')
+                    ->where('gastronomy_orders.completed_at', '>=', $topSellingSince)
+                    ->where(function ($q) {
+                        $q->whereNull('gastronomy_order_items.status')
+                            ->orWhere('gastronomy_order_items.status', '!=', 'cancelled');
+                    })
+                    ->selectRaw('gastronomy_order_items.product_id, sum(gastronomy_order_items.quantity) as total')
+                    ->groupBy('gastronomy_order_items.product_id')
+                    ->orderByDesc('total')
+                    ->orderBy('gastronomy_order_items.product_id')
+                    ->limit(6)
+                    ->pluck('product_id')
+                    ->toArray();
+            }
+        );
 
         $topSellingProducts = empty($topSellingIds)
             ? collect()
@@ -271,6 +289,7 @@ class PublicController extends Controller
                     'name' => $short->name,
                     'description' => $short->description ?? '',
                     'short_embed_url' => $short->short_embed_url,
+                    'poster_url' => $short->feedPosterUrl(),
                     'link_type' => $short->link_type,
                     'action_url' => $actionUrl,
                 ];
@@ -300,14 +319,21 @@ class PublicController extends Controller
 
     public function getLocationStatusMessage($tenant): ?string
     {
+        $location = null;
         $locationId = session('selected_location_id');
-        if (!$locationId) {
-            return null;
+        if ($locationId) {
+            $location = Location::where('tenant_id', $tenant->id)
+                ->where('is_active', true)
+                ->find($locationId);
         }
-        $location = Location::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->find($locationId);
-        if (!$location || !$location->opening_hours) {
+        if (! $location) {
+            $location = Location::where('tenant_id', $tenant->id)
+                ->where('is_active', true)
+                ->orderByRaw('is_main DESC')
+                ->orderBy('name')
+                ->first();
+        }
+        if (! $location || ! $location->opening_hours) {
             return null;
         }
         $now = \Carbon\Carbon::now(config('app.timezone'));

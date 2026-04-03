@@ -70,6 +70,7 @@ class PublicController extends Controller
                     'name' => $short->name,
                     'description' => $short->description ?? '',
                     'short_embed_url' => $short->short_embed_url,
+                    'poster_url' => $short->feedPosterUrl(),
                     'link_type' => $short->link_type,
                     'action_url' => $actionUrl,
                 ];
