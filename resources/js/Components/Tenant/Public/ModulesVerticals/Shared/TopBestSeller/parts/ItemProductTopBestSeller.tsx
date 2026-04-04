@@ -1,110 +1,139 @@
-import { Link } from '@inertiajs/react';
-import { ArrowUp, Heart } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Heart, Plus } from 'lucide-react';
+import { cn, formatPrice } from '@/lib/utils';
+
+import TopBestSellerCardBadges from './TopBestSellerCardBadges';
 
 export interface ItemProductTopBestSellerProps {
     name: string;
     imageUrl?: string | null;
-    /** Badge verde (flecha + número), p. ej. tendencia de ventas */
-    trendValue?: number | null;
-    /** Enlace “Ver producto”; si no hay, se usa `onVerProductoClick` */
-    verProductoHref?: string;
-    onVerProductoClick?: () => void;
+    price: number;
+    originalPrice?: number | null;
+    /** Unidades vendidas en el periodo (p. ej. últimos 30 días). */
+    soldCount?: number | null;
+    /** Muestra badge TOP + llama (maqueta Figma). */
+    showTopBadge?: boolean;
+    onCardClick?: () => void;
+    onAddClick?: (e: React.MouseEvent) => void;
     onFavoriteClick?: (e: React.MouseEvent) => void;
     isFavorite?: boolean;
     className?: string;
 }
 
+const ACTION = '[data-top-seller-action]';
+
 export default function ItemProductTopBestSeller({
     name,
     imageUrl,
-    trendValue,
-    verProductoHref,
-    onVerProductoClick,
+    price,
+    originalPrice,
+    soldCount,
+    showTopBadge = true,
+    onCardClick,
+    onAddClick,
     onFavoriteClick,
     isFavorite = false,
     className,
 }: ItemProductTopBestSellerProps) {
-    const showTrend = trendValue != null && Number.isFinite(Number(trendValue));
+    const priceVal = Number(price);
+    const originalPriceVal = originalPrice != null ? Number(originalPrice) : 0;
+    const hasDiscount = originalPriceVal > priceVal && originalPriceVal > 0;
+    const discountPercent = hasDiscount
+        ? Math.round(((originalPriceVal - priceVal) / originalPriceVal) * 100)
+        : 0;
 
-    const verProductoInner = (
-        <span className="block w-full max-w-[89px] text-center text-[10px] font-normal leading-3 text-slate-100">
-            Ver producto
-        </span>
-    );
+    const handleCardClick = (e: React.MouseEvent) => {
+        if ((e.target as HTMLElement).closest(ACTION)) return;
+        onCardClick?.();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick?.();
+        }
+    };
 
     return (
         <div
+            role="button"
+            tabIndex={0}
+            aria-label={`Ver detalle: ${name}`}
+            onClick={handleCardClick}
+            onKeyDown={handleKeyDown}
             className={cn(
-                'flex w-[100px] shrink-0 flex-col items-stretch overflow-hidden rounded-lg',
+                'flex w-full min-w-0 cursor-pointer overflow-hidden rounded-lg bg-white ',
                 className,
             )}
             data-name="ItemProductTopBestSeller"
         >
-            <div className="relative h-[100px] w-full shrink-0 overflow-hidden rounded-t-lg bg-slate-100">
+            <div className="relative h-[107px] w-[107px] shrink-0 overflow-hidden bg-slate-100">
                 {imageUrl ? (
                     <img
                         src={imageUrl}
                         alt=""
-                        className="absolute inset-0 size-full object-cover"
+                        className="pointer-events-none absolute inset-0 size-full object-cover"
                         loading="lazy"
                         decoding="async"
                     />
                 ) : (
                     <div className="absolute inset-0 bg-slate-200" aria-hidden />
                 )}
+            </div>
 
-                {onFavoriteClick ? (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onFavoriteClick(e);
-                        }}
-                        className="absolute right-1 top-1 z-10 flex items-center justify-center rounded-full bg-red-50 p-1 shadow-sm"
-                        aria-label={isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                    >
-                        <Heart
-                            className={cn('size-2', isFavorite ? 'fill-red-500 text-red-500' : 'text-red-500')}
-                            strokeWidth={2}
-                            aria-hidden
-                        />
-                    </button>
-                ) : null}
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-[5px] bg-slate-100 px-[15px] py-2.5">
+                <TopBestSellerCardBadges
+                    showTopBadge={showTopBadge}
+                    soldCount={soldCount}
+                    hasDiscount={hasDiscount}
+                    discountPercent={discountPercent}
+                />
 
-                {showTrend ? (
-                    <div className="absolute bottom-1 right-1 z-10 flex items-center gap-0.5 rounded-full bg-emerald-100 px-1 py-0.5">
-                        <ArrowUp className="size-2 shrink-0 text-emerald-800" strokeWidth={2} aria-hidden />
-                        <span className="text-[10px] font-bold leading-none text-emerald-800">{trendValue}</span>
+                <p className="line-clamp-2 text-left text-[14px] font-medium leading-snug text-slate-950">{name}</p>
+
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-col items-start gap-1.5 leading-none">
+                        <p className="text-[16px] font-bold text-slate-950">{formatPrice(priceVal)}</p>
+                        {hasDiscount ? (
+                            <p className="text-[14px] font-normal text-slate-400 line-through decoration-solid">
+                                {formatPrice(originalPriceVal)}
+                            </p>
+                        ) : null}
                     </div>
-                ) : null}
-            </div>
 
-            <div className="flex flex-col items-center justify-center bg-slate-50 px-1 py-2">
-                <p className="line-clamp-2 w-full max-w-[89px] text-[10px] font-normal leading-3 text-slate-700">{name}</p>
-            </div>
-
-            {verProductoHref ? (
-                <Link
-                    href={verProductoHref}
-                    className="flex flex-col items-center justify-center rounded-b-lg bg-slate-700 p-1 transition-colors hover:bg-slate-800"
-                >
-                    {verProductoInner}
-                </Link>
-            ) : onVerProductoClick ? (
-                <button
-                    type="button"
-                    onClick={onVerProductoClick}
-                    className="flex w-full flex-col items-center justify-center rounded-b-lg bg-slate-700 p-1 text-left transition-colors hover:bg-slate-800"
-                >
-                    {verProductoInner}
-                </button>
-            ) : (
-                <div className="flex flex-col items-center justify-center rounded-b-lg bg-slate-700 p-1">
-                    {verProductoInner}
+                    <div className="flex shrink-0 items-center gap-2">
+                        <button
+                            type="button"
+                            data-top-seller-action
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAddClick?.(e);
+                            }}
+                            className="flex items-center justify-center rounded-full bg-slate-950 p-2 text-white transition-transform active:scale-95"
+                            aria-label="Añadir o ver producto"
+                        >
+                            <Plus className="size-5" strokeWidth={2} aria-hidden />
+                        </button>
+                        {onFavoriteClick ? (
+                            <button
+                                type="button"
+                                data-top-seller-action
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFavoriteClick(e);
+                                }}
+                                className="flex items-center justify-center rounded-full bg-red-100 p-2 text-red-500 transition-colors hover:bg-red-100"
+                                aria-label={isFavorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                            >
+                                <Heart
+                                    className={cn('size-5', isFavorite ? 'fill-red-500 text-red-500' : 'text-red-500')}
+                                    strokeWidth={2}
+                                    aria-hidden
+                                />
+                            </button>
+                        ) : null}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 }

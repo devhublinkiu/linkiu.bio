@@ -198,6 +198,8 @@ class ReservationController extends Controller
 
             DB::commit();
 
+            app(PublicController::class)->trackPublicReservationId((int) $reservation->id);
+
             // Return JSON for frontend step handling
             if ($request->wantsJson()) {
                 return response()->json([

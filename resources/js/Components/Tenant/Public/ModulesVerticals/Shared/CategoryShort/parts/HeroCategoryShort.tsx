@@ -8,6 +8,8 @@ export interface HeroCategoryShortProps {
     headingId?: string;
     /** Número mostrado en la pastilla, p. ej. cantidad de categorías */
     availableCount: number;
+    /** Texto tras el número en la pastilla (por defecto «Disponibles»). */
+    pillSuffix?: string;
     onPrev?: () => void;
     onNext?: () => void;
     /** Deshabilitar flecha izquierda (p. ej. primera página del slider) */
@@ -25,6 +27,7 @@ export default function HeroCategoryShort({
     title = 'Categorías',
     headingId = 'category-short-heading',
     availableCount,
+    pillSuffix = 'Disponibles',
     onPrev,
     onNext,
     prevDisabled = false,
@@ -52,7 +55,7 @@ export default function HeroCategoryShort({
                     data-name="button_explorer_categoryShort"
                 >
                     <p className="text-center text-[11px] font-normal leading-none text-slate-600">
-                        {availableCount} Disponibles
+                        {availableCount} {pillSuffix}
                     </p>
                 </div>
             </div>

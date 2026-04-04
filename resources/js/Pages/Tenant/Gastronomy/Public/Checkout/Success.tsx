@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import axios from 'axios';
+import { Head, Link } from '@inertiajs/react';
 import PublicLayout from '@/Components/Tenant/Gastronomy/Public/PublicLayout';
 import { getEcho } from '@/echo';
 import { toast } from 'sonner';
@@ -28,6 +29,21 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
     useEffect(() => {
         setOrder(initialOrder);
     }, [initialOrder]);
+
+    // Refuerza sesión/cookie para el timeline del home (misma pestaña u otra, o si falló el guardado en checkout).
+    useEffect(() => {
+        if (!tenant?.slug || !initialOrder?.id) return;
+        const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
+        axios
+            .post(
+                route('tenant.orders.track-timeline', { tenant: tenant.slug }),
+                { order_id: initialOrder.id },
+                { headers: { 'X-CSRF-TOKEN': token ?? '', Accept: 'application/json' } },
+            )
+            .catch(() => {
+                /* no bloquear la pantalla de éxito */
+            });
+    }, [tenant?.slug, initialOrder?.id]);
 
     // Real-time listener: actualizar estado y mostrar toast sin recargar la página
     useEffect(() => {
@@ -78,13 +94,13 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
                                 Contactar por WhatsApp
                             </a>
                         )}
-                        <a
-                            href={route('tenant.home', tenant.slug)}
+                        <Link
+                            href={route('tenant.home', { tenant: tenant.slug })}
                             className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-slate-800 transition-all text-center"
                             aria-label="Volver al menú"
                         >
                             Volver al Menú
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </PublicLayout>
@@ -273,13 +289,13 @@ export default function Success({ tenant, order: initialOrder }: { tenant: any, 
                             <span>Contactar por WhatsApp</span>
                         </a>
                     )}
-                    <a
-                        href={route('tenant.home', tenant.slug)}
+                    <Link
+                        href={route('tenant.home', { tenant: tenant.slug })}
                         className="bg-slate-900 text-white font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all text-sm shadow-lg"
                         aria-label="Volver al inicio"
                     >
                         <span>Volver al Inicio</span>
-                    </a>
+                    </Link>
                 </div>
 
             </div>

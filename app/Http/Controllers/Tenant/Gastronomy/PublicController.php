@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Tenant\Gastronomy;
 use App\Http\Controllers\Controller;
 use App\Models\Table;
 use App\Models\Tenant\All\Short;
+use App\Models\Tenant\Gastronomy\Order;
+use App\Models\Tenant\Gastronomy\Reservation;
 use App\Models\Tenant\Locations\Location;
 use App\Http\Requests\Tenant\Gastronomy\StorePublicOrderRequest;
 use App\Traits\ProcessesGastronomyOrders;
@@ -13,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
 
 class PublicController extends Controller
@@ -172,7 +175,7 @@ class PublicController extends Controller
         // Top 6: últimos 30 días, pedidos completados (completed_at), ítems no cancelados; desempate por product_id; caché 10 min.
         $topSellingSince = Carbon::now()->subDays(30);
         $topSellingCacheTtl = 600;
-        $topSellingIds = Cache::remember(
+        $topSellingCounts = Cache::remember(
             \App\Models\Tenant\Gastronomy\Order::topSellingProductsCacheKey($tenant->id),
             $topSellingCacheTtl,
             function () use ($tenant, $topSellingSince) {
@@ -186,26 +189,48 @@ class PublicController extends Controller
                         $q->whereNull('gastronomy_order_items.status')
                             ->orWhere('gastronomy_order_items.status', '!=', 'cancelled');
                     })
-                    ->selectRaw('gastronomy_order_items.product_id, sum(gastronomy_order_items.quantity) as total')
+                    ->selectRaw('gastronomy_order_items.product_id, sum(gastronomy_order_items.quantity) as total_sold')
                     ->groupBy('gastronomy_order_items.product_id')
-                    ->orderByDesc('total')
+                    ->orderByDesc('total_sold')
                     ->orderBy('gastronomy_order_items.product_id')
                     ->limit(6)
-                    ->pluck('product_id')
-                    ->toArray();
+                    ->pluck('total_sold', 'product_id')
+                    ->map(fn ($v) => (int) $v)
+                    ->all();
             }
         );
 
-        $topSellingProducts = empty($topSellingIds)
-            ? collect()
+        $topSellingIds = array_keys($topSellingCounts);
+        $topSellingOrder = [];
+        foreach (array_values($topSellingIds) as $i => $pid) {
+            $topSellingOrder[(int) $pid] = $i;
+        }
+
+        $topSellingProducts = $topSellingIds === []
+            ? []
             : \App\Models\Product::where('tenant_id', $tenant->id)
                 ->where('is_available', true)
                 ->where('status', 'active')
                 ->whereIn('id', $topSellingIds)
                 ->with(['variantGroups.options'])
                 ->get()
-                ->sortBy(fn ($p) => array_search($p->id, $topSellingIds))
-                ->values();
+                ->sortBy(fn ($p) => $topSellingOrder[(int) $p->id] ?? 999)
+                ->values()
+                ->map(function ($p) use ($topSellingCounts) {
+                    $sold = 0;
+                    foreach ($topSellingCounts as $pid => $qty) {
+                        if ((int) $pid === (int) $p->id) {
+                            $sold = (int) $qty;
+                            break;
+                        }
+                    }
+
+                    return array_merge($p->toArray(), [
+                        'sold_count_30d' => $sold,
+                    ]);
+                })
+                ->values()
+                ->all();
 
         $tickers = \App\Models\Tenant\All\Ticker::select(['id', 'content', 'link', 'background_color', 'text_color', 'order'])
             ->where('is_active', true)
@@ -305,6 +330,9 @@ class PublicController extends Controller
             'products' => $cat->products->values()->all(),
         ])->all();
 
+        $activePublicOrders = $this->activePublicOrdersForHome();
+        $activePublicReservations = $this->activePublicReservationsForHome();
+
         return Inertia::render('Tenant/Gastronomy/Public/Home', [
             'tenant' => $tenant,
             'sliders' => $sliders,
@@ -314,6 +342,8 @@ class PublicController extends Controller
             'top_categories' => $topCategoriesForHome,
             'tickers' => $tickers,
             'promo_shorts' => $promoShorts,
+            'active_public_orders' => $activePublicOrders,
+            'active_public_reservations' => $activePublicReservations,
         ]);
     }
 
@@ -599,20 +629,326 @@ class PublicController extends Controller
         }
     }
 
-    public function success(Request $request, $tenant, $orderId)
+    public function success(Request $request, $tenant, $order)
     {
-        $order = \App\Models\Tenant\Gastronomy\Order::findOrFail($orderId);
+        $orderModel = Order::query()->whereKey($order)->firstOrFail();
         $tenant = app('currentTenant');
 
-        if ($order->tenant_id !== $tenant->id) {
+        if ($orderModel->tenant_id !== $tenant->id) {
             abort(404);
         }
 
-        $order->load(['items.product', 'table', 'statusHistory']);
+        $this->trackPublicGastronomyOrderId((int) $orderModel->id);
+
+        $orderModel->load(['items.product', 'table', 'statusHistory']);
 
         return Inertia::render('Tenant/Gastronomy/Public/Checkout/Success', [
             'tenant' => $tenant,
-            'order' => $order,
+            'order' => $orderModel,
         ]);
+    }
+
+    /**
+     * Refuerza sesión + cookie para el timeline (p. ej. tras checkout o al abrir el éxito en otro tab).
+     */
+    public function trackOrderForTimeline(Request $request): JsonResponse
+    {
+        $tenant = app('currentTenant');
+        $validated = $request->validate([
+            'order_id' => 'required|integer|min:1',
+        ]);
+
+        $order = Order::query()->whereKey($validated['order_id'])->firstOrFail();
+        if ((int) $order->tenant_id !== (int) $tenant->id) {
+            abort(404);
+        }
+
+        $this->trackPublicGastronomyOrderId((int) $order->id);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * IDs de pedidos hechos desde la tienda pública (sesión + cookie) para el timeline en el home.
+     * La cookie evita perder el listado si la sesión se regenera o caduca.
+     */
+    private const SESSION_PUBLIC_ORDER_IDS = 'gastronomy_public_order_ids';
+
+    /** Distinta del nombre de la clave de sesión para evitar solapamientos con el stack HTTP. */
+    private const COOKIE_PUBLIC_ORDER_IDS = 'gastronomy_tracked_order_ids_ck';
+
+    /** Minutos de vida de la cookie (~1 año). */
+    private const COOKIE_ORDER_IDS_MINUTES = 525600;
+
+    private const SESSION_PUBLIC_RESERVATION_IDS = 'gastronomy_public_reservation_ids';
+
+    private const COOKIE_PUBLIC_RESERVATION_IDS = 'gastronomy_tracked_reservation_ids_ck';
+
+    /**
+     * @return array<int, int>
+     */
+    private function readTrackedOrderIdsFromCookie(): array
+    {
+        $raw = request()->cookie(self::COOKIE_PUBLIC_ORDER_IDS);
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $decoded))));
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     */
+    private function persistTrackedOrderIds(array $ids): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_slice($ids, -30);
+        session([self::SESSION_PUBLIC_ORDER_IDS => $ids]);
+
+        Cookie::queue(
+            self::COOKIE_PUBLIC_ORDER_IDS,
+            json_encode($ids),
+            self::COOKIE_ORDER_IDS_MINUTES,
+            '/',
+            null,
+            (bool) config('session.secure'),
+            true,
+            false,
+            'lax'
+        );
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function mergedTrackedOrderIds(): array
+    {
+        $sessionIds = array_map('intval', session(self::SESSION_PUBLIC_ORDER_IDS, []));
+        $cookieIds = $this->readTrackedOrderIdsFromCookie();
+        // Cookie antigua (mismo nombre que la sesión) por si el navegador aún la tenía guardada
+        $legacyCookie = $this->readLegacyTrackedOrderIdsFromCookie();
+
+        return array_values(array_unique(array_merge($sessionIds, $cookieIds, $legacyCookie)));
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function readLegacyTrackedOrderIdsFromCookie(): array
+    {
+        $raw = request()->cookie(self::SESSION_PUBLIC_ORDER_IDS);
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $decoded))));
+    }
+
+    private function trackPublicGastronomyOrderId(int $orderId): void
+    {
+        $merged = $this->mergedTrackedOrderIds();
+        $merged[] = $orderId;
+        $this->persistTrackedOrderIds($merged);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function readTrackedReservationIdsFromCookie(): array
+    {
+        $raw = request()->cookie(self::COOKIE_PUBLIC_RESERVATION_IDS);
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $decoded))));
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     */
+    private function persistTrackedReservationIds(array $ids): void
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_slice($ids, -30);
+        session([self::SESSION_PUBLIC_RESERVATION_IDS => $ids]);
+
+        Cookie::queue(
+            self::COOKIE_PUBLIC_RESERVATION_IDS,
+            json_encode($ids),
+            self::COOKIE_ORDER_IDS_MINUTES,
+            '/',
+            null,
+            (bool) config('session.secure'),
+            true,
+            false,
+            'lax'
+        );
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function mergedTrackedReservationIds(): array
+    {
+        $sessionIds = array_map('intval', session(self::SESSION_PUBLIC_RESERVATION_IDS, []));
+        $cookieIds = $this->readTrackedReservationIdsFromCookie();
+
+        return array_values(array_unique(array_merge($sessionIds, $cookieIds)));
+    }
+
+    /** Registra la reserva en sesión + cookie para el timeline del home (p. ej. tras crear la solicitud). */
+    public function trackPublicReservationId(int $reservationId): void
+    {
+        $merged = $this->mergedTrackedReservationIds();
+        $merged[] = $reservationId;
+        $this->persistTrackedReservationIds($merged);
+    }
+
+    /**
+     * Reservas activas del visitante (sesión + cookie) para el carrusel del home.
+     *
+     * @return array<int, array{id: int, reservation_date: string, reservation_time: string, party_size: int, timeline_status: string, created_at: string}>
+     */
+    private function activePublicReservationsForHome(): array
+    {
+        $tenant = app('currentTenant');
+        $trackedIds = array_map('intval', $this->mergedTrackedReservationIds());
+        if ($trackedIds === []) {
+            return [];
+        }
+
+        $reservations = Reservation::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('id', $trackedIds)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $terminal = ['cancelled', 'no_show'];
+        $activeStatuses = ['pending', 'confirmed', 'seated'];
+
+        $foundIds = $reservations->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $orphanIds = array_values(array_diff($trackedIds, $foundIds));
+        $terminalIds = $reservations->filter(fn ($r) => in_array($r->status, $terminal, true))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $this->persistTrackedReservationIds(array_values(array_diff($trackedIds, $orphanIds, $terminalIds)));
+
+        $tz = config('app.timezone');
+        $today = Carbon::today($tz);
+
+        $forDisplay = $reservations->filter(function (Reservation $r) use ($activeStatuses, $today) {
+            if (! in_array($r->status, $activeStatuses, true)) {
+                return false;
+            }
+
+            return $r->reservation_date->copy()->startOfDay()->gte($today);
+        })->values();
+
+        return $forDisplay->map(function (Reservation $reservation) {
+            return [
+                'id' => $reservation->id,
+                'reservation_date' => $reservation->reservation_date->format('Y-m-d'),
+                'reservation_time' => (string) $reservation->reservation_time,
+                'party_size' => (int) $reservation->party_size,
+                'timeline_status' => $this->mapReservationStatusToTimeline($reservation->status),
+                'created_at' => $reservation->created_at->toIso8601String(),
+            ];
+        })->all();
+    }
+
+    private function mapReservationStatusToTimeline(string $status): string
+    {
+        return match ($status) {
+            'pending' => 'solicitada',
+            'confirmed' => 'confirmada',
+            'seated' => 'sentado',
+            default => 'solicitada',
+        };
+    }
+
+    /**
+     * Pedidos activos del visitante (sesión + cookie) para el carrusel del home.
+     *
+     * @return array<int, array{id: int, order_number: string, estimated_delivery_range: string, timeline_status: string}>
+     */
+    private function activePublicOrdersForHome(): array
+    {
+        $trackedIds = array_map('intval', $this->mergedTrackedOrderIds());
+        if ($trackedIds === []) {
+            return [];
+        }
+
+        // Sin filtrar por estado aquí: si solo usábamos estados «activos», un estado distinto en BD
+        // hacía que el resultado fuera vacío y se borraban todos los IDs guardados (sesión/cookie).
+        $orders = Order::query()
+            ->whereIn('id', $trackedIds)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $terminal = ['completed', 'cancelled'];
+        $activeStatuses = ['pending', 'confirmed', 'preparing', 'ready'];
+
+        $foundIds = $orders->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $orphanIds = array_values(array_diff($trackedIds, $foundIds));
+        $terminalIds = $orders->filter(fn ($o) => in_array($o->status, $terminal, true))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $this->persistTrackedOrderIds(array_values(array_diff($trackedIds, $orphanIds, $terminalIds)));
+
+        $forDisplay = $orders->filter(fn ($o) => in_array($o->status, $activeStatuses, true))->values();
+
+        return $forDisplay->map(function (Order $order) {
+            return [
+                'id' => $order->id,
+                'order_number' => str_pad((string) $order->id, 4, '0', STR_PAD_LEFT),
+                'estimated_delivery_range' => $this->estimatedDeliveryRangeForOrder($order),
+                'timeline_status' => $this->mapGastronomyOrderStatusToTimeline($order->status),
+                'created_at' => $order->created_at->toIso8601String(),
+            ];
+        })->all();
+    }
+
+    private function estimatedDeliveryRangeForOrder(Order $order): string
+    {
+        $tz = config('app.timezone');
+        $start = $order->created_at->copy()->timezone($tz)->addMinutes(20);
+        $end = $order->created_at->copy()->timezone($tz)->addMinutes(35);
+        if ($end->isPast()) {
+            $start = now($tz)->addMinutes(10);
+            $end = now($tz)->addMinutes(25);
+        }
+
+        $fmt = static fn (Carbon $c): string => $c->locale(app()->getLocale())->translatedFormat('H:i');
+
+        return $fmt($start).' - '.$fmt($end);
+    }
+
+    private function mapGastronomyOrderStatusToTimeline(string $status): string
+    {
+        return match ($status) {
+            'pending' => 'recibido',
+            'confirmed' => 'confirmado',
+            'preparing' => 'preparando',
+            'ready' => 'en_camino',
+            default => 'recibido',
+        };
     }
 }

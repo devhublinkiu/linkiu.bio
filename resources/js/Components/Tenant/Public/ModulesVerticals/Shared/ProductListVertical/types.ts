@@ -7,4 +7,6 @@ export interface ProductListVerticalProduct {
     image_url?: string;
     is_featured: boolean;
     variant_groups?: unknown[];
+    /** Unidades vendidas (ventana backend, p. ej. 30 días) — top más vendidos. */
+    sold_count_30d?: number;
 }

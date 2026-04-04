@@ -41,7 +41,7 @@ export default function HeaderTopBestSeller({
                     />
                 </div>
 
-                <h2 id={headingId} className="min-w-0 text-slate-700">
+                <h2 id={headingId} className="min-w-0 text-slate-950">
                     <span className="mb-0 block text-[40px] font-extrabold leading-[32px] tracking-[-2px]">
                         Top {topCount}
                     </span>

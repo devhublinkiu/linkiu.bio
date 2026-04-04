@@ -96,6 +96,6 @@ class Order extends Model
 
     public static function topSellingProductsCacheKey(int $tenantId): string
     {
-        return "tenant.{$tenantId}.gastronomy.top_selling_products.v1";
+        return "tenant.{$tenantId}.gastronomy.top_selling_products.v2";
     }
 }

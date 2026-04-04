@@ -338,6 +338,7 @@ Route::prefix('{tenant}')->group(function () {
     // Checkout & Orders
     Route::get('/checkout', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'checkout'])->name('tenant.checkout');
     Route::post('/checkout/process', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'processCheckout'])->name('tenant.checkout.process');
+    Route::post('/pedidos/rastrear', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'trackOrderForTimeline'])->name('tenant.orders.track-timeline');
     Route::get('/pedido/{order}', [\App\Http\Controllers\Tenant\Gastronomy\PublicController::class , 'success'])->name('tenant.checkout.success');
     Route::post('/pos/orders', [\App\Http\Controllers\Tenant\Gastronomy\POSController::class , 'store'])->name('tenant.pos.store');
 

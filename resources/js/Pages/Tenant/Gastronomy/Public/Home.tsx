@@ -10,6 +10,10 @@ import HeaderSectionProducts from '@/Components/Tenant/Public/ModulesVerticals/S
 import ProductListVertical, { type ProductListVerticalRef } from '@/Components/Tenant/Public/ModulesVerticals/Shared/ProductListVertical';
 import TickersPromo from '@/Components/Tenant/Public/ModulesVerticals/Shared/TickersPromo';
 import ShortsFeed from '@/Components/Tenant/Public/ModulesVerticals/Shared/ShortsFeed';
+import SuccesTimelineShort, {
+    type ActivePublicOrder,
+    type ActivePublicReservation,
+} from '@/Components/Tenant/Public/ModulesVerticals/Shared/SuccesTimelineShort';
 
 interface TenantBrandColors {
     bg_color?: string;
@@ -33,6 +37,7 @@ interface HomeProduct {
     is_featured: boolean;
     short_description?: string;
     variant_groups?: any[];
+    sold_count_30d?: number;
 }
 
 interface HomeSlider {
@@ -54,13 +59,17 @@ interface PromoShort {
 }
 
 interface Props {
-    tenant: { name: string; slug: string; logo_url?: string; store_description?: string; brand_colors?: TenantBrandColors };
+    tenant: { id: number; name: string; slug: string; logo_url?: string; store_description?: string; brand_colors?: TenantBrandColors };
     sliders: HomeSlider[];
     categories: HomeCategory[];
     featured_products?: HomeProduct[];
     top_selling_products?: HomeProduct[];
     tickers: Ticker[];
     promo_shorts?: PromoShort[];
+    /** Pedidos activos del visitante (sesión) para el timeline del home. */
+    active_public_orders?: ActivePublicOrder[];
+    /** Reservas activas del visitante (sesión) para el timeline del home. */
+    active_public_reservations?: ActivePublicReservation[];
 }
 
 export default function Home({
@@ -71,6 +80,8 @@ export default function Home({
     top_selling_products = [],
     tickers,
     promo_shorts = [],
+    active_public_orders = [],
+    active_public_reservations = [],
 }: Props) {
     const brandColors = tenant.brand_colors ?? {};
     const bg_color = brandColors.bg_color ?? '#db2777';
@@ -84,6 +95,19 @@ export default function Home({
         setDrawerOpen(true);
     };
 
+    const hasOrders = active_public_orders.length > 0;
+    const hasReservations = active_public_reservations.length > 0;
+    const timelineTitle =
+        hasOrders && hasReservations
+            ? 'Pedidos y reservas activas'
+            : hasReservations
+              ? 'Tus reservas activas'
+              : 'Tus órdenes activas';
+    const pillSuffixSingular =
+        hasOrders && hasReservations ? 'activo' : hasReservations ? 'reserva' : 'orden';
+    const pillSuffixPlural =
+        hasOrders && hasReservations ? 'activos' : hasReservations ? 'reservas' : 'órdenes';
+
     return (
         <PublicLayout bgColor={bg_color}>
             <Head title={tenant.name} />
@@ -94,6 +118,15 @@ export default function Home({
 
             <div className="flex-1 min-w-0 p-4 -mt-4 relative z-0 pb-4 flex flex-col gap-4">
                 <SlidersPromo sliders={sliders} tenantSlug={tenant.slug} />
+
+                <SuccesTimelineShort
+                    orders={active_public_orders}
+                    reservations={active_public_reservations}
+                    tenantId={tenant.id}
+                    title={timelineTitle}
+                    pillSuffixSingular={pillSuffixSingular}
+                    pillSuffixPlural={pillSuffixPlural}
+                />
 
                 <CategoryShort categories={categories} tenantSlug={tenant.slug} />
 
